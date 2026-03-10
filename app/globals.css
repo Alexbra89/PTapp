@@ -805,3 +805,38 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 700; letter-s
 .okt-add-sett    { margin-top: 8px; background: none; border: 1px dashed rgba(255,255,255,0.13); color: rgba(255,255,255,0.3); border-radius: 8px; padding: 5px 12px; font-size: 0.75rem; cursor: pointer; font-family: var(--font-body); width: 100%; transition: all 0.15s; }
 .okt-add-sett:hover { border-color: var(--cyan); color: var(--cyan); }
 .okt-lagre-bunn  { width: 100%; margin-top: 1.5rem; padding: 0.875rem !important; font-size: 0.95rem !important; }
+
+/* ─── TILBAKEKNAPP NEDERST ─────────────────────────── */
+.dash-footer-nav {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0 2rem 0;
+  width: 100%;
+}
+
+.dash-back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 245, 255, 0.08);
+  border: 1px solid rgba(0, 245, 255, 0.2);
+  border-radius: 999px;
+  padding: 0.6rem 1.8rem;
+  color: var(--cyan);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+
+.dash-back-button:hover {
+  background: rgba(0, 245, 255, 0.15);
+  border-color: rgba(0, 245, 255, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 245, 255, 0.1);
+}
+
+.dash-back-button:active {
+  transform: translateY(0);
+}

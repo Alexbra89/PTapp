@@ -100,7 +100,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       <main className="dash-main">
-        {/* Topprad med hamburger og tilbakeknapp */}
+        {/* Header med hamburger */}
         <div className="dash-header">
           <div className="dash-header-left">
             <button 
@@ -112,17 +112,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span></span>
               <span></span>
             </button>
-            
-            {/* Tilbakeknapp (vises på mobil når sidebar er lukket) */}
-            {!sidebarOpen && (
-              <button 
-                className="dash-back-btn" 
-                onClick={() => router.back()}
-                aria-label="Tilbake"
-              >
-                ←
-              </button>
-            )}
           </div>
 
           <div className="dash-header-right">
@@ -137,6 +126,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Innhold */}
         <div className="dash-content">
           {children}
+        </div>
+
+        {/* Tilbakeknapp nederst - midtstilt */}
+        <div className="dash-footer-nav">
+          <button 
+            className="dash-back-button"
+            onClick={() => router.back()}
+          >
+            ← Tilbake
+          </button>
         </div>
       </main>
     </>
