@@ -107,7 +107,7 @@ export default function ProfilPage() {
     const payload = {
       id:          user.id,
       epost:       user.email ?? '',
-      navn:        navn.trim() || user.email ?? '',
+      navn:        navn.trim() || (user.email ?? ''),
       vekt:        Number(vekt) || 0,
       hoyde:       Number(hoyde) || 0,
       mal,
