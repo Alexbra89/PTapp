@@ -56,7 +56,7 @@ export default function Login() {
         password: DEMO_PASSORD,
       })
       if (!loginError) {
-        router.push('/dashboard')
+        router.push('/')
         router.refresh()
         return
       }

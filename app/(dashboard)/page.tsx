@@ -92,35 +92,78 @@ export default function DashboardPage() {
   return (
     <div className="db-page anim-fade-up">
 
-      {/* ── Hero ── */}
-      <div className="db-hero glass-card">
-        <div className="db-hero-shine" />
-        <div className="db-hero-inner">
-          <div className="db-hero-left">
-            <div className="db-dato-badge">
-              <span className="neon-dot-cyan anim-pulse" />
-              <span className="db-dato-txt">{dagNavn}</span>
-            </div>
-            <h1 className="db-hilsen">{hilsen}, {fornavn}!</h1>
-            <div
-              className="db-tips-badge"
-              style={{
-                background:   `${tips.farge}12`,
-                borderColor:  `${tips.farge}40`,
-              }}
-            >
-              <span
-                className="neon-dot"
-                style={{ background: tips.farge, boxShadow: `0 0 8px ${tips.farge}` }}
-              />
-              <span className="db-tips-txt" style={{ color: tips.farge }}>{tips.tekst}</span>
-            </div>
-          </div>
-          <Link href="/treninger" className="btn btn-primary db-hero-cta">
-            ⚡ Start treningsøkt
-          </Link>
-        </div>
+{/* ── Hero ── */}
+<div className="db-hero glass-card" style={{ overflow: 'hidden', position: 'relative' }}>
+  <div className="db-hero-shine" />
+  <div className="db-hero-inner" style={{ 
+    display: 'flex', 
+    flexDirection: 'column', // Standard for mobil: alt under hverandre
+    gap: '24px',
+    padding: '24px',
+    // På større skjermer (PC) endrer vi til rad-visning:
+    alignItems: 'flex-start',
+    justifyContent: 'space-between'
+  }}>
+    <div className="db-hero-left" style={{ width: '100%' }}>
+      <div className="db-dato-badge" style={{ marginBottom: '12px' }}>
+        <span className="neon-dot-cyan anim-pulse" />
+        <span className="db-dato-txt">{dagNavn}</span>
       </div>
+      
+      <h1 className="db-hilsen" style={{ 
+        fontSize: 'clamp(2rem, 8vw, 2.8rem)', 
+        lineHeight: '1.1',
+        marginBottom: '16px',
+        fontWeight: '900'
+      }}>
+        {hilsen},<br /> {fornavn}!
+      </h1>
+
+      <div
+        className="db-tips-badge"
+        style={{
+          background: `${tips.farge}12`,
+          borderColor: `${tips.farge}40`,
+          borderWidth: '1px',
+          borderStyle: 'solid',
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '10px 16px',
+          borderRadius: '100px'
+        }}
+      >
+        <span
+          className="neon-dot"
+          style={{ 
+            background: tips.farge, 
+            boxShadow: `0 0 12px ${tips.farge}`, 
+            marginRight: '10px',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%'
+          }}
+        />
+        <span className="db-tips-txt" style={{ color: tips.farge, fontWeight: '600', fontSize: '0.9rem' }}>
+          {tips.tekst}
+        </span>
+      </div>
+    </div>
+    
+    <Link href="/treninger" className="btn btn-primary db-hero-cta" style={{ 
+      width: '100%', // Full bredde på mobil for enklere trykking
+      padding: '18px',
+      fontSize: '1.1rem',
+      fontWeight: 'bold',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '16px',
+      boxShadow: '0 10px 20px -5px rgba(0, 245, 255, 0.3)'
+    }}>
+      ⚡ Start treningsøkt
+    </Link>
+  </div>
+</div>
 
       {/* ── Stats ── */}
       <div className="db-stats">
