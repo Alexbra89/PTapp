@@ -43,31 +43,78 @@ export default function DashboardPage() {
   return (
     <div className="db-page anim-fade-up">
 
-      {/* ── Hero ── */}
+      {/* ── Hero med justert knapp for mobil ── */}
       <div className="db-hero glass-card">
         <div className="db-hero-shine" />
-        <div className="db-hero-inner">
-          <div className="db-hero-left">
-            <div className="db-dato-badge">
+        <div className="db-hero-inner" style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: '24px',
+          padding: '24px',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between'
+        }}>
+          <div className="db-hero-left" style={{ width: '100%' }}>
+            <div className="db-dato-badge" style={{ marginBottom: '12px' }}>
               <span className="neon-dot-cyan anim-pulse" />
               <span className="db-dato-txt">{dagNavn}</span>
             </div>
-            <h1 className="db-hilsen">
-              {hilsen},<br />{fornavn}!
+            
+            <h1 className="db-hilsen" style={{ 
+              fontSize: 'clamp(2rem, 8vw, 2.8rem)', 
+              lineHeight: '1.1',
+              marginBottom: '16px',
+              fontWeight: '900'
+            }}>
+              {hilsen},<br /> {fornavn}!
             </h1>
-            <div className="db-tips-badge"
+
+            <div
+              className="db-tips-badge"
               style={{
-                background:  `${tips.farge}12`,
+                background: `${tips.farge}12`,
                 borderColor: `${tips.farge}40`,
                 borderWidth: '1px',
                 borderStyle: 'solid',
-              }}>
-              <span className="neon-dot"
-                style={{ background: tips.farge, boxShadow: `0 0 12px ${tips.farge}` }} />
-              <span className="db-tips-txt" style={{ color: tips.farge }}>{tips.tekst}</span>
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '10px 16px',
+                borderRadius: '100px',
+                marginBottom: '20px'
+              }}
+            >
+              <span
+                className="neon-dot"
+                style={{ 
+                  background: tips.farge, 
+                  boxShadow: `0 0 12px ${tips.farge}`, 
+                  marginRight: '10px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%'
+                }}
+              />
+              <span className="db-tips-txt" style={{ color: tips.farge, fontWeight: '600', fontSize: '0.9rem' }}>
+                {tips.tekst}
+              </span>
             </div>
           </div>
-          <Link href="/treninger" className="btn btn-primary db-hero-cta">
+          
+          <Link 
+            href="/treninger" 
+            className="btn btn-primary db-hero-cta" 
+            style={{ 
+              width: '100%',
+              padding: '16px 24px',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '12px',
+              marginTop: '0'
+            }}
+          >
             ⚡ Start treningsøkt
           </Link>
         </div>
