@@ -1,4 +1,21 @@
-import withPWA from '@ducanh2912/next-pwa'  // ← RIKTIG!
+/** @type {import('next').NextConfig} */
+
+// Robust PWA-import som fungerer uansett hvilken versjon som er installert
+// og uansett Vercel sin cache-situasjon
+let withPWA
+try {
+  // Ny pakke (det vi bruker)
+  withPWA = (await import('@ducanh2912/next-pwa')).default
+} catch {
+  try {
+    // Fallback til gammel pakke hvis noen har begge installert
+    withPWA = (await import('next-pwa')).default
+  } catch {
+    // Ingen PWA-pakke funnet – bygg uten PWA (skjer ikke i prod)
+    console.warn('⚠️  Ingen PWA-pakke funnet, bygger uten PWA')
+    withPWA = (config) => config
+  }
+}
 
 const pwaConfig = withPWA({
   dest: 'public',
@@ -52,7 +69,6 @@ const pwaConfig = withPWA({
   ],
 })
 
-/** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   compress: true,
