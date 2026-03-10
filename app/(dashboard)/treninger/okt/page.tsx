@@ -322,13 +322,24 @@ function OktInner() {
 
       {/* ── Stoppeklokke ── */}
       <div className={`okt-klokke glass-card${alarm ? ' okt-alarm' : ''}`}>
-        <div className="okt-klokke-venstre">
-          <div className="okt-tid" style={{color: alarm ? '#ff4444' : kjoerer ? 'var(--cyan)' : 'rgba(255,255,255,0.4)'}}>
-            {formatTid(sekunder)}
+        {/* Øverste rad: tid + start/pause knapp */}
+        <div className="okt-klokke-rad1">
+          <div className="okt-klokke-venstre">
+            <div className="okt-tid" style={{color: alarm ? '#ff4444' : kjoerer ? 'var(--cyan)' : 'rgba(255,255,255,0.4)'}}>
+              {formatTid(sekunder)}
+            </div>
+            <div className="okt-klokke-info">{alarm ? '⚠️ TID ER UTE!' : kjoerer ? '⏱ Pågår...' : klokkeMode === 'ned' ? `Nedtelling: ${nedMal} min` : 'Stoppeklokke'}</div>
           </div>
-          <div className="okt-klokke-info">{alarm ? '⚠️ TID ER UTE!' : kjoerer ? '⏱ Pågår...' : klokkeMode === 'ned' ? `Nedtelling: ${nedMal} min` : 'Stoppeklokke'}</div>
+          <div className="okt-klokke-hoeyre">
+            {!kjoerer
+              ? <button className="btn btn-primary okt-k-btn" onClick={startKlokke}>▶ Start</button>
+              : <button className="btn btn-ghost  okt-k-btn" onClick={() => setKjoerer(false)}>⏸ Pause</button>
+            }
+            <button className="okt-reset" onClick={nullstillKlokke} title="Nullstill">↺</button>
+          </div>
         </div>
-        <div className="okt-klokke-midt">
+        {/* Nederste rad: modus-velger */}
+        <div className="okt-klokke-rad2">
           <div className="okt-modus-rad">
             <button className={`okt-modus${klokkeMode==='stopp'?' on':''}`} onClick={() => { setKlokkeMode('stopp'); nullstillKlokke() }}>⏱ Stopp</button>
             <button className={`okt-modus${klokkeMode==='ned'?' on':''}`}  onClick={() => { setKlokkeMode('ned');  nullstillKlokke() }}>⏳ Ned</button>
@@ -345,13 +356,6 @@ function OktInner() {
               </div>
             </div>
           )}
-        </div>
-        <div className="okt-klokke-hoeyre">
-          {!kjoerer
-            ? <button className="btn btn-primary okt-k-btn" onClick={startKlokke}>▶ Start</button>
-            : <button className="btn btn-ghost  okt-k-btn" onClick={() => setKjoerer(false)}>⏸ Pause</button>
-          }
-          <button className="okt-reset" onClick={nullstillKlokke} title="Nullstill">↺</button>
         </div>
       </div>
 
@@ -573,16 +577,25 @@ function OktInner() {
 
         /* ── Stoppeklokke på økt-siden ── */
         .okt-klokke {
-          display: flex; align-items: center; gap: 1rem; padding: 0.875rem 1.25rem;
-          margin-bottom: 1rem; flex-wrap: wrap;
+          display: flex; flex-direction: column; gap: 0.75rem;
+          padding: 1rem 1.25rem; margin-bottom: 1rem;
         }
         @keyframes alarmP { from{box-shadow:0 0 0 rgba(255,68,68,0);} to{box-shadow:0 0 18px rgba(255,68,68,0.3);} }
         .okt-alarm { border-color: rgba(255,68,68,0.4) !important; animation: alarmP 0.5s ease-in-out infinite alternate; }
-        .okt-klokke-venstre { flex-shrink:0; min-width:80px; }
+
+        /* Rad 1: tid + start/pause (alltid på én linje) */
+        .okt-klokke-rad1 {
+          display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        }
+        .okt-klokke-venstre { flex-shrink:0; }
         .okt-tid { font-family:var(--font-display,monospace); font-size:2rem; font-weight:800; letter-spacing:0.04em; font-variant-numeric:tabular-nums; line-height:1; }
         .okt-klokke-info { font-size:0.62rem; color:rgba(255,255,255,0.28); margin-top:2px; }
-        .okt-klokke-midt { flex:1; min-width:0; }
-        .okt-modus-rad { display:flex; gap:5px; margin-bottom:6px; }
+        .okt-klokke-hoeyre { display:flex; gap:6px; align-items:center; flex-shrink:0; }
+        .okt-k-btn { font-size:0.82rem !important; padding:0.5rem 1.25rem !important; min-width: 90px; }
+
+        /* Rad 2: modus-velger */
+        .okt-klokke-rad2 { display:flex; flex-direction: column; gap: 6px; }
+        .okt-modus-rad { display:flex; gap:5px; }
         .okt-modus { padding:3px 10px; border-radius:999px; font-size:0.68rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.38); cursor:pointer; font-family:var(--font-body,sans-serif); transition:all 0.12s; }
         .okt-modus.on { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.3); color:var(--cyan); }
         .okt-ned-rad { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -591,9 +604,7 @@ function OktInner() {
         .okt-quick-rad { display:flex; gap:2px; flex-wrap:wrap; }
         .okt-quick { padding:2px 5px; border-radius:5px; font-size:0.6rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); color:rgba(255,255,255,0.3); cursor:pointer; font-family:var(--font-body,sans-serif); transition:all 0.1s; }
         .okt-quick.on { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.25); color:var(--cyan); }
-        .okt-klokke-hoeyre { display:flex; gap:6px; align-items:center; flex-shrink:0; }
-        .okt-k-btn { font-size:0.75rem !important; padding:0.4rem 0.875rem !important; }
-        .okt-reset { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.35); width:28px; height:28px; border-radius:7px; cursor:pointer; font-size:0.8rem; transition:all 0.12s; }
+        .okt-reset { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.35); width:32px; height:32px; border-radius:7px; cursor:pointer; font-size:0.9rem; transition:all 0.12s; display:flex; align-items:center; justify-content:center; }
         .okt-reset:hover { background:rgba(255,255,255,0.1); color:#fff; }
 
       `}</style>

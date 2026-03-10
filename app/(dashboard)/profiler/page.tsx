@@ -10,6 +10,7 @@ interface Profil {
   vekt: number
   hoyde: number
   mal: string
+  onsket_vekt?: number
 }
 
 const MAL_OPTIONS = [
@@ -42,10 +43,11 @@ export default function ProfilPage() {
   const [stats,     setStats]     = useState({ okter: 0, kg: 0 })
 
   // Form state
-  const [navn,   setNavn]  = useState('')
-  const [vekt,   setVekt]  = useState<number|''>('')
-  const [hoyde,  setHoyde] = useState<number|''>('')
-  const [mal,    setMal]   = useState('bygge_muskler')
+  const [navn,        setNavn]       = useState('')
+  const [vekt,        setVekt]       = useState<number|''>('')
+  const [hoyde,       setHoyde]      = useState<number|''>('')
+  const [mal,         setMal]        = useState('bygge_muskler')
+  const [onsketVekt,  setOnsketVekt] = useState<number|''>('')
 
   // Live BMI fra form
   const liveBmi  = beregnBMI(Number(vekt), Number(hoyde))
@@ -63,14 +65,14 @@ export default function ProfilPage() {
 
     const { data } = await supabase
       .from('profiler')
-      .select('id, epost, navn, vekt, hoyde, mal')
+      .select('id, epost, navn, vekt, hoyde, mal, onsket_vekt')
       .eq('id', user.id)
       .single()
 
     const p: Profil = data ?? {
       id: user.id, epost: user.email ?? '',
       navn: user.user_metadata?.full_name ?? '',
-      vekt: 0, hoyde: 0, mal: 'bygge_muskler',
+      vekt: 0, hoyde: 0, mal: 'bygge_muskler', onsket_vekt: 0,
     }
 
     setProfil(p)
@@ -78,6 +80,7 @@ export default function ProfilPage() {
     setVekt(p.vekt || '')
     setHoyde(p.hoyde || '')
     setMal(p.mal || 'bygge_muskler')
+    setOnsketVekt(p.onsket_vekt || '')
 
     // Stats
     const { count: okter } = await supabase
@@ -102,12 +105,13 @@ export default function ProfilPage() {
 
     // Bare kolonnene som eksisterer i tabellen
     const payload = {
-      id:    user.id,
-      epost: user.email ?? '',
-      navn:  navn.trim() || (user.email ?? ''),
-      vekt:  Number(vekt) || 0,
-      hoyde: Number(hoyde) || 0,
+      id:          user.id,
+      epost:       user.email ?? '',
+      navn:        navn.trim() || user.email ?? '',
+      vekt:        Number(vekt) || 0,
+      hoyde:       Number(hoyde) || 0,
       mal,
+      onsket_vekt: Number(onsketVekt) || 0,
     }
 
     const { error } = await supabase
@@ -196,6 +200,51 @@ export default function ProfilPage() {
         ))}
       </div>
 
+      {/* Vektmål-fremgang (vises om onsket_vekt er satt) */}
+      {profil?.onsket_vekt && profil.onsket_vekt > 0 && profil.vekt > 0 && (() => {
+        const diff        = profil.vekt - profil.onsket_vekt
+        const absDiff     = Math.abs(diff).toFixed(1)
+        const erNedgang   = diff > 0
+        const erMål       = diff <= 0
+        const color       = erMål ? 'var(--green)' : erNedgang ? 'var(--cyan)' : 'var(--orange)'
+        const startVekt   = profil.vekt  // nåværende (kan forbedres med logg)
+        const pct         = Math.max(0, Math.min(100,
+          erNedgang
+            ? Math.round(((startVekt - profil.vekt) / (startVekt - profil.onsket_vekt)) * 100)
+            : 100
+        ))
+        return (
+          <div className="pr-maal-kort glass-card">
+            <div className="pr-maal-top">
+              <div>
+                <div className="pr-maal-tittel">🎯 Vektmål</div>
+                <div className="pr-maal-sub">
+                  {erMål
+                    ? '🎉 Du har nådd målvekten!'
+                    : erNedgang
+                    ? `${absDiff} kg igjen til målvekt`
+                    : `${absDiff} kg over målvekt`
+                  }
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, color }}>
+                  {profil.onsket_vekt} kg
+                </div>
+                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Målvekt</div>
+              </div>
+            </div>
+            <div className="pr-maal-bar-bg">
+              <div className="pr-maal-bar-fill" style={{ width: `${pct}%`, background: color }} />
+            </div>
+            <div className="pr-maal-etiketter">
+              <span>{profil.vekt} kg (nå)</span>
+              <span>{profil.onsket_vekt} kg (mål)</span>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Redigeringsform */}
       {redigerer ? (
         <div className="pr-form glass-card">
@@ -220,6 +269,14 @@ export default function ProfilPage() {
               <input className="input" type="number" min={100} max={250}
                 value={hoyde}
                 onChange={e => setHoyde(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+            </div>
+
+            <div className="pr-form-field">
+              <label className="pr-label">Ønsket vekt (kg)</label>
+              <input className="input" type="number" min={30} max={300} step={0.5}
+                placeholder="f.eks. 80"
+                value={onsketVekt}
+                onChange={e => setOnsketVekt(e.target.value === '' ? '' : parseFloat(e.target.value))} />
             </div>
 
             {/* Live BMI */}
@@ -269,8 +326,9 @@ export default function ProfilPage() {
             <div className="pr-card-title">🏋️ Kropp</div>
             <div className="pr-info-rows">
               {[
-                { label: 'Vekt',   value: profil?.vekt  ? `${profil.vekt} kg`  : '–' },
-                { label: 'Høyde',  value: profil?.hoyde ? `${profil.hoyde} cm` : '–' },
+                { label: 'Vekt',           value: profil?.vekt  ? `${profil.vekt} kg`  : '–' },
+                { label: 'Ønsket vekt',    value: profil?.onsket_vekt ? `${profil.onsket_vekt} kg` : '–', color: profil?.onsket_vekt ? 'var(--cyan)' : undefined },
+                { label: 'Høyde',          value: profil?.hoyde ? `${profil.hoyde} cm` : '–' },
                 {
                   label: 'BMI',
                   value: lagretBmi ? `${lagretBmi} — ${lagretBmiK?.label}` : '–',
@@ -325,6 +383,14 @@ export default function ProfilPage() {
 
       <style>{`
         .pr-page { max-width: 900px; }
+
+        .pr-maal-kort { padding: 1.25rem; margin-bottom: 1.25rem; }
+        .pr-maal-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .pr-maal-tittel { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .pr-maal-sub { font-size: 0.78rem; color: rgba(255,255,255,0.45); }
+        .pr-maal-bar-bg { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; margin-bottom: 6px; }
+        .pr-maal-bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s ease; }
+        .pr-maal-etiketter { display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.3); }
 
         .pr-melding { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.25); color: var(--green); border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; }
         .pr-feil { background: rgba(255,50,50,0.1); border: 1px solid rgba(255,50,50,0.25); color: #ff6060; border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }

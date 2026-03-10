@@ -110,6 +110,8 @@ export default function StatistikkPage() {
   const [lagrerVekt, setLagrerVekt] = useState(false)
   const [aktivFane, setAktivFane] = useState<'stats'|'vekt'|'utfordringer'>('stats')
   const [ukensUtf, setUkensUtf] = useState<typeof UTFORDRINGER_POOL>([])
+  const [profilVekt, setProfilVekt] = useState<number>(0)
+  const [onsketVektMaal, setOnsketVektMaal] = useState<number>(0)
 
   useEffect(() => { hentData() }, [])
 
@@ -120,11 +122,13 @@ export default function StatistikkPage() {
     // Profil (treningsmål)
     const { data: profil } = await supabase
       .from('profiler')
-      .select('mal, vekt')
+      .select('mal, vekt, onsket_vekt')
       .eq('id', user.id)
       .single()
     const mal = profil?.mal ?? 'bygge_muskler'
     setBrukerMal(mal)
+    if (profil?.vekt) setProfilVekt(profil.vekt)
+    if (profil?.onsket_vekt) setOnsketVektMaal(profil.onsket_vekt)
 
     // Uke-nummer for utfordringer
     const ukeNr = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
@@ -349,6 +353,40 @@ export default function StatistikkPage() {
                 &nbsp;{Math.abs(parseFloat(vektEndring))} kg totalt siden start
               </div>
             )}
+
+            {/* Målvekt-fremgang */}
+            {onsketVektMaal > 0 && vektLogger.length > 0 && (() => {
+              const sistVekt    = vektLogger[vektLogger.length - 1].vekt
+              const foersteVekt = vektLogger[0].vekt
+              const diff        = sistVekt - onsketVektMaal
+              const erNadd      = diff <= 0
+              const nedGangSoFar= foersteVekt - sistVekt
+              const totalMaal   = foersteVekt - onsketVektMaal
+              const pct         = totalMaal > 0 ? Math.max(0, Math.min(100, Math.round((nedGangSoFar / totalMaal) * 100))) : (erNadd ? 100 : 0)
+              const farge       = erNadd ? 'var(--green)' : 'var(--cyan)'
+              return (
+                <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: 12, background: `${farge}08`, border: `1px solid ${farge}20` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: farge }}>
+                      🎯 Mot målvekt {onsketVektMaal} kg
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 800, color: farge }}>
+                      {pct}%
+                    </span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', marginBottom: 6 }}>
+                    <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: farge, transition: 'width 0.8s ease' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>
+                    <span>Start: {foersteVekt} kg</span>
+                    <span style={{ color: farge }}>
+                      {erNadd ? '🎉 Mål nådd!' : `${Math.abs(diff).toFixed(1)} kg igjen`}
+                    </span>
+                    <span>Mål: {onsketVektMaal} kg</span>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {vektLogger.length > 1 && (
