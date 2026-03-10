@@ -39,9 +39,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     || user?.email?.split('@')[0]
     || 'Bruker'
 
-  return (
+return (
     <>
-      <div className="app-bg" aria-hidden>
+      <div className="app-bg" aria-hidden="true">
         <div className="app-bg-grid" />
         <div className="app-bg-blob app-bg-blob-1" />
         <div className="app-bg-blob app-bg-blob-2" />
@@ -49,6 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <div className="dash-root">
+        {/* SIDEBAR (Vises på PC - bruker dine eksisterende klasser) */}
         <aside className="dash-sidebar">
           <div className="dash-sidebar-logo">
             <div className="dash-sidebar-logo-icon">🏋️</div>
@@ -59,15 +60,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="dash-sidebar-section-label">Meny</div>
             <nav>
               {NAV.map(item => {
-                const isActive = item.href === '/'
-                  ? pathname === '/'
-                  : pathname.startsWith(item.href)
-
+                const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    prefetch={true}
                     className={`dash-nav-item${isActive ? ' active' : ''}`}
                   >
                     <span className="dash-nav-icon">{item.icon}</span>
@@ -79,24 +76,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="dash-sidebar-footer">
-            <div className="dash-user-row">
-              <div className="dash-user-avatar">{initialer}</div>
-              <div className="dash-user-info">
-                <div className="dash-user-name">{fornavn}</div>
-                <div className="dash-user-email">{user?.email}</div>
-              </div>
-            </div>
             <button className="dash-logout-btn" onClick={loggUt} disabled={loggingUt}>
-              {loggingUt ? <span className="spinner" style={{ width: 12, height: 12 }} /> : '🚪'} Logg ut
+              {loggingUt ? '...' : '🚪'} Logg ut
             </button>
           </div>
         </aside>
 
+        {/* HOVEDINNHOLD */}
         <main className="dash-main">
-          <div className="dash-content">
+          {/* pb-20 sørger for at innholdet ikke havner bak mobilmenyen */}
+          <div className="dash-content pb-20 md:pb-0">
             {children}
           </div>
         </main>
+
+        {/* MOBILMENY (Vises KUN på mobil via 'md:hidden') */}
+        <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-black/80 p-3 backdrop-blur-lg border-t border-white/10 md:hidden">
+          {NAV.map(item => {
+            const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+            return (
+              <Link 
+                key={item.href} 
+                href={item.href} 
+                className="flex flex-col items-center gap-1 no-underline"
+              >
+                <span className={`text-xl ${isActive ? 'opacity-100 scale-110' : 'opacity-50'} transition-all`}>
+                  {item.icon}
+                </span>
+                <span className={`text-[10px] font-bold uppercase tracking-tight ${isActive ? 'text-cyan-400' : 'text-gray-500'}`}>
+                  {item.label === 'Dashboard' ? 'Hjem' : item.label}
+                </span>
+              </Link>
+            )
+          })}
+</nav>
       </div>
     </>
   )
