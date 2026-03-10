@@ -57,7 +57,7 @@ export async function middleware(request: NextRequest) {
 
   if (session && isPublicRoute) {
     // Allerede innlogget → send til dashboard
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   // Root redirect
