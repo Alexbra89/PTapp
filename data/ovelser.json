@@ -1,0 +1,160 @@
+{
+  "bryst": [
+    {
+      "id": "pushups",
+      "navn": "Pushups",
+      "muskelgruppe": "bryst",
+      "utstyr": "hjemme",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Legg deg på gulvet med hendene skulderbredde fra hverandre. Senk kroppen til brystet nesten tar i gulvet, press deg opp igjen. Hold kroppen stram som ei fjøl gjennom hele bevegelsen."
+    },
+    {
+      "id": "benkpress",
+      "navn": "Benkpress",
+      "muskelgruppe": "bryst",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "middels",
+      "beskrivelse": "Ligg på benken med stanga over brystet. Senk stanga kontrollert til den toucher brystet, press opp igjen. Hold albuene i 45 graders vinkel."
+    },
+    {
+      "id": "skra-benkpress",
+      "navn": "Skrå benkpress",
+      "muskelgruppe": "bryst",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "middels",
+      "beskrivelse": "Samme som benkpress, men med benken i 30-45 graders vinkel. Dette treffer øvre del av brystmuskulaturen."
+    },
+    {
+      "id": "flyes",
+      "navn": "Flyes med manualer",
+      "muskelgruppe": "bryst",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "middels",
+      "beskrivelse": "Ligg på benken med manualer over brystet, håndflatene mot hverandre. Senk manualene ut til sidene med lett bøy i albuene, kjenn strekk i brystet. Press opp igjen."
+    }
+  ],
+  "rygg": [
+    {
+      "id": "roing",
+      "navn": "Roing med strikk",
+      "muskelgruppe": "rygg",
+      "utstyr": "hjemme",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Fest strikken foran deg. Stå med lett bøy i knærne, bøy deg frem i hofta. Trekk hendene mot magen med albuene tett inntil kroppen. Kjenn at skulderbladene trekkes sammen."
+    },
+    {
+      "id": "pullups",
+      "navn": "Pull-ups",
+      "muskelgruppe": "rygg",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "avansert",
+      "beskrivelse": "Heng i stanga med overhåndsgrep. Trekk deg opp til haka er over stanga. Senk deg kontrollert ned. For lettere variant, bruk assistansemaskin eller strikk."
+    },
+    {
+      "id": "markloft",
+      "navn": "Markløft",
+      "muskelgruppe": "rygg",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "avansert",
+      "beskrivelse": "Stå med stanga over midtfoten, bøy i hofta og knærne. Ta grep om stanga, hold ryggen rett. Press gjennom hælene og reis deg opp med stanga langs kroppen."
+    }
+  ],
+  "bein": [
+    {
+      "id": "knebøy",
+      "navn": "Knebøy",
+      "muskelgruppe": "bein",
+      "utstyr": "begge",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Stå med beina skulderbredde fra hverandre. Senk hofta som om du skal sette deg på en stol, hold ryggen rett. Press deg opp igjen gjennom hælene."
+    },
+    {
+      "id": "utfall",
+      "navn": "Utfall",
+      "muskelgruppe": "bein",
+      "utstyr": "begge",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Ta et langt steg frem og senk hofta til begge knærne er 90 grader. Fremre kne skal være over ankelen. Press deg tilbake til start."
+    },
+    {
+      "id": "rumenske-markloft",
+      "navn": "Rumenske markløft",
+      "muskelgruppe": "bein",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "middels",
+      "beskrivelse": "Stå med manualer eller stang. Hold en lett bøy i knærne, bøy deg frem i hofta mens du holder ryggen rett. Kjenn strekk i hamstrings, reis deg opp igjen."
+    }
+  ],
+  "skuldre": [
+    {
+      "id": "skulderpress",
+      "navn": "Skulderpress med manualer",
+      "muskelgruppe": "skuldre",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "middels",
+      "beskrivelse": "Sitt eller stå med manualer i skulderhøyde, håndflatene frem. Press opp over hodet til armene er strake. Senk kontrollert."
+    },
+    {
+      "id": "sidehev",
+      "navn": "Sidehev",
+      "muskelgruppe": "skuldre",
+      "utstyr": "begge",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Stå med lett bøy i albuene, løft manualene ut til sidene til skulderhøyde. Senk kontrollert. Ikke bruk for tung vekt."
+    }
+  ],
+  "armer": [
+    {
+      "id": "bicepscurl",
+      "navn": "Bicepscurl med strikk",
+      "muskelgruppe": "armer",
+      "utstyr": "hjemme",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Stå på strikken og hold i håndtakene. Curl opp mot skuldrene ved å bøye i albuene. Hold albuene inntil kroppen."
+    },
+    {
+      "id": "tricepspushdown",
+      "navn": "Triceps pushdown",
+      "muskelgruppe": "armer",
+      "utstyr": "senter",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Fest strikk eller bruk kabelmaskin. Press hendene ned til armene er strake. Hold albuene inntil kroppen."
+    }
+  ],
+  "mage": [
+    {
+      "id": "planke",
+      "navn": "Planke",
+      "muskelgruppe": "mage",
+      "utstyr": "hjemme",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Hvil på underarmene og tærne. Hold kroppen helt rett som ei fjøl. Stram magemusklene og hold posisjonen."
+    },
+    {
+      "id": "crunches",
+      "navn": "Crunches",
+      "muskelgruppe": "mage",
+      "utstyr": "hjemme",
+      "vanskelighetsgrad": "nybegynner",
+      "beskrivelse": "Ligg på rygg med bøyde knær. Løft skuldrene fra gulvet ved å stramme magemusklene. Hendene bak hodet, ikke trekk i nakken."
+    }
+  ],
+  "cardio": [
+    {
+      "id": "burpees",
+      "navn": "Burpees",
+      "muskelgruppe": "cardio",
+      "utstyr": "hjemme",
+      "vanskelighetsgrad": "middels",
+      "beskrivelse": "Fra stående, gå ned i planke, gjør en pushup, hopp opp i kne, sprett opp med klapp over hodet. Alt i én flytende bevegelse."
+    },
+    {
+      "id": "fjellklatrer",
+      "navn": "Fjellklatrer",
+      "muskelgruppe": "cardio",
+      "utstyr": "hjemme",
+      "vanskelighetsgrad": "middels",
+      "beskrivelse": "Start i planke-posisjon. Trekk vekselvis knærne mot brystet i høyt tempo. Hold hofta nede og kjernemuskulaturen stram."
+    }
+  ]
+}
