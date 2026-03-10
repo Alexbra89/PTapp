@@ -1,71 +1,28 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { nb } from 'date-fns/locale'
+import { useUser, useProfil, useDagensOkter, useStats } from '@/hooks/useSupabaseQuery'
 
 export default function DashboardPage() {
-  const supabase = createClient()
-  const [user,         setUser]         = useState<any>(null)
-  const [dagensOkter,  setDagensOkter]  = useState<any[]>([])
-  const [stats,        setStats]        = useState({ streak: 0, totalOkter: 0, ukeMaal: 0 })
-  const [laster,       setLaster]       = useState(true)
-  const [treningsmaal, setTreningsmaal] = useState('bygge_muskler')
-
-  const time    = new Date().getHours()
-  const hilsen  = time < 10 ? 'God morgen' : time < 17 ? 'God dag' : 'God kveld'
+  const idag   = new Date().toISOString().split('T')[0]
+  const time   = new Date().getHours()
+  const hilsen = time < 10 ? 'God morgen' : time < 17 ? 'God dag' : 'God kveld'
   const dagNavn = format(new Date(), 'EEEE d. MMMM', { locale: nb })
 
-  useEffect(() => { hentData() }, [])
+  // ── Alle data caches av React Query – ingen re-fetch ved navigasjon ────────
+  const { data: user }                          = useUser()
+  const { data: profil }                        = useProfil(user?.id)
+  const { data: dagensOkter = [], isFetching: okterFetcher } = useDagensOkter(user?.id, idag)
+  const { data: stats }                         = useStats(user?.id)
 
-  const hentData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLaster(false); return }
-    setUser(user)
+  const fornavn = profil?.navn?.split(' ')[0]
+    ?? user?.user_metadata?.full_name?.split(' ')[0]
+    ?? user?.email?.split('@')[0]
+    ?? 'Utøver'
 
-    const idag = new Date().toISOString().split('T')[0]
-
-    const [{ data: okter }, { data: profil }] = await Promise.all([
-      supabase.from('okter').select('*').eq('bruker_id', user.id).eq('dato', idag),
-      supabase.from('profiler').select('navn, mal').eq('id', user.id).single(),
-    ])
-
-    setDagensOkter(okter ?? [])
-    if (profil?.mal)  setTreningsmaal(profil.mal)
-    if (profil?.navn) setUser((u: any) => ({ ...u, navn: profil.navn }))
-
-    const { count: totalOkter } = await supabase
-      .from('okter').select('*', { count: 'exact', head: true }).eq('bruker_id', user.id)
-
-    const { data: datoer } = await supabase.from('okter').select('dato')
-      .eq('bruker_id', user.id).order('dato', { ascending: false }).limit(30)
-    const today   = new Date(); today.setHours(0, 0, 0, 0)
-    const datoSet = new Set((datoer ?? []).map((d: any) => d.dato))
-    let streak = 0
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today); d.setDate(today.getDate() - i)
-      if (datoSet.has(d.toISOString().split('T')[0])) streak++
-      else if (i > 0) break
-    }
-
-    const mandag = new Date(today)
-    mandag.setDate(today.getDate() - (today.getDay() + 6) % 7)
-    const { count: ukeMaal } = await supabase.from('okter')
-      .select('*', { count: 'exact', head: true })
-      .eq('bruker_id', user.id)
-      .gte('dato', mandag.toISOString().split('T')[0])
-
-    setStats({ streak, totalOkter: totalOkter ?? 0, ukeMaal: ukeMaal ?? 0 })
-    setLaster(false)
-  }
-
-  const fornavn = user?.navn?.split(' ')[0]
-    || user?.user_metadata?.full_name?.split(' ')[0]
-    || user?.email?.split('@')[0]
-    || 'Utøver'
-
+  const treningsmaal = profil?.mal ?? 'bygge_muskler'
   const malTips: Record<string, { tekst: string; farge: string }> = {
     ned_i_vekt:    { tekst: 'Husk: kosthold er 80% av vektreduksjon! 🥗', farge: 'var(--cyan)'   },
     bygge_muskler: { tekst: 'Øk progressivt og spis nok protein! 🥩',    farge: 'var(--purple)' },
@@ -75,110 +32,58 @@ export default function DashboardPage() {
   const tips = malTips[treningsmaal] ?? malTips.bygge_muskler
 
   const HURTIGLENKER = [
-    { href: '/treninger',  icon: '⚡', label: 'Start trening',     sub: 'Generer ny økt',        color: '#00f5ff' },
-    { href: '/kalender',   icon: '📅', label: 'Kalender',          sub: 'Se ukens plan',         color: '#00ff88' },
-    { href: '/ovelser',    icon: '💪', label: 'Øvelsesbibl.',      sub: '100+ øvelser',          color: '#b44eff' },
-    { href: '/statistikk', icon: '📊', label: 'Statistikk',        sub: 'Fremgang & mål',        color: '#ff8c00' },
-    { href: '/statistikk', icon: '🏆', label: 'Utfordringer',      sub: 'Ukentlige mål',         color: '#ff6600' },
-    { href: '/profiler',   icon: '👤', label: 'Profil',            sub: 'Rediger innstillinger', color: '#a855f7' },
+    { href: '/treninger',  icon: '⚡', label: 'Start trening',  sub: 'Generer ny økt',        color: '#00f5ff' },
+    { href: '/kalender',   icon: '📅', label: 'Kalender',       sub: 'Se ukens plan',         color: '#00ff88' },
+    { href: '/ovelser',    icon: '💪', label: 'Øvelsesbibl.',   sub: '100+ øvelser',          color: '#b44eff' },
+    { href: '/statistikk', icon: '📊', label: 'Statistikk',     sub: 'Fremgang & mål',        color: '#ff8c00' },
+    { href: '/statistikk', icon: '🏆', label: 'Utfordringer',   sub: 'Ukentlige mål',         color: '#ff6600' },
+    { href: '/profiler',   icon: '👤', label: 'Profil',         sub: 'Rediger innstillinger', color: '#a855f7' },
   ]
-
-  if (laster) return (
-    <div className="db-loading">
-      <div className="spinner-lg" />
-    </div>
-  )
 
   return (
     <div className="db-page anim-fade-up">
 
-{/* ── Hero ── */}
-<div className="db-hero glass-card" style={{ overflow: 'hidden', position: 'relative' }}>
-  <div className="db-hero-shine" />
-  <div className="db-hero-inner" style={{ 
-    display: 'flex', 
-    flexDirection: 'column', // Standard for mobil: alt under hverandre
-    gap: '24px',
-    padding: '24px',
-    // På større skjermer (PC) endrer vi til rad-visning:
-    alignItems: 'flex-start',
-    justifyContent: 'space-between'
-  }}>
-    <div className="db-hero-left" style={{ width: '100%' }}>
-      <div className="db-dato-badge" style={{ marginBottom: '12px' }}>
-        <span className="neon-dot-cyan anim-pulse" />
-        <span className="db-dato-txt">{dagNavn}</span>
+      {/* ── Hero ── */}
+      <div className="db-hero glass-card">
+        <div className="db-hero-shine" />
+        <div className="db-hero-inner">
+          <div className="db-hero-left">
+            <div className="db-dato-badge">
+              <span className="neon-dot-cyan anim-pulse" />
+              <span className="db-dato-txt">{dagNavn}</span>
+            </div>
+            <h1 className="db-hilsen">
+              {hilsen},<br />{fornavn}!
+            </h1>
+            <div className="db-tips-badge"
+              style={{
+                background:  `${tips.farge}12`,
+                borderColor: `${tips.farge}40`,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+              }}>
+              <span className="neon-dot"
+                style={{ background: tips.farge, boxShadow: `0 0 12px ${tips.farge}` }} />
+              <span className="db-tips-txt" style={{ color: tips.farge }}>{tips.tekst}</span>
+            </div>
+          </div>
+          <Link href="/treninger" className="btn btn-primary db-hero-cta">
+            ⚡ Start treningsøkt
+          </Link>
+        </div>
       </div>
-      
-      <h1 className="db-hilsen" style={{ 
-        fontSize: 'clamp(2rem, 8vw, 2.8rem)', 
-        lineHeight: '1.1',
-        marginBottom: '16px',
-        fontWeight: '900'
-      }}>
-        {hilsen},<br /> {fornavn}!
-      </h1>
-
-      <div
-        className="db-tips-badge"
-        style={{
-          background: `${tips.farge}12`,
-          borderColor: `${tips.farge}40`,
-          borderWidth: '1px',
-          borderStyle: 'solid',
-          display: 'inline-flex',
-          alignItems: 'center',
-          padding: '10px 16px',
-          borderRadius: '100px'
-        }}
-      >
-        <span
-          className="neon-dot"
-          style={{ 
-            background: tips.farge, 
-            boxShadow: `0 0 12px ${tips.farge}`, 
-            marginRight: '10px',
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%'
-          }}
-        />
-        <span className="db-tips-txt" style={{ color: tips.farge, fontWeight: '600', fontSize: '0.9rem' }}>
-          {tips.tekst}
-        </span>
-      </div>
-    </div>
-    
-    <Link href="/treninger" className="btn btn-primary db-hero-cta" style={{ 
-      width: '100%', // Full bredde på mobil for enklere trykking
-      padding: '18px',
-      fontSize: '1.1rem',
-      fontWeight: 'bold',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: '16px',
-      boxShadow: '0 10px 20px -5px rgba(0, 245, 255, 0.3)'
-    }}>
-      ⚡ Start treningsøkt
-    </Link>
-  </div>
-</div>
 
       {/* ── Stats ── */}
       <div className="db-stats">
         {[
-          { label: 'Streak',     val: stats.streak,     suffix: 'dager', color: '#ff8c00', icon: '🔥' },
-          { label: 'Totalt',     val: stats.totalOkter, suffix: 'økter', color: '#00f5ff', icon: '📅' },
-          { label: 'Denne uken', val: stats.ukeMaal,    suffix: 'økter', color: '#00ff88', icon: '📆' },
+          { label: 'Streak',     val: stats?.streak     ?? 0, suffix: 'dager', color: '#ff8c00', icon: '🔥' },
+          { label: 'Totalt',     val: stats?.totalOkter ?? 0, suffix: 'økter', color: '#00f5ff', icon: '📅' },
+          { label: 'Denne uken', val: stats?.ukeMaal    ?? 0, suffix: 'økter', color: '#00ff88', icon: '📆' },
         ].map(s => (
           <div key={s.label} className="stat-card db-stat">
             <div className="db-stat-top">
               <span className="db-stat-icon">{s.icon}</span>
-              <span
-                className="db-stat-lbl-badge"
-                style={{ background: `${s.color}18`, color: s.color }}
-              >
+              <span className="db-stat-lbl-badge" style={{ background: `${s.color}18`, color: s.color }}>
                 {s.label}
               </span>
             </div>
@@ -195,19 +100,10 @@ export default function DashboardPage() {
         </div>
         <div className="db-hurtig-grid">
           {HURTIGLENKER.map(l => (
-            <Link
-              key={l.href + l.label}
-              href={l.href}
-              className="db-hurtig-kort"
-              style={{ '--akk': l.color } as React.CSSProperties}
-            >
-              <div
-                className="db-hurtig-ikon-boks"
-                style={{
-                  background: `linear-gradient(135deg, ${l.color}22, ${l.color}08)`,
-                  border:     `1px solid ${l.color}35`,
-                }}
-              >
+            <Link key={l.href + l.label} href={l.href} className="db-hurtig-kort"
+              style={{ '--akk': l.color } as React.CSSProperties}>
+              <div className="db-hurtig-ikon-boks"
+                style={{ background: `linear-gradient(135deg, ${l.color}22, ${l.color}08)`, border: `1px solid ${l.color}35` }}>
                 <span className="db-hurtig-ikon">{l.icon}</span>
               </div>
               <div className="db-hurtig-tekst">
@@ -239,12 +135,8 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="db-okter">
-            {dagensOkter.map(okt => (
-              <Link
-                key={okt.id}
-                href={`/treninger/okt?okt=${okt.id}`}
-                className="db-okt glass-card"
-              >
+            {dagensOkter.map((okt: any) => (
+              <Link key={okt.id} href={`/treninger/okt?okt=${okt.id}`} className="db-okt glass-card">
                 <div className="db-okt-ikon">
                   {okt.type === 'cardio' ? '🏃' : okt.type === 'hvile' ? '😴' : '🏋️'}
                 </div>

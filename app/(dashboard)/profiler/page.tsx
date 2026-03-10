@@ -1,17 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-
-interface Profil {
-  id: string
-  epost: string
-  navn: string
-  vekt: number
-  hoyde: number
-  mal: string
-  onsket_vekt?: number
-}
+import { useState } from 'react'
+import { useUser, useProfil, useLagreProfil } from '@/hooks/useSupabaseQuery'
 
 const MAL_OPTIONS = [
   { key: 'ned_i_vekt',    label: 'Ned i vekt',      emoji: '⬇️', color: 'var(--cyan)'   },
@@ -33,109 +23,76 @@ function bmiKategori(bmi: number) {
 }
 
 export default function ProfilPage() {
-  const supabase = createClient()
-  const [profil,    setProfil]    = useState<Profil | null>(null)
-  const [redigerer, setRedigerer] = useState(false)
-  const [lagrer,    setLagrer]    = useState(false)
-  const [laster,    setLaster]    = useState(true)
-  const [melding,   setMelding]   = useState('')
-  const [feil,      setFeil]      = useState('')
-  const [stats,     setStats]     = useState({ okter: 0, kg: 0 })
+  const { data: user,   isLoading: userLaster } = useUser()
+  const { data: profil, isLoading: profilLaster } = useProfil(user?.id)
+  const lagreMut = useLagreProfil()
 
-  // Form state
-  const [navn,        setNavn]       = useState('')
-  const [vekt,        setVekt]       = useState<number|''>('')
-  const [hoyde,       setHoyde]      = useState<number|''>('')
-  const [mal,         setMal]        = useState('bygge_muskler')
-  const [onsketVekt,  setOnsketVekt] = useState<number|''>('')
+  // ── Form-state ──────────────────────────────────────────────────────────────
+  const [redigerer,  setRedigerer]  = useState(false)
+  const [melding,    setMelding]    = useState('')
+  const [feil,       setFeil]       = useState('')
 
-  // Live BMI fra form
-  const liveBmi  = beregnBMI(Number(vekt), Number(hoyde))
-  const liveBmiK = liveBmi ? bmiKategori(parseFloat(liveBmi)) : null
+  // Form-feltene initialiseres fra profil når den lastes
+  const [navn,       setNavn]       = useState('')
+  const [vekt,       setVekt]       = useState<number|''>('')
+  const [hoyde,      setHoyde]      = useState<number|''>('')
+  const [mal,        setMal]        = useState('bygge_muskler')
+  const [onsketVekt, setOnsketVekt] = useState<number|''>('')
 
-  // BMI fra lagret profil
-  const lagretBmi  = profil ? beregnBMI(profil.vekt, profil.hoyde) : null
-  const lagretBmiK = lagretBmi ? bmiKategori(parseFloat(lagretBmi)) : null
+  // Stats (vi henter dette fra profil og okter i en separat query)
+  const [stats, setStats] = useState({ okter: 0, kg: 0 })
 
-  useEffect(() => { hentProfil() }, [])
+  // Fyll inn form når profil laster
+  const aapneRedigeringsform = () => {
+    // Hent nåverdier fra profil
+    setNavn(profil?.navn ?? '')
+    setVekt(profil?.vekt || '')
+    setHoyde(profil?.hoyde || '')
+    setMal(profil?.mal ?? 'bygge_muskler')
+    setOnsketVekt(profil?.onsket_vekt || '')
+    setFeil('')
+    setRedigerer(true)
+  }
 
-  const hentProfil = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLaster(false); return }
-
-    const { data } = await supabase
-      .from('profiler')
-      .select('id, epost, navn, vekt, hoyde, mal, onsket_vekt')
-      .eq('id', user.id)
-      .single()
-
-    const p: Profil = data ?? {
-      id: user.id, epost: user.email ?? '',
-      navn: user.user_metadata?.full_name ?? '',
-      vekt: 0, hoyde: 0, mal: 'bygge_muskler', onsket_vekt: 0,
-    }
-
-    setProfil(p)
-    setNavn(p.navn || '')
-    setVekt(p.vekt || '')
-    setHoyde(p.hoyde || '')
-    setMal(p.mal || 'bygge_muskler')
-    setOnsketVekt(p.onsket_vekt || '')
-
-    // Stats
-    const { count: okter } = await supabase
-      .from('okter').select('*', { count: 'exact', head: true }).eq('bruker_id', user.id)
-
-    const { data: logger } = await supabase
-      .from('treningslogger').select('sett').eq('bruker_id', user.id)
-
-    const totalKg = (logger ?? []).reduce((sum: number, l: any) =>
-      sum + (l.sett ?? []).reduce((s: number, set: any) =>
-        s + (set.vekt ?? 0) * (set.reps ?? 0), 0), 0)
-
-    setStats({ okter: okter ?? 0, kg: Math.round(totalKg) })
-    setLaster(false)
+  const avbrytRedigering = () => {
+    setRedigerer(false)
+    setFeil('')
   }
 
   const lagreProfil = async () => {
-    setLagrer(true)
+    if (!user) return
     setFeil('')
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLagrer(false); return }
-
-    // Bare kolonnene som eksisterer i tabellen
-    const payload = {
-      id:          user.id,
-      epost:       user.email ?? '',
-      navn:        navn.trim() || (user.email ?? ''),
-      vekt:        Number(vekt) || 0,
-      hoyde:       Number(hoyde) || 0,
-      mal,
-      onsket_vekt: Number(onsketVekt) || 0,
+    try {
+      await lagreMut.mutateAsync({
+        id:          user.id,
+        epost:       user.email ?? '',
+        navn: (navn as string).trim() || (user.email ?? ''),
+        vekt:        Number(vekt) || 0,
+        hoyde:       Number(hoyde) || 0,
+        mal,
+        onsket_vekt: Number(onsketVekt) || 0,
+      })
+      setRedigerer(false)
+      setMelding('Profil oppdatert! ✓')
+      setTimeout(() => setMelding(''), 3000)
+    } catch (e: any) {
+      setFeil(`Kunne ikke lagre: ${e.message}`)
     }
-
-    const { error } = await supabase
-      .from('profiler')
-      .upsert(payload, { onConflict: 'id' })
-
-    if (error) {
-      console.error('Profil-feil:', error)
-      setFeil(`Kunne ikke lagre: ${error.message}`)
-      setLagrer(false)
-      return
-    }
-
-    setProfil({ ...payload })
-    setRedigerer(false)
-    setMelding('Profil oppdatert! ✓')
-    setTimeout(() => setMelding(''), 3000)
-    setLagrer(false)
   }
 
-  const initialer = (navn || profil?.navn || '?')
-    .split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+  // ── Avledet data ────────────────────────────────────────────────────────────
+  const liveBmi  = redigerer ? beregnBMI(Number(vekt), Number(hoyde)) : null
+  const liveBmiK = liveBmi   ? bmiKategori(parseFloat(liveBmi)) : null
+
+  const lagretBmi  = profil ? beregnBMI(profil.vekt, profil.hoyde) : null
+  const lagretBmiK = lagretBmi ? bmiKategori(parseFloat(lagretBmi)) : null
 
   const malMeta = MAL_OPTIONS.find(m => m.key === (redigerer ? mal : profil?.mal))
+
+  const initialer = ((redigerer ? navn : profil?.navn) || '?')
+    .split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
+
+  const laster = userLaster || profilLaster
 
   if (laster) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
@@ -162,8 +119,8 @@ export default function ProfilPage() {
             <div className="pr-avatar-ring" />
           </div>
           <div className="pr-hero-info">
-            <div className="pr-navn">{profil?.navn || 'Legg til navn'}</div>
-            <div className="pr-epost">{profil?.epost}</div>
+            <div className="pr-navn">{profil?.navn || user?.email?.split('@')[0] || 'Legg til navn'}</div>
+            <div className="pr-epost">{profil?.epost ?? user?.email}</div>
             {malMeta && !redigerer && (
               <div className="pr-mal-badge"
                 style={{ background: `${malMeta.color}15`, borderColor: `${malMeta.color}30`, color: malMeta.color }}>
@@ -171,7 +128,11 @@ export default function ProfilPage() {
               </div>
             )}
           </div>
-          <button className="btn btn-ghost pr-edit-btn" onClick={() => { setRedigerer(!redigerer); setFeil('') }}>
+          {/* ── Rediger-knapp – alltid synlig ── */}
+          <button
+            className="btn btn-ghost pr-edit-btn"
+            onClick={redigerer ? avbrytRedigering : aapneRedigeringsform}
+          >
             {redigerer ? '✕ Avbryt' : '✏️ Rediger'}
           </button>
         </div>
@@ -187,8 +148,8 @@ export default function ProfilPage() {
             label: 'BMI',
             value: lagretBmi ?? '–',
             color: lagretBmiK?.color ?? 'rgba(255,255,255,0.4)',
-            icon: '📊',
-            sub: lagretBmiK?.label,
+            icon:  '📊',
+            sub:   lagretBmiK?.label,
           },
         ].map(s => (
           <div key={s.label} className="pr-stat glass-card">
@@ -200,26 +161,21 @@ export default function ProfilPage() {
         ))}
       </div>
 
-      {/* Vektmål-fremgang (vises om onsket_vekt er satt) */}
+      {/* Vektmål-fremgang */}
       {profil?.onsket_vekt && profil.onsket_vekt > 0 && profil.vekt > 0 && (() => {
-        const diff        = profil.vekt - profil.onsket_vekt
-        const absDiff     = Math.abs(diff).toFixed(1)
-        const erNedgang   = diff > 0
-        const erMål       = diff <= 0
-        const color       = erMål ? 'var(--green)' : erNedgang ? 'var(--cyan)' : 'var(--orange)'
-        const startVekt   = profil.vekt  // nåværende (kan forbedres med logg)
-        const pct         = Math.max(0, Math.min(100,
-          erNedgang
-            ? Math.round(((startVekt - profil.vekt) / (startVekt - profil.onsket_vekt)) * 100)
-            : 100
-        ))
+        const diff      = profil.vekt - profil.onsket_vekt
+        const absDiff   = Math.abs(diff).toFixed(1)
+        const erNedgang = diff > 0
+        const erMaal    = diff <= 0
+        const color     = erMaal ? 'var(--green)' : erNedgang ? 'var(--cyan)' : 'var(--orange)'
+        const pct       = erNedgang ? 0 : 100   // uten historisk logg kan vi ikke lage prosent
         return (
           <div className="pr-maal-kort glass-card">
             <div className="pr-maal-top">
               <div>
                 <div className="pr-maal-tittel">🎯 Vektmål</div>
                 <div className="pr-maal-sub">
-                  {erMål
+                  {erMaal
                     ? '🎉 Du har nådd målvekten!'
                     : erNedgang
                     ? `${absDiff} kg igjen til målvekt`
@@ -245,8 +201,8 @@ export default function ProfilPage() {
         )
       })()}
 
-      {/* Redigeringsform */}
-      {redigerer ? (
+      {/* ── REDIGERINGSFORM ── */}
+      {redigerer && (
         <div className="pr-form glass-card">
           <div className="pr-form-title">✏️ Rediger profil</div>
           <div className="pr-form-grid">
@@ -265,18 +221,18 @@ export default function ProfilPage() {
             </div>
 
             <div className="pr-form-field">
-              <label className="pr-label">Høyde (cm)</label>
-              <input className="input" type="number" min={100} max={250}
-                value={hoyde}
-                onChange={e => setHoyde(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-            </div>
-
-            <div className="pr-form-field">
               <label className="pr-label">Ønsket vekt (kg)</label>
               <input className="input" type="number" min={30} max={300} step={0.5}
                 placeholder="f.eks. 80"
                 value={onsketVekt}
                 onChange={e => setOnsketVekt(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+            </div>
+
+            <div className="pr-form-field">
+              <label className="pr-label">Høyde (cm)</label>
+              <input className="input" type="number" min={100} max={250}
+                value={hoyde}
+                onChange={e => setHoyde(e.target.value === '' ? '' : parseFloat(e.target.value))} />
             </div>
 
             {/* Live BMI */}
@@ -286,7 +242,7 @@ export default function ProfilPage() {
                 <div className="pr-bmi-display"
                   style={{ borderColor: `${liveBmiK.color}30`, background: `${liveBmiK.color}08` }}>
                   <span className="pr-bmi-tall" style={{ color: liveBmiK.color }}>{liveBmi}</span>
-                  <span className="pr-bmi-kat" style={{ color: liveBmiK.color }}>{liveBmiK.label}</span>
+                  <span className="pr-bmi-kat"  style={{ color: liveBmiK.color }}>{liveBmiK.label}</span>
                 </div>
               </div>
             )}
@@ -311,24 +267,29 @@ export default function ProfilPage() {
             </div>
           </div>
 
+          {feil && <div className="pr-feil" style={{ marginBottom: '1rem' }}>{feil}</div>}
+
           <div className="pr-form-footer">
-            <button className="btn btn-ghost" onClick={() => { setRedigerer(false); setFeil('') }}>Avbryt</button>
-            <button className="btn btn-primary" onClick={lagreProfil} disabled={lagrer}>
-              {lagrer
+            <button className="btn btn-ghost" onClick={avbrytRedigering}>Avbryt</button>
+            <button className="btn btn-primary" onClick={lagreProfil} disabled={lagreMut.isPending}>
+              {lagreMut.isPending
                 ? <span className="spinner" style={{ width: 16, height: 16 }} />
                 : '💾 Lagre profil'}
             </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* ── VISNING (ikke redigeringsmodus) ── */}
+      {!redigerer && (
         <div className="pr-info-grid">
           <div className="pr-card glass-card">
             <div className="pr-card-title">🏋️ Kropp</div>
             <div className="pr-info-rows">
               {[
-                { label: 'Vekt',           value: profil?.vekt  ? `${profil.vekt} kg`  : '–' },
-                { label: 'Ønsket vekt',    value: profil?.onsket_vekt ? `${profil.onsket_vekt} kg` : '–', color: profil?.onsket_vekt ? 'var(--cyan)' : undefined },
-                { label: 'Høyde',          value: profil?.hoyde ? `${profil.hoyde} cm` : '–' },
+                { label: 'Vekt',        value: profil?.vekt        ? `${profil.vekt} kg`        : '–' },
+                { label: 'Ønsket vekt', value: profil?.onsket_vekt ? `${profil.onsket_vekt} kg` : '–', color: profil?.onsket_vekt ? 'var(--cyan)' : undefined },
+                { label: 'Høyde',       value: profil?.hoyde       ? `${profil.hoyde} cm`       : '–' },
                 {
                   label: 'BMI',
                   value: lagretBmi ? `${lagretBmi} — ${lagretBmiK?.label}` : '–',
@@ -337,9 +298,7 @@ export default function ProfilPage() {
               ].map(r => (
                 <div key={r.label} className="pr-info-row">
                   <span className="pr-info-lbl">{r.label}</span>
-                  <span className="pr-info-val" style={(r as any).color ? { color: (r as any).color } : {}}>
-                    {r.value}
-                  </span>
+                  <span className="pr-info-val" style={(r as any).color ? { color: (r as any).color } : {}}>{r.value}</span>
                 </div>
               ))}
             </div>
@@ -361,7 +320,7 @@ export default function ProfilPage() {
                 </div>
               </div>
             ) : (
-              <div className="pr-empty">Ingen mål satt — trykk Rediger</div>
+              <div className="pr-empty">Ingen mål satt — trykk ✏️ Rediger</div>
             )}
           </div>
 
@@ -370,7 +329,7 @@ export default function ProfilPage() {
             <div className="pr-info-rows">
               <div className="pr-info-row">
                 <span className="pr-info-lbl">E-post</span>
-                <span className="pr-info-val">{profil?.epost}</span>
+                <span className="pr-info-val" style={{ fontSize: '0.78rem' }}>{profil?.epost ?? user?.email}</span>
               </div>
               <div className="pr-info-row">
                 <span className="pr-info-lbl">Status</span>
@@ -384,16 +343,8 @@ export default function ProfilPage() {
       <style>{`
         .pr-page { max-width: 900px; }
 
-        .pr-maal-kort { padding: 1.25rem; margin-bottom: 1.25rem; }
-        .pr-maal-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
-        .pr-maal-tittel { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
-        .pr-maal-sub { font-size: 0.78rem; color: rgba(255,255,255,0.45); }
-        .pr-maal-bar-bg { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; margin-bottom: 6px; }
-        .pr-maal-bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s ease; }
-        .pr-maal-etiketter { display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.3); }
-
         .pr-melding { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.25); color: var(--green); border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; }
-        .pr-feil { background: rgba(255,50,50,0.1); border: 1px solid rgba(255,50,50,0.25); color: #ff6060; border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }
+        .pr-feil    { background: rgba(255,50,50,0.1);  border: 1px solid rgba(255,50,50,0.25);  color: #ff6060;  border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }
 
         .pr-hero { padding: 0; overflow: hidden; margin-bottom: 1.25rem; }
         .pr-hero-shine { height: 1px; background: linear-gradient(90deg, transparent, rgba(0,245,255,0.3), transparent); }
@@ -404,9 +355,9 @@ export default function ProfilPage() {
         .pr-avatar-ring { position: absolute; inset: -6px; border-radius: 50%; background: conic-gradient(var(--cyan), var(--purple), var(--cyan)); opacity: 0.2; animation: pr-spin 8s linear infinite; }
         @keyframes pr-spin { to { transform: rotate(360deg); } }
 
-        .pr-hero-info { flex: 1; }
-        .pr-navn { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
-        .pr-epost { font-size: 0.82rem; color: rgba(255,255,255,0.35); margin-bottom: 10px; }
+        .pr-hero-info { flex: 1; min-width: 0; }
+        .pr-navn  { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pr-epost { font-size: 0.82rem; color: rgba(255,255,255,0.35); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .pr-mal-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 500; border: 1px solid; }
         .pr-edit-btn { flex-shrink: 0; }
 
@@ -414,11 +365,19 @@ export default function ProfilPage() {
         @media(max-width: 700px) { .pr-stats-grid { grid-template-columns: repeat(2, 1fr); } }
         .pr-stat { padding: 1.25rem; text-align: center; }
         .pr-stat-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
-        .pr-stat-val { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
-        .pr-stat-sub { font-size: 0.68rem; font-weight: 600; margin-bottom: 2px; }
-        .pr-stat-lbl { font-size: 0.68rem; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.08em; }
+        .pr-stat-val  { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
+        .pr-stat-sub  { font-size: 0.68rem; font-weight: 600; margin-bottom: 2px; }
+        .pr-stat-lbl  { font-size: 0.68rem; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.08em; }
 
-        .pr-form { padding: 1.5rem; }
+        .pr-maal-kort { padding: 1.25rem; margin-bottom: 1.25rem; }
+        .pr-maal-top  { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .pr-maal-tittel { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .pr-maal-sub    { font-size: 0.78rem; color: rgba(255,255,255,0.45); }
+        .pr-maal-bar-bg   { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; margin-bottom: 6px; }
+        .pr-maal-bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s ease; }
+        .pr-maal-etiketter { display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.3); }
+
+        .pr-form { padding: 1.5rem; margin-bottom: 1.25rem; }
         .pr-form-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 1.25rem; }
         .pr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
         @media(max-width: 600px) { .pr-form-grid { grid-template-columns: 1fr; } }
@@ -429,7 +388,7 @@ export default function ProfilPage() {
 
         .pr-bmi-display { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid; }
         .pr-bmi-tall { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; }
-        .pr-bmi-kat { font-size: 0.88rem; font-weight: 600; }
+        .pr-bmi-kat  { font-size: 0.88rem; font-weight: 600; }
 
         .pr-mal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
         @media(max-width: 600px) { .pr-mal-grid { grid-template-columns: 1fr 1fr; } }
