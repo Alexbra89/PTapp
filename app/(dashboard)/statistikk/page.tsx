@@ -594,13 +594,47 @@ export default function StatistikkPage() {
                     <span className="st-utf-prosent">{prosent}%</span>
                   </div>
                   <div className="st-utf-kontroll">
-                    <span className="st-utf-tall">{u.fremgang} / {u.maal} {u.enhet}</span>
-                    {!u.fullfort && (
-                      <div className="st-utf-btns">
-                        <button className="st-utf-btn" onClick={() => toggleUtfordring(i, Math.max(0, u.fremgang-1))}>−</button>
-                        <button className="st-utf-btn st-utf-btn-add" onClick={() => toggleUtfordring(i, u.fremgang+1)}>+</button>
-                        <button className="btn btn-primary st-utf-done-btn" onClick={() => toggleUtfordring(i, u.maal)}>Fullført! 🎉</button>
+                    {u.maal > 1000 ? (
+                      // Store tall (vann, skritt) - bruk slider
+                      <div style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <span className="st-utf-tall">{u.fremgang} / {u.maal} {u.enhet}</span>
+                          {!u.fullfort && (
+                            <button className="btn btn-primary st-utf-done-btn" onClick={() => toggleUtfordring(i, u.maal)}>
+                              Fullført! 🎉
+                            </button>
+                          )}
+                        </div>
+                        {!u.fullfort && (
+                          <input
+                            type="range"
+                            min="0"
+                            max={u.maal}
+                            value={u.fremgang}
+                            onChange={(e) => toggleUtfordring(i, parseInt(e.target.value))}
+                            style={{
+                              width: '100%',
+                              height: '6px',
+                              background: 'rgba(255,255,255,0.1)',
+                              borderRadius: '3px',
+                              outline: 'none',
+                              WebkitAppearance: 'none'
+                            }}
+                          />
+                        )}
                       </div>
+                    ) : (
+                      // Små tall (økter, dager) - behold knapper
+                      <>
+                        <span className="st-utf-tall">{u.fremgang} / {u.maal} {u.enhet}</span>
+                        {!u.fullfort && (
+                          <div className="st-utf-btns">
+                            <button className="st-utf-btn" onClick={() => toggleUtfordring(i, Math.max(0, u.fremgang-1))}>−</button>
+                            <button className="st-utf-btn st-utf-btn-add" onClick={() => toggleUtfordring(i, u.fremgang+1)}>+</button>
+                            <button className="btn btn-primary st-utf-done-btn" onClick={() => toggleUtfordring(i, u.maal)}>Fullført! 🎉</button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -610,7 +644,7 @@ export default function StatistikkPage() {
         </div>
       )}
 
-      <style>{`
+   <style>{`
         .st-page{max-width:1000px}
         .st-faner{display:flex;gap:4px;padding:6px;margin-bottom:1.25rem}
         .st-fane{flex:1;padding:.6rem;border-radius:10px;border:none;background:transparent;color:rgba(255,255,255,.4);font-size:.82rem;font-family:var(--font-body);cursor:pointer;transition:all .15s;font-weight:500}
@@ -717,6 +751,48 @@ export default function StatistikkPage() {
         .pr-nåvaerende{display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.4);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;flex-wrap:wrap}
         .pr-nåvaerende strong{color:#fff}
         .pr-ny-rekord-badge{padding:2px 8px;border-radius:999px;background:rgba(255,100,0,.15);border:1px solid rgba(255,100,0,.3);color:#ff8c00;font-size:.65rem;font-weight:600}
+        
+        /* ─── NY CSS FOR SLIDER ─── */
+        .st-utf-fremgang {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          flex: 1;
+        }
+
+        .st-utf-slider-wrap {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .st-utf-slider {
+          flex: 1;
+          height: 4px;
+          -webkit-appearance: none;
+          background: rgba(255,255,255,0.1);
+          border-radius: 2px;
+          outline: none;
+        }
+
+        .st-utf-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: var(--cyan);
+          cursor: pointer;
+          box-shadow: 0 0 10px var(--cyan);
+          border: 2px solid white;
+        }
+
+        .st-utf-slider-verdi {
+          min-width: 60px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-align: right;
+        }
+        /* ─── SLUTT NY CSS ─── */
       `}</style>
     </div>
   )
