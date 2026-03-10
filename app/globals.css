@@ -840,3 +840,64 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 700; letter-s
 .dash-back-button:active {
   transform: translateY(0);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   YTELSESOPTIMALISERING – legg til i globals.css
+   ═══════════════════════════════════════════════════════════════ */
+
+/* GPU-akselerasjon for animerte SVG-containere.
+   will-change forteller nettleseren hva som kommer til å animere,
+   slik at den kan flytte elementet til sin egen compositor-layer. */
+.ov-card-anim,
+.ov-detail-anim,
+.ovd-anim {
+  will-change: transform;
+  contain: layout style;          /* isoler layout-beregninger */
+  transform: translateZ(0);       /* tving GPU-lag */
+}
+
+/* content-visibility: auto gjør at nettleseren HOPPER OVER
+   rendering av elementer utenfor viewport. Enorm gevinst med 100 kort. */
+.ov-grid {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 2400px;  /* ca. estimert total høyde */
+}
+
+/* Forhindrer layout-shift under skeleton-loading */
+.ov-page {
+  min-height: 100vh;
+}
+
+/* Smooth navigasjonstransisjon (View Transitions API) */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Deaktiver animasjoner for brukere som foretrekker det */
+@media (prefers-reduced-motion: reduce) {
+  .ov-card-anim *,
+  .ov-detail-anim *,
+  .ovd-anim * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Offline-banner – vises automatisk av service worker hvis ønskelig */
+.offline-banner {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 140, 0, 0.15);
+  border: 1px solid rgba(255, 140, 0, 0.4);
+  color: var(--orange);
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  z-index: 9999;
+  backdrop-filter: blur(12px);
+  animation: anim-fade-up 0.3s ease;
+}
