@@ -53,7 +53,7 @@ export default function Signup() {
         if (profileError) throw profileError
       }
 
-      router.push('/dashboard')
+      router.push('/')
       router.refresh()
     } catch (error: any) {
       setError(error.message)
