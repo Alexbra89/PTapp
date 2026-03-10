@@ -44,7 +44,6 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Bruk getSession (raskere enn getUser for middleware)
   const { data: { session } } = await supabase.auth.getSession()
 
   // ── Auth-logikk ────────────────────────────────────────────────────────────
@@ -57,15 +56,11 @@ export async function middleware(request: NextRequest) {
 
   if (session && isPublicRoute) {
     // Allerede innlogget → send til ROT (/)
-    return NextResponse.redirect(new URL('/', request.url))  // ← ENDRET!
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Root redirect - behold som / (ikke /dashboard)
-  if (pathname === '/') {
-    return NextResponse.redirect(
-      new URL(session ? '/' : '/login', request.url)  // ← ENDRET!
-    )
-  }
+  // VIKTIG: IKKE redirect root-path! La det gå videre.
+  // (pathname === '/') skal bare fortsette uten redirect
 
   // Sett cache-headers for raskere navigasjon
   response.headers.set('x-middleware-cache', 'no-cache')
@@ -75,7 +70,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Matcher alle ruter UNNTATT Next.js-interne og statiske filer
     '/((?!_next/static|_next/image|favicon|icons|manifest|sw|workbox|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|otf|css|js)).*)',
   ],
 }
