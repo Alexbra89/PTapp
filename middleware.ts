@@ -56,14 +56,14 @@ export async function middleware(request: NextRequest) {
   }
 
   if (session && isPublicRoute) {
-    // Allerede innlogget → send til dashboard
-    return NextResponse.redirect(new URL('/', request.url))
+    // Allerede innlogget → send til ROT (/)
+    return NextResponse.redirect(new URL('/', request.url))  // ← ENDRET!
   }
 
-  // Root redirect
+  // Root redirect - behold som / (ikke /dashboard)
   if (pathname === '/') {
     return NextResponse.redirect(
-      new URL(session ? '/dashboard' : '/login', request.url)
+      new URL(session ? '/' : '/login', request.url)  // ← ENDRET!
     )
   }
 
