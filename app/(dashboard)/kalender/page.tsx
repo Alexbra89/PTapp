@@ -35,6 +35,137 @@ const finnOvInfo = (navn: string) => ({
   muskler: OV_MUSKLER[navn.toLowerCase().trim()] ?? '',
 })
 
+// ── Øvelsesdatabase for forhåndsvisning i kalender ───────────────────────────
+// Hver gruppe har flere alternativer → variasjon basert på dato-seed
+const PREV_DB: Record<string, { navn: string; emoji: string; muskler: string; sett: number; reps: string }[]> = {
+  bryst: [
+    { navn:'Benkpress',            emoji:'🏋️', muskler:'Pecs, triceps',    sett:4, reps:'8-10'  },
+    { navn:'Skråbenkpress',        emoji:'📐', muskler:'Øvre pecs',        sett:3, reps:'10-12' },
+    { navn:'Kabel pec fly',        emoji:'🔀', muskler:'Indre pecs',       sett:3, reps:'12-15' },
+    { navn:'Dips',                 emoji:'⬇️', muskler:'Pecs, triceps',    sett:3, reps:'10-12' },
+    { navn:'Brystpress maskin',    emoji:'🔧', muskler:'Pecs',             sett:3, reps:'12'    },
+    { navn:'Push-up',              emoji:'💪', muskler:'Pecs, core',       sett:4, reps:'12-15' },
+    { navn:'Hantelflyes',          emoji:'🦅', muskler:'Indre pecs',       sett:3, reps:'12'    },
+  ],
+  rygg: [
+    { navn:'Pull-ups',             emoji:'🤸', muskler:'Lats, biceps',     sett:4, reps:'6-10'  },
+    { navn:'Lat pulldown',         emoji:'⬇️', muskler:'Lats',             sett:3, reps:'10-12' },
+    { navn:'Sittende kabelroing',  emoji:'🚣', muskler:'Midtre rygg',      sett:4, reps:'10-12' },
+    { navn:'Markløft',             emoji:'⚡', muskler:'Hel rygg, glutes', sett:4, reps:'5-6'   },
+    { navn:'Hantelroing enarms',   emoji:'💪', muskler:'Øvre rygg, biceps',sett:4, reps:'10×2'  },
+    { navn:'T-bar roing',          emoji:'🔩', muskler:'Midtre rygg',      sett:4, reps:'8-10'  },
+    { navn:'Face pull',            emoji:'🎯', muskler:'Bakre deltoid',    sett:3, reps:'15'     },
+  ],
+  bein: [
+    { navn:'Knebøy',               emoji:'🦵', muskler:'Quads, glutes',    sett:4, reps:'8-10'  },
+    { navn:'Legpress',             emoji:'🔧', muskler:'Quads, glutes',    sett:4, reps:'10-12' },
+    { navn:'Rumensk markløft',     emoji:'🍑', muskler:'Hamstrings',       sett:3, reps:'10-12' },
+    { navn:'Bulgarian split squat',emoji:'🏋️', muskler:'Quads, glutes',    sett:3, reps:'10×2'  },
+    { navn:'Leg curl',             emoji:'🦵', muskler:'Hamstrings',       sett:3, reps:'12'    },
+    { navn:'Leg extension',        emoji:'⬆️', muskler:'Quads',            sett:3, reps:'12-15' },
+    { navn:'Stående tåhev',        emoji:'👣', muskler:'Leggmuskler',      sett:4, reps:'15-20' },
+  ],
+  skuldre: [
+    { navn:'Military press',       emoji:'⬆️', muskler:'Alle deltoider',   sett:4, reps:'8-10'  },
+    { navn:'Sidehev',              emoji:'🔼', muskler:'Lateral deltoid',  sett:3, reps:'12-15' },
+    { navn:'Hantelpress sittende', emoji:'💺', muskler:'Fremre deltoid',   sett:3, reps:'10-12' },
+    { navn:'Face pull',            emoji:'🎯', muskler:'Bakre deltoid',    sett:3, reps:'15'    },
+    { navn:'Frontløft',            emoji:'⬆️', muskler:'Fremre deltoid',   sett:3, reps:'12'    },
+    { navn:'Arnold press',         emoji:'🌀', muskler:'Alle deltoider',   sett:3, reps:'10'    },
+    { navn:'Bakre flyes',          emoji:'🦅', muskler:'Bakre deltoid',    sett:3, reps:'15'    },
+  ],
+  bicep: [
+    { navn:'Biceps curl',          emoji:'💪', muskler:'Biceps brachii',   sett:4, reps:'10-12' },
+    { navn:'Hammer curl',          emoji:'🔨', muskler:'Brachialis',       sett:3, reps:'12'    },
+    { navn:'Preacher curl',        emoji:'🙏', muskler:'Biceps',           sett:3, reps:'10'    },
+    { navn:'Kabelbiceps curl',     emoji:'🔗', muskler:'Biceps',           sett:3, reps:'12-15' },
+    { navn:'Konsentrasjonskurl',   emoji:'🎯', muskler:'Biceps topp',      sett:3, reps:'12'    },
+    { navn:'Hengende bicepscurl',  emoji:'💪', muskler:'Biceps, brachialis',sett:3, reps:'10'   },
+  ],
+  tricep: [
+    { navn:'Triceps pushdown',     emoji:'📉', muskler:'Triceps',          sett:4, reps:'12-15' },
+    { navn:'Skull crushers',       emoji:'💀', muskler:'Triceps',          sett:3, reps:'10'    },
+    { navn:'Overhead triceps ext.',emoji:'⬆️', muskler:'Langt hode',       sett:3, reps:'12'    },
+    { navn:'Dips (triceps)',        emoji:'⬇️', muskler:'Triceps',          sett:3, reps:'12'    },
+    { navn:'Kabeltriceps ext.',    emoji:'🔗', muskler:'Triceps',          sett:3, reps:'12-15' },
+    { navn:'Nær-grep benkpress',   emoji:'🤏', muskler:'Triceps, pecs',    sett:3, reps:'10'    },
+  ],
+  core: [
+    { navn:'Planke',               emoji:'🧘', muskler:'Hele core',        sett:3, reps:'60s'   },
+    { navn:'Crunches',             emoji:'🔄', muskler:'Rectus abdominis', sett:3, reps:'20'    },
+    { navn:'Russian twist',        emoji:'🔃', muskler:'Obliques',         sett:3, reps:'20×2'  },
+    { navn:'Beinheving',           emoji:'🦵', muskler:'Nedre mage',       sett:3, reps:'15'    },
+    { navn:'Kabelscoops',          emoji:'🔗', muskler:'Obliques',         sett:3, reps:'12×2'  },
+    { navn:'Ab wheel rollout',     emoji:'⚙️', muskler:'Hele core',        sett:3, reps:'10'    },
+    { navn:'Hollow hold',          emoji:'🎯', muskler:'Core stabilitet',  sett:3, reps:'30s'   },
+  ],
+  fullkropp: [
+    { navn:'Knebøy',               emoji:'🦵', muskler:'Quads, glutes',    sett:4, reps:'8-10'  },
+    { navn:'Benkpress',            emoji:'🏋️', muskler:'Pecs, triceps',    sett:4, reps:'8-10'  },
+    { navn:'Pull-ups',             emoji:'🤸', muskler:'Lats, biceps',     sett:3, reps:'6-10'  },
+    { navn:'Military press',       emoji:'⬆️', muskler:'Deltoider',        sett:3, reps:'8-10'  },
+    { navn:'Markløft',             emoji:'⚡', muskler:'Hel rygg',         sett:3, reps:'5-6'   },
+    { navn:'Planke',               emoji:'🧘', muskler:'Core',             sett:3, reps:'60s'   },
+  ],
+  cardio: [
+    { navn:'Løping/tredemølle',    emoji:'🏃', muskler:'Kondisjon',        sett:1, reps:'30 min'},
+    { navn:'Sykkel intervaller',   emoji:'🚴', muskler:'Kondisjon, bein',  sett:5, reps:'3 min' },
+    { navn:'Romaskin',             emoji:'🚣', muskler:'Kondisjon, rygg',  sett:3, reps:'5 min' },
+    { navn:'Burpees',              emoji:'🔥', muskler:'Full kropp',       sett:4, reps:'15'    },
+    { navn:'Kettlebell swing',     emoji:'🔔', muskler:'Posterior chain',  sett:4, reps:'20'    },
+    { navn:'Box jumps',            emoji:'📦', muskler:'Eksplosivitet',    sett:4, reps:'10'    },
+  ],
+  tabata: [
+    { navn:'Burpees',              emoji:'🔥', muskler:'Full kropp',       sett:8, reps:'20s'   },
+    { navn:'Fjellklatrere',        emoji:'⛰️', muskler:'Core, kondisjon',  sett:8, reps:'20s'   },
+    { navn:'Jump squats',          emoji:'💥', muskler:'Bein, kondisjon',  sett:8, reps:'20s'   },
+    { navn:'Push-up rask',         emoji:'💪', muskler:'Bryst, kondisjon', sett:8, reps:'20s'   },
+  ],
+}
+
+// Mapper titteltekst til kjente grupper (f.eks. "Bryst & Tricep" → ['bryst','tricep'])
+function parsGrupper(tittel: string): string[] {
+  const t = tittel.toLowerCase()
+  const ALIASES: [RegExp, string][] = [
+    [/bryst|chest/,         'bryst'],
+    [/rygg|back/,           'rygg'],
+    [/bein|legs?|squat/,    'bein'],
+    [/skuld|shoulder/,      'skuldre'],
+    [/bicep/,               'bicep'],
+    [/tricep/,              'tricep'],
+    [/core|mage|abs/,       'core'],
+    [/full|total|kropp/,    'fullkropp'],
+    [/cardio|løp|sykkel/,   'cardio'],
+    [/tabata|hiit/,         'tabata'],
+  ]
+  const funnet: string[] = []
+  for (const [re, key] of ALIASES) {
+    if (re.test(t) && !funnet.includes(key)) funnet.push(key)
+  }
+  return funnet
+}
+
+// Hent 3-4 øvelser per gruppe med variasjon basert på dato-seed
+function hentAnbefaltOvelser(tittel: string, dato: string): typeof PREV_DB[string] {
+  const grupper = parsGrupper(tittel)
+  if (grupper.length === 0) return []
+
+  // Bruk dato som deterministisk seed → samme dag gir alltid samme øvelser
+  const seed = dato.replace(/-/g, '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+
+  const resultat: typeof PREV_DB[string] = []
+  for (const gruppe of grupper) {
+    const pool    = PREV_DB[gruppe] ?? []
+    const antall  = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
+    // Roter gjennom pool basert på seed – ulik kombinasjon per dag
+    const start = seed % Math.max(1, pool.length)
+    for (let i = 0; i < antall && i < pool.length; i++) {
+      resultat.push(pool[(start + i) % pool.length])
+    }
+  }
+  return resultat
+}
+
 const TYPE_META: Record<OktType, { color: string; emoji: string; label: string }> = {
   styrke: { color: 'var(--cyan)',   emoji: '🏋️', label: 'Styrke' },
   cardio: { color: 'var(--green)',  emoji: '🏃', label: 'Cardio' },
@@ -269,11 +400,36 @@ export default function KalenderPage() {
                               )
                             })}
                           </div>
-                        ) : (
-                          <div className="kal-ingen-ov">
-                            Ingen øvelser lagt til — genereres automatisk når du starter
-                          </div>
-                        )}
+                        ) : (() => {
+                          const forslag = hentAnbefaltOvelser(okt.tittel, okt.dato)
+                          return forslag.length > 0 ? (
+                            <div className="kal-ov-liste">
+                              <div className="kal-ov-lbl-preview">
+                                <span>✨ Anbefalte øvelser</span>
+                                <span className="kal-ov-lbl-hint">Varieres automatisk per dag</span>
+                              </div>
+                              {forslag.map((ov, i) => (
+                                <div key={i} className="kal-ov-rad kal-ov-preview">
+                                  <span className="kal-ov-em">{ov.emoji}</span>
+                                  <div className="kal-ov-info">
+                                    <div className="kal-ov-navn">{ov.navn}</div>
+                                    <div className="kal-ov-musk">{ov.muskler}</div>
+                                  </div>
+                                  <div className="kal-ov-tall kal-ov-tall-preview">
+                                    {ov.sett}×{ov.reps}
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="kal-preview-note">
+                                💡 Endelig øvelsevalg skjer når du trykker Start
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="kal-ingen-ov">
+                              Ingen øvelser lagt til — genereres automatisk når du starter
+                            </div>
+                          )
+                        })()}
                         <button className="kal-start-btn"
                           onClick={() => router.push(`/treninger/okt?okt=${okt.id}`)}>
                           ▶ Start treningsøkt
@@ -396,6 +552,13 @@ export default function KalenderPage() {
         .kal-notater{font-size:.78rem;color:rgba(255,255,255,.4);padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-top:.75rem}
         .kal-ov-liste{display:flex;flex-direction:column;gap:0;margin-top:.5rem}
         .kal-ov-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.25);font-weight:700;margin-bottom:8px}
+        .kal-ov-lbl-preview{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .kal-ov-lbl-preview>span:first-child{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan,#00f5ff);font-weight:700}
+        .kal-ov-lbl-hint{font-size:.6rem;color:rgba(255,255,255,.2);font-style:italic}
+        .kal-ov-preview{background:rgba(0,245,255,0.02);border-radius:8px;border:1px solid rgba(0,245,255,0.06);margin-bottom:3px}
+        .kal-ov-preview:hover{background:rgba(0,245,255,0.05)!important;border-color:rgba(0,245,255,0.12)!important}
+        .kal-ov-tall-preview{color:var(--cyan,#00f5ff);opacity:.7;font-weight:600}
+        .kal-preview-note{font-size:.65rem;color:rgba(255,255,255,.2);text-align:center;padding:8px;margin-top:4px;border-top:1px solid rgba(255,255,255,.04)}
         .kal-ov-rad{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;transition:background .1s}
         .kal-ov-rad:hover{background:rgba(255,255,255,.03)}
         .kal-ov-em{font-size:1.1rem;flex-shrink:0}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { format } from 'date-fns'
 import { nb } from 'date-fns/locale'
+import { createClient } from '@/lib/supabase/client'
 import { useUser, useProfil, useStats, useAktivitet, useVektlogg, useLoggVekt } from '@/hooks/useSupabaseQuery'
 
 // ── Lazy-load Recharts — hver komponent lastes separat ───────────────────────
@@ -66,6 +67,198 @@ const UTFORDRINGER_POOL = [
   { tittel:'Proteinrik dag',  beskrivelse:'Spis protein til hvert måltid i dag',  maal:3,     enhet:'måltider', emoji:'🥩' },
 ]
 
+const supabase = createClient()
+
+// ── PR øvelsesliste ────────────────────────────────────────────────────────────
+const PR_OVELSER = [
+  { id:'benkpress',     navn:'Benkpress',            emoji:'🏋️', kategori:'Bryst'    },
+  { id:'skraabenkpress',navn:'Skråbenkpress',         emoji:'📐', kategori:'Bryst'    },
+  { id:'markloeft',     navn:'Markløft',              emoji:'⚡', kategori:'Rygg'     },
+  { id:'kneboey',       navn:'Knebøy',                emoji:'🦵', kategori:'Bein'     },
+  { id:'pullups',       navn:'Pull-ups',              emoji:'🤸', kategori:'Rygg'     },
+  { id:'militarypress', navn:'Military press',        emoji:'⬆️', kategori:'Skuldre'  },
+  { id:'bicepscurl',    navn:'Biceps curl',           emoji:'💪', kategori:'Bicep'    },
+  { id:'hammercurl',    navn:'Hammer curl',           emoji:'🔨', kategori:'Bicep'    },
+  { id:'triceppushdown',navn:'Triceps pushdown',      emoji:'📉', kategori:'Tricep'   },
+  { id:'sidehev',       navn:'Sidehev',               emoji:'🔼', kategori:'Skuldre'  },
+  { id:'legpress',      navn:'Legpress',              emoji:'🔧', kategori:'Bein'     },
+  { id:'romenmarkloeft',navn:'Rumensk markløft',      emoji:'🍑', kategori:'Bein'     },
+  { id:'kabelsittroign',navn:'Sittende kabelroing',   emoji:'🚣', kategori:'Rygg'     },
+  { id:'latpulldown',   navn:'Lat pulldown',          emoji:'⬇️', kategori:'Rygg'     },
+]
+
+interface PR { id?: string; ovelse_id: string; kg: number; reps: number; dato: string }
+
+function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any }) {
+  const [prs,        setPrs]        = useState<PR[]>([])
+  const [laster,     setLaster]     = useState(true)
+  const [valgtOv,    setValgtOv]    = useState<string | null>(null)
+  const [nyKg,       setNyKg]       = useState<number|''>('')
+  const [nyReps,     setNyReps]     = useState<number|''>('')
+  const [lagrer,     setLagrer]     = useState(false)
+  const [suksess,    setSuksess]    = useState<string|null>(null)
+  const [visSkjema,  setVisSkjema]  = useState(false)
+  const [kategori,   setKategori]   = useState<string>('Alle')
+
+  useEffect(() => {
+    if (!userId) return
+    sb.from('pr_rekorder').select('*').eq('bruker_id', userId)
+      .then(({ data }: any) => { setPrs(data ?? []); setLaster(false) })
+  }, [userId])
+
+  const lagrePR = async () => {
+    if (!userId || !valgtOv || !nyKg || !nyReps) return
+    setLagrer(true)
+    const dato    = new Date().toISOString().split('T')[0]
+    const eksist  = prs.find(p => p.ovelse_id === valgtOv)
+    const erNyPR  = !eksist || Number(nyKg) > eksist.kg
+
+    if (eksist?.id) {
+      if (Number(nyKg) > eksist.kg) {
+        await sb.from('pr_rekorder').update({ kg: Number(nyKg), reps: Number(nyReps), dato })
+          .eq('id', eksist.id)
+        setPrs(p => p.map(r => r.ovelse_id === valgtOv ? { ...r, kg: Number(nyKg), reps: Number(nyReps), dato } : r))
+      }
+    } else {
+      const { data } = await sb.from('pr_rekorder')
+        .insert([{ bruker_id: userId, ovelse_id: valgtOv, kg: Number(nyKg), reps: Number(nyReps), dato }])
+        .select().single()
+      if (data) setPrs(p => [...p, data])
+    }
+
+    if (erNyPR) setSuksess(valgtOv)
+    setTimeout(() => setSuksess(null), 3000)
+    setNyKg(''); setNyReps(''); setValgtOv(null); setVisSkjema(false)
+    setLagrer(false)
+  }
+
+  const kategorier = ['Alle', ...Array.from(new Set(PR_OVELSER.map(o => o.kategori)))]
+  const filtrert   = PR_OVELSER.filter(o => kategori === 'Alle' || o.kategori === kategori)
+  const prMap      = Object.fromEntries(prs.map(p => [p.ovelse_id, p]))
+
+  return (
+    <div className="pr-page">
+      {/* Header */}
+      <div className="pr-header glass-card">
+        <div>
+          <div className="pr-header-t">🏆 Personlige rekorder</div>
+          <div className="pr-header-s">Logg dine beste løft — appen markerer hver gang du slår rekorden</div>
+        </div>
+        <button className="btn btn-primary pr-ny-btn" onClick={() => setVisSkjema(true)}>
+          ＋ Logg PR
+        </button>
+      </div>
+
+      {/* NY-PR-animasjon */}
+      {suksess && (() => {
+        const ov = PR_OVELSER.find(o => o.id === suksess)
+        return (
+          <div className="pr-feiring glass-card">
+            <span className="pr-feiring-em">🎉</span>
+            <div>
+              <div className="pr-feiring-t">Ny personlig rekord!</div>
+              <div className="pr-feiring-s">{ov?.navn} — nytt toppløft registrert!</div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Kategori-filter */}
+      <div className="pr-kat-rad glass-card">
+        {kategorier.map(k => (
+          <button key={k} className={`pr-kat-btn${kategori===k?' on':''}`}
+            onClick={() => setKategori(k)}>{k}</button>
+        ))}
+      </div>
+
+      {/* PR-liste */}
+      {laster ? (
+        <div className="pr-laster glass-card"><span className="spinner-lg" /></div>
+      ) : (
+        <div className="pr-grid">
+          {filtrert.map(ov => {
+            const pr = prMap[ov.id]
+            return (
+              <div key={ov.id} className={`pr-kort glass-card${pr ? ' pr-kort-aktiv' : ''}`}
+                onClick={() => { setValgtOv(ov.id); setVisSkjema(true) }}>
+                <div className="pr-kort-topp">
+                  <span className="pr-kort-em">{ov.emoji}</span>
+                  <span className="pr-kort-kat">{ov.kategori}</span>
+                </div>
+                <div className="pr-kort-navn">{ov.navn}</div>
+                {pr ? (
+                  <>
+                    <div className="pr-kort-kg">{pr.kg} <span className="pr-kort-kglbl">kg</span></div>
+                    <div className="pr-kort-reps">{pr.reps} reps</div>
+                    <div className="pr-kort-dato">📅 {pr.dato}</div>
+                  </>
+                ) : (
+                  <div className="pr-kort-tom">Trykk for å logge</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Modal — logg ny PR */}
+      {visSkjema && (
+        <div className="pr-modal-bg" onClick={() => { setVisSkjema(false); setValgtOv(null) }}>
+          <div className="pr-modal glass-card" onClick={e => e.stopPropagation()}>
+            <div className="pr-modal-header">
+              <span className="pr-modal-tittel">🏋️ Logg ny PR</span>
+              <button className="kal-modal-x" onClick={() => { setVisSkjema(false); setValgtOv(null) }}>✕</button>
+            </div>
+            <div className="pr-modal-body">
+              <label className="kal-lbl">Øvelse</label>
+              <div className="pr-ov-grid">
+                {PR_OVELSER.map(o => (
+                  <button key={o.id} className={`pr-ov-btn${valgtOv===o.id?' on':''}`}
+                    onClick={() => setValgtOv(o.id)}>
+                    {o.emoji} {o.navn}
+                  </button>
+                ))}
+              </div>
+
+              <div className="pr-tall-rad">
+                <div>
+                  <label className="kal-lbl">Vekt (kg)</label>
+                  <input type="number" className="input" style={{ marginTop: '6px' }}
+                    value={nyKg} onChange={e => setNyKg(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="100" min="0" max="999" step="0.5" />
+                </div>
+                <div>
+                  <label className="kal-lbl">Reps</label>
+                  <input type="number" className="input" style={{ marginTop: '6px' }}
+                    value={nyReps} onChange={e => setNyReps(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="5" min="1" max="100" />
+                </div>
+              </div>
+
+              {valgtOv && prMap[valgtOv] && (
+                <div className="pr-nåvaerende">
+                  <span>Nåværende PR:</span>
+                  <strong>{prMap[valgtOv].kg} kg × {prMap[valgtOv].reps} reps</strong>
+                  {nyKg && Number(nyKg) > prMap[valgtOv].kg && (
+                    <span className="pr-ny-rekord-badge">🔥 Ny rekord!</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="kal-modal-footer">
+              <button className="btn btn-ghost" onClick={() => { setVisSkjema(false); setValgtOv(null) }}>Avbryt</button>
+              <button className="btn btn-primary" onClick={lagrePR}
+                disabled={lagrer || !valgtOv || !nyKg || !nyReps}>
+                {lagrer ? <span className="spinner" style={{ width:14, height:14 }} /> : '💾 Lagre PR'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function getUkensUtfordringer(ukeNr: number, mal: string) {
   const seed = ukeNr * 7 + (mal === 'ned_i_vekt' ? 1 : mal === 'bygge_muskler' ? 2 : 3)
   const pool = mal === 'ned_i_vekt'
@@ -126,7 +319,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function StatistikkPage() {
-  const [aktivFane,    setAktivFane]    = useState<'stats'|'vekt'|'utfordringer'>('stats')
+  const [aktivFane,    setAktivFane]    = useState<'stats'|'pr'|'vekt'|'utfordringer'>('stats')
   const [utfordringer, setUtfordringer] = useState<Utfordring[]>([])
   const [nyVekt,       setNyVekt]       = useState<number|''>('')
 
@@ -187,7 +380,7 @@ export default function StatistikkPage() {
 
       {/* Faner */}
       <div className="st-faner glass-card">
-        {([['stats','📊','Oversikt'],['vekt','⚖️','Vektlogg'],['utfordringer','🏆','Utfordringer']] as const).map(([k,e,l]) => (
+        {([['stats','📊','Oversikt'],['pr','🏆','PR-rekorder'],['vekt','⚖️','Vektlogg'],['utfordringer','⚡','Utfordringer']] as const).map(([k,e,l]) => (
           <button key={k} className={`st-fane${aktivFane===k?' active':''}`} onClick={() => setAktivFane(k)}>
             {e} {l}
           </button>
@@ -263,6 +456,9 @@ export default function StatistikkPage() {
           </div>
         </>
       )}
+
+      {/* ── PR-REKORDER ── */}
+      {aktivFane === 'pr' && <PRTracker userId={user?.id} supabase={supabase} />}
 
       {/* ── VEKTLOGG ── */}
       {aktivFane === 'vekt' && (
@@ -478,6 +674,49 @@ export default function StatistikkPage() {
         .st-utf-btn:hover{background:rgba(255,255,255,.1)}
         .st-utf-btn-add{border-color:rgba(0,245,255,.3);color:var(--cyan)}
         .st-utf-done-btn{font-size:.78rem!important;padding:.35rem .85rem!important}
+
+        /* ── PR REKORDER ── */
+        .pr-page{display:flex;flex-direction:column;gap:.75rem}
+        .pr-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;gap:1rem;flex-wrap:wrap}
+        .pr-header-t{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#fff;margin-bottom:3px}
+        .pr-header-s{font-size:.75rem;color:rgba(255,255,255,.3)}
+        .pr-ny-btn{font-size:.82rem!important;padding:.5rem 1rem!important}
+        .pr-feiring{display:flex;align-items:center;gap:14px;padding:1rem 1.5rem;border-color:rgba(255,165,0,.3)!important;background:rgba(255,165,0,.05)!important;animation:prFeirPop .4s cubic-bezier(.34,1.56,.64,1)}
+        @keyframes prFeirPop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+        .pr-feiring-em{font-size:2rem;flex-shrink:0}
+        .pr-feiring-t{font-family:var(--font-display);font-size:.95rem;font-weight:700;color:#ffa500;margin-bottom:3px}
+        .pr-feiring-s{font-size:.78rem;color:rgba(255,255,255,.4)}
+        .pr-kat-rad{display:flex;gap:6px;padding:.75rem 1rem;flex-wrap:wrap}
+        .pr-kat-btn{padding:4px 12px;border-radius:8px;font-size:.75rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body)}
+        .pr-kat-btn.on{background:rgba(180,78,255,.12);border-color:rgba(180,78,255,.35);color:var(--purple)}
+        .pr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem}
+        @media(max-width:600px){.pr-grid{grid-template-columns:repeat(2,1fr)}}
+        .pr-kort{padding:1rem;cursor:pointer;transition:all .15s;border:1px solid rgba(255,255,255,.07)!important}
+        .pr-kort:hover{background:rgba(255,255,255,.04)!important;border-color:rgba(180,78,255,.25)!important;transform:translateY(-2px)}
+        .pr-kort-aktiv{border-color:rgba(180,78,255,.2)!important;background:rgba(180,78,255,.04)!important}
+        .pr-kort-topp{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+        .pr-kort-em{font-size:1.4rem}
+        .pr-kort-kat{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.25);font-weight:600}
+        .pr-kort-navn{font-family:var(--font-display);font-size:.82rem;font-weight:700;color:#fff;margin-bottom:.5rem;line-height:1.3}
+        .pr-kort-kg{font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--purple);line-height:1}
+        .pr-kort-kglbl{font-size:.75rem;font-weight:400;opacity:.6}
+        .pr-kort-reps{font-size:.72rem;color:rgba(255,255,255,.4);margin-top:3px}
+        .pr-kort-dato{font-size:.62rem;color:rgba(255,255,255,.2);margin-top:6px}
+        .pr-kort-tom{font-size:.72rem;color:rgba(255,255,255,.2);font-style:italic;margin-top:.5rem}
+        .pr-laster{display:flex;align-items:center;justify-content:center;padding:3rem}
+        .pr-modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem}
+        .pr-modal{width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+        .pr-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,.07)}
+        .pr-modal-tittel{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#fff}
+        .pr-modal-body{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem}
+        .pr-ov-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;max-height:220px;overflow-y:auto;margin-top:6px}
+        .pr-ov-btn{padding:6px 10px;border-radius:8px;font-size:.75rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);cursor:pointer;transition:all .12s;text-align:left;font-family:var(--font-body)}
+        .pr-ov-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+        .pr-ov-btn.on{background:rgba(180,78,255,.12);border-color:rgba(180,78,255,.4);color:var(--purple);font-weight:600}
+        .pr-tall-rad{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .pr-nåvaerende{display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.4);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;flex-wrap:wrap}
+        .pr-nåvaerende strong{color:#fff}
+        .pr-ny-rekord-badge{padding:2px 8px;border-radius:999px;background:rgba(255,100,0,.15);border:1px solid rgba(255,100,0,.3);color:#ff8c00;font-size:.65rem;font-weight:600}
       `}</style>
     </div>
   )
