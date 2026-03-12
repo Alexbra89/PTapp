@@ -219,25 +219,70 @@ function OktInner() {
 
   useEffect(() => { bygg() }, [])
 
-  const bygg = async () => {
-    const oktId = searchParams.get('okt')
-    if (oktId) {
-      // Fra kalender
-      const { data } = await createClient().from('okter').select('*').eq('id', oktId).single()
-      if (data) {
-        const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
-        const oveler = (data.ovelser ?? []).map((o: any) => {
-          const match = alle.find(e => e.navn.toLowerCase() === o.navn?.toLowerCase())
-          const sett = parseInt(o.sett) || 3
+const bygg = async () => {
+  const oktId = searchParams.get('okt')
+  if (oktId) {
+    // Fra kalender
+    const { data } = await createClient().from('okter').select('*').eq('id', oktId).single()
+    if (data) {
+      console.log('Hentet økt:', data)
+      console.log('Øvelser fra DB:', data.ovelser)
+      
+      const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+      
+      // 🔥 NY: Hjelpefunksjon for å normalisere navn
+      const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+      
+      const oveler = (data.ovelser ?? []).map((o: any) => {
+        // 🔥 BRUK DEN: Finn match med normaliserte navn
+        const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+        
+        // Hvis vi har match, bruk DB-data, ellers bruk det som er lagret
+        const sett = o.sett || 3
+        const reps = o.reps || '10'
+        
+        if (match) {
+          // Vi har full detaljer fra DB
           return {
-            ...(match ?? { navn: o.navn, sett, reps: o.reps||'10', hvile:'75s', utstyr:'–', emoji:'⚡', muskler:'–', beskrivelse:'', tips:'–' }),
-            sett, expanded: true,
-            sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(o.reps)||10, kg: o.kg||0, fullfort: false })),
+            ...match,
+            sett: sett,
+            expanded: true,
+            sett_logg: Array.from({length: sett}, () => ({ 
+              reps: parseInt(reps.split('-')[0]) || 10, 
+              kg: o.kg || 0, 
+              fullfort: false 
+            })),
           }
-        })
-        setOkter(oveler); setTittel(data.tittel); setLaster(false); return
-      }
+        } else {
+          // Ingen match - bruk minimal data
+          return {
+            navn: o.navn || 'Ukjent øvelse',
+            sett: sett,
+            reps: reps,
+            hvile: '75s',
+            utstyr: '–',
+            emoji: '⚡',
+            muskler: '–',
+            beskrivelse: '',
+            tips: '–',
+            expanded: true,
+            sett_logg: Array.from({length: sett}, () => ({ 
+              reps: parseInt(reps.split('-')[0]) || 10, 
+              kg: o.kg || 0, 
+              fullfort: false 
+            })),
+          }
+        }
+      })
+      
+      console.log('Prosesserte øvelser:', oveler)
+      setOkter(oveler)
+      setTittel(data.tittel)
+      setLaster(false)
+      return
     }
+  }
+
 
     // Fra generator
     const grupperStr = searchParams.get('grupper') ?? ''
