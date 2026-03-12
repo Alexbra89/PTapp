@@ -221,7 +221,7 @@ function OktInner() {
 
 const bygg = async () => {
   const oktId = searchParams.get('okt')
-  const ovelserParam = searchParams.get('ovelser') // 🔥 NY!
+  const ovelserParam = searchParams.get('ovelser')
   
   console.log('Starter bygg med:', { oktId, harOvelserParam: !!ovelserParam })
   
@@ -232,7 +232,7 @@ const bygg = async () => {
       console.log('Hentet økt:', data)
       console.log('Øvelser fra DB:', data.ovelser)
       
-      // 🔥 PRIORITET 1: Bruk øvelser fra URL hvis de finnes
+      // Bruk øvelser fra URL hvis de finnes
       let ovelserData = data.ovelser ?? []
       
       if (ovelserParam) {

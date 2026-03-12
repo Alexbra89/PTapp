@@ -424,7 +424,7 @@ const lagreOkt = async () => {
                           return forslag.length > 0 ? (
                             <div className="kal-ov-liste">
                               <div className="kal-ov-lbl-preview">
-                                <span>✨ Anbefalte ovelser</span>
+                                <span>✨ Anbefalte øvelser</span>
                                 <span className="kal-ov-lbl-hint">Varieres automatisk per dag</span>
                               </div>
                               {forslag.map((ov, i) => (
@@ -445,25 +445,16 @@ const lagreOkt = async () => {
                             </div>
                           ) : (
                             <div className="kal-ingen-ov">
-                              Ingen ovelser lagt til — genereres automatisk når du starter
+                              Ingen øvelser lagt til — genereres automatisk når du starter
                             </div>
                           )
                         })()}
                         
-                        {/* Start-knapp med riktig onClick */}
+                        {/* Enkel start-knapp - bare sender ID */}
                         <button 
                           className="kal-start-btn"
                           onClick={() => {
-                            const params = new URLSearchParams()
-                            params.set('okt', okt.id)
-                            
-                            // VIKTIG: Hvis økten har ovelser, send dem med i URL
-                            if (okt.ovelser && okt.ovelser.length > 0) {
-                              console.log('Sender ovelser med i URL:', okt.ovelser)
-                              params.set('ovelser', JSON.stringify(okt.ovelser))
-                            }
-                            
-                            router.push(`/treninger/okt?${params.toString()}`)
+                            router.push(`/treninger/okt?okt=${okt.id}`)
                           }}
                         >
                           ▶ Start treningsøkt
