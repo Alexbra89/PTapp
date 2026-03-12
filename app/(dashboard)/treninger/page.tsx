@@ -8,7 +8,6 @@ type Sted   = 'hjemme' | 'gym'
 type Gruppe = 'bryst'|'rygg'|'bein'|'skuldre'|'bicep'|'tricep'|'core'|'fullkropp'|'tabata'|'cardio'
 type KlokkeMode = 'stopp'|'ned'
 
-// ── Alarm ──────────────────────────────────────────────────────────────────────
 function spillAlarm() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -60,6 +59,99 @@ const AUTOFYLL: Record<string, Record<string, Gruppe[]>> = {
   '3dager_fullkropp':  { Man:['fullkropp'], Ons:['fullkropp'], Fre:['fullkropp'] },
 }
 
+// ── Øvelsesdatabase for autofyll ─────────────────────────────────────────────
+const OV_DB: Record<string, { navn: string; sett: number; reps: string }[]> = {
+  bryst:    [
+    { navn:'Benkpress', sett:4, reps:'8-10' },
+    { navn:'Skråbenkpress', sett:3, reps:'10-12' },
+    { navn:'Kabel pec fly', sett:3, reps:'12-15' },
+    { navn:'Dips', sett:3, reps:'10-12' },
+    { navn:'Push-up', sett:4, reps:'12-15' },
+    { navn:'Hantelflyes', sett:3, reps:'12' },
+  ],
+  rygg:     [
+    { navn:'Pull-ups', sett:4, reps:'6-10' },
+    { navn:'Lat pulldown', sett:3, reps:'10-12' },
+    { navn:'Sittende kabelroing', sett:4, reps:'10-12' },
+    { navn:'Markløft', sett:4, reps:'5-6' },
+    { navn:'Hantelroing enarms', sett:4, reps:'10×2' },
+    { navn:'Face pull', sett:3, reps:'15' },
+  ],
+  bein:     [
+    { navn:'Knebøy', sett:4, reps:'8-10' },
+    { navn:'Legpress', sett:4, reps:'10-12' },
+    { navn:'Rumensk markløft', sett:3, reps:'10-12' },
+    { navn:'Bulgarian split squat', sett:3, reps:'10×2' },
+    { navn:'Leg curl', sett:3, reps:'12' },
+    { navn:'Leg extension', sett:3, reps:'12-15' },
+    { navn:'Stående tåhev', sett:4, reps:'15-20' },
+  ],
+  skuldre:  [
+    { navn:'Military press', sett:4, reps:'8-10' },
+    { navn:'Sidehev', sett:3, reps:'12-15' },
+    { navn:'Hantelpress sittende', sett:3, reps:'10-12' },
+    { navn:'Face pull', sett:3, reps:'15' },
+    { navn:'Arnold press', sett:3, reps:'10' },
+  ],
+  bicep:    [
+    { navn:'Biceps curl', sett:4, reps:'10-12' },
+    { navn:'Hammer curl', sett:3, reps:'12' },
+    { navn:'Preacher curl', sett:3, reps:'10' },
+    { navn:'Kabel curl', sett:3, reps:'12-15' },
+  ],
+  tricep:   [
+    { navn:'Triceps pushdown', sett:4, reps:'12-15' },
+    { navn:'Skull crushers', sett:3, reps:'10' },
+    { navn:'Overhead triceps ext.', sett:3, reps:'12' },
+    { navn:'Dips (triceps)', sett:3, reps:'12' },
+  ],
+  core:     [
+    { navn:'Planke', sett:3, reps:'60s' },
+    { navn:'Crunches', sett:3, reps:'20' },
+    { navn:'Russian twist', sett:3, reps:'20×2' },
+    { navn:'Beinheving', sett:3, reps:'15' },
+    { navn:'Ab wheel rollout', sett:3, reps:'10' },
+  ],
+  fullkropp:[
+    { navn:'Knebøy', sett:4, reps:'8-10' },
+    { navn:'Benkpress', sett:4, reps:'8-10' },
+    { navn:'Pull-ups', sett:3, reps:'6-10' },
+    { navn:'Military press', sett:3, reps:'8-10' },
+    { navn:'Markløft', sett:3, reps:'5-6' },
+    { navn:'Planke', sett:3, reps:'60s' },
+  ],
+  cardio:   [
+    { navn:'Løping/tredemølle', sett:1, reps:'30 min' },
+    { navn:'Sykkel intervaller', sett:5, reps:'3 min' },
+    { navn:'Romaskin', sett:3, reps:'5 min' },
+    { navn:'Burpees', sett:4, reps:'15' },
+  ],
+  tabata:   [
+    { navn:'Burpees', sett:8, reps:'20s' },
+    { navn:'Fjellklatrere', sett:8, reps:'20s' },
+    { navn:'Jump squats', sett:8, reps:'20s' },
+    { navn:'Push-up rask', sett:8, reps:'20s' },
+  ],
+}
+
+// Generer deterministiske øvelser basert på muskelgrupper + dato
+function genererOvelser(grupper: Gruppe[], datoStr: string) {
+  const seed = datoStr.replace(/-/g,'').split('').reduce((a,c) => a + c.charCodeAt(0), 0)
+  const res: { navn: string; sett: number; reps: string; kg: number }[] = []
+  for (const gruppe of grupper) {
+    const pool   = OV_DB[gruppe] ?? []
+    if (!pool.length) continue
+    const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
+    const start  = seed % pool.length
+    for (let i = 0; i < antall && i < pool.length; i++) {
+      const o = pool[(start + i) % pool.length]
+      if (!res.find(r => r.navn === o.navn))
+        res.push({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 })
+    }
+  }
+  return res
+}
+
 function KonfigInner() {
   const supabase     = createClient()
   const router       = useRouter()
@@ -75,14 +167,14 @@ function KonfigInner() {
   const [autofillPlan,setAutofillPlan] = useState('')
   const [visAutofill, setVisAutofill]  = useState(false)
   const [autofillMsg, setAutofillMsg]  = useState('')
+  const [autofillLast,setAutofillLast] = useState(false)
 
-  // Stoppeklokke
-  const [klokkeMode, setKlokkeMode]     = useState<KlokkeMode>('stopp')
-  const [sekunder,   setSekunder]       = useState(0)
-  const [kjoerer,    setKjoerer]        = useState(false)
-  const [fase,       setFase]           = useState<'oppvarming'|'trening'|null>(null)
-  const [nedMal,     setNedMal]         = useState(3)
-  const [alarm,      setAlarm]          = useState(false)
+  const [klokkeMode, setKlokkeMode] = useState<KlokkeMode>('stopp')
+  const [sekunder,   setSekunder]   = useState(0)
+  const [kjoerer,    setKjoerer]    = useState(false)
+  const [fase,       setFase]       = useState<'oppvarming'|'trening'|null>(null)
+  const [nedMal,     setNedMal]     = useState(3)
+  const [alarm,      setAlarm]      = useState(false)
   const intervalRef  = useRef<NodeJS.Timeout|null>(null)
 
   useEffect(() => {
@@ -114,7 +206,7 @@ function KonfigInner() {
     setKjoerer(true)
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
   }
-  const stoppKlokke    = () => setKjoerer(false)
+  const stoppKlokke     = () => setKjoerer(false)
   const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setFase(null); setAlarm(false) }
 
   const formatTid = (s: number) =>
@@ -126,36 +218,38 @@ function KonfigInner() {
   const startOkt = () => {
     if (grupper.length === 0) return
     const params = new URLSearchParams({
-      grupper:    grupper.join(','),
-      sted,
-      nivaa,
-      intensitet,
-      dag:        String(dag),
-      oppvarming: oppvarming.join(','),
+      grupper: grupper.join(','), sted, nivaa, intensitet,
+      dag: String(dag), oppvarming: oppvarming.join(','),
     })
     router.push(`/treninger/okt?${params.toString()}`)
   }
 
+  // ── AUTOFYLL FIKSET — lagrer øvelser til Supabase ────────────────────────
   const autofillKalender = async () => {
     if (!autofillPlan) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    setAutofillLast(true)
     const plan   = AUTOFYLL[autofillPlan]
     const today  = new Date()
     const monday = new Date(today); monday.setDate(today.getDate() - (today.getDay()+6)%7)
+    monday.setHours(0,0,0,0)
     for (const [dagNavn, grp] of Object.entries(plan)) {
       const idx  = UKEDAGER.indexOf(dagNavn)
       const dato = new Date(monday); dato.setDate(monday.getDate()+idx)
+      const datoStr = dato.toISOString().split('T')[0]
+      const ovelser = genererOvelser(grp, datoStr)   // ← genererer øvelser
       await supabase.from('okter').insert([{
-        bruker_id: user.id,
-        dato: dato.toISOString().split('T')[0],
-        tittel: grp.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & '),
-        type: grp.includes('cardio')||grp.includes('tabata') ? 'cardio' : 'styrke',
+        bruker_id:    user.id,
+        dato:         datoStr,
+        tittel:       grp.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & '),
+        type:         grp.includes('cardio')||grp.includes('tabata') ? 'cardio' : 'styrke',
         varighet_min: 60,
-        notater: `Auto-generert: ${autofillPlan}`,
-        ovelser: [],
+        notater:      `Auto-generert: ${autofillPlan}`,
+        ovelser,                                       // ← lagres i Supabase
       }])
     }
+    setAutofillLast(false)
     setAutofillMsg('Ukesplan lagt til i kalender! ✓')
     setTimeout(() => setAutofillMsg(''), 3000)
     setVisAutofill(false)
@@ -163,7 +257,6 @@ function KonfigInner() {
 
   const tilgjOpp = OPPVARMING.filter(o => o.sted.includes(sted))
 
-  // Fra kalender
   useEffect(() => { if (oktId) router.push(`/treninger/okt?okt=${oktId}`) }, [oktId])
 
   return (
@@ -173,7 +266,7 @@ function KonfigInner() {
         <p className="page-subtitle">Sett opp din økt og trykk start</p>
       </div>
 
-      {/* ── Stoppeklokke – kompakt, venstre ── */}
+      {/* ── Stoppeklokke ── */}
       <div className={`tk-klokke glass-card${alarm ? ' tk-alarm' : ''}`}>
         <div className="tk-klokke-venstre">
           <div className="tk-tid" style={{
@@ -336,8 +429,10 @@ function KonfigInner() {
               </div>
               {autofillMsg && <div className="tk-af-msg">{autofillMsg}</div>}
               <button className="btn btn-primary" style={{width:'100%'}}
-                onClick={autofillKalender} disabled={!autofillPlan}>
-                📅 Legg til i kalender (denne uken)
+                onClick={autofillKalender} disabled={!autofillPlan || autofillLast}>
+                {autofillLast
+                  ? <><span className="spinner" style={{width:14,height:14,display:'inline-block'}}/> Lagrer...</>
+                  : '📅 Legg til i kalender (denne uken)'}
               </button>
             </div>
           )}
@@ -360,7 +455,6 @@ function KonfigInner() {
       <style>{`
         .tk-page { max-width: 900px; width: 100%; }
 
-        /* ── Stoppeklokke ── */
         .tk-klokke {
           display: flex; align-items: center; gap: 1.25rem;
           padding: 1rem 1.25rem; margin-bottom: 1.5rem; flex-wrap: wrap;
@@ -374,14 +468,12 @@ function KonfigInner() {
           from { box-shadow: 0 0 0 rgba(255,68,68,0); }
           to   { box-shadow: 0 0 20px rgba(255,68,68,0.25); }
         }
-
         .tk-klokke-venstre { flex-shrink: 0; }
         .tk-tid {
           font-family: var(--font-display, monospace); font-size: 2.2rem; font-weight: 800;
           letter-spacing: 0.05em; font-variant-numeric: tabular-nums; line-height: 1;
         }
         .tk-klokke-info { font-size: 0.68rem; color: rgba(255,255,255,0.3); margin-top: 3px; }
-
         .tk-klokke-midten { flex: 1; min-width: 0; }
         .tk-modus-rad { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
         .tk-modus {
@@ -391,7 +483,6 @@ function KonfigInner() {
           transition: all 0.15s;
         }
         .tk-modus.on { background: rgba(0,245,255,0.1); border-color: rgba(0,245,255,0.3); color: var(--cyan); }
-
         .tk-ned-rad { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .tk-ned-btn {
           width: 26px; height: 26px; border-radius: 7px;
@@ -408,7 +499,6 @@ function KonfigInner() {
           transition: all 0.1s;
         }
         .tk-quick.on { background: rgba(0,245,255,0.1); border-color: rgba(0,245,255,0.25); color: var(--cyan); }
-
         .tk-klokke-hoeyre { display: flex; gap: 6px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
         .tk-k-btn { font-size: 0.78rem !important; padding: 0.45rem 0.9rem !important; }
         .tk-reset {
@@ -418,15 +508,12 @@ function KonfigInner() {
         }
         .tk-reset:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
-        /* ── Konfig-grid ── */
         .tk-grid { display: flex; flex-direction: column; gap: 0.875rem; }
-
         .tk-seksjon { padding: 1.125rem 1.25rem; }
         .tk-lbl {
           font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em;
           color: rgba(255,255,255,0.3); font-weight: 700; margin-bottom: 0.7rem;
         }
-
         .tk-pill-rad { display: flex; gap: 6px; flex-wrap: wrap; }
         .tk-pill {
           padding: 5px 12px; border-radius: 999px; font-size: 0.78rem;
@@ -436,7 +523,6 @@ function KonfigInner() {
         }
         .tk-pill:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
         .tk-pill.on { background: rgba(0,245,255,0.13); border-color: rgba(0,245,255,0.38); color: var(--cyan); }
-
         .tk-sted-rad { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .tk-sted {
           display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -448,7 +534,6 @@ function KonfigInner() {
         .tk-sted.on { background: rgba(0,245,255,0.09); border-color: rgba(0,245,255,0.32); }
         .tk-sted-l { font-size: 0.85rem; font-weight: 700; color: #fff; }
         .tk-sted-s { font-size: 0.62rem; color: rgba(255,255,255,0.3); text-align: center; }
-
         .tk-gruppe-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; }
         @media(max-width:600px) { .tk-gruppe-grid { grid-template-columns: repeat(4,1fr); } }
         .tk-gruppe {
@@ -462,7 +547,6 @@ function KonfigInner() {
         .tk-gruppe-em { font-size: 1.15rem; line-height: 1; }
         .tk-gruppe-l { font-size: 0.62rem; color: rgba(255,255,255,0.5); text-align: center; }
         .tk-gruppe.on .tk-gruppe-l { color: var(--cyan); }
-
         .tk-valgte { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
         .tk-badge {
           display: inline-flex; align-items: center; gap: 5px;
@@ -470,10 +554,8 @@ function KonfigInner() {
           background: rgba(0,245,255,0.1); border: 1px solid rgba(0,245,255,0.25); color: var(--cyan);
         }
         .tk-badge button { background: none; border: none; cursor: pointer; color: var(--cyan); font-size: 0.6rem; padding: 0; }
-
         .tk-2kol { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         @media(max-width:500px) { .tk-2kol { grid-template-columns: 1fr; } }
-
         .tk-opp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
         @media(max-width:600px) { .tk-opp-grid { grid-template-columns: 1fr 1fr; } }
         .tk-opp {
@@ -486,7 +568,6 @@ function KonfigInner() {
         .tk-opp.on { background: rgba(255,140,0,0.1); border-color: rgba(255,140,0,0.3); }
         .tk-opp-navn { font-size: 0.75rem; color: rgba(255,255,255,0.7); font-weight: 500; }
         .tk-opp-tid  { font-size: 0.62rem; color: rgba(255,255,255,0.3); }
-
         .tk-autofill-toggle {
           background: none; border: 1px dashed rgba(255,255,255,0.14);
           color: rgba(255,255,255,0.42); border-radius: 10px; padding: 7px 14px;
@@ -509,7 +590,6 @@ function KonfigInner() {
         .tk-af-s { font-size: 0.65rem; color: rgba(255,255,255,0.3); }
         .tk-af-msg { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); color: var(--green); border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; }
 
-        /* Start-knapp */
         .tk-start-btn {
           width: 100%; margin-top: 1.5rem; padding: 1rem;
           border-radius: 14px; border: none; cursor: pointer;
