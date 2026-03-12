@@ -228,18 +228,21 @@ export default function KalenderPage() {
     setVisModal(true)
   }
 
-  const lagreOkt = async () => {
-    if (!user || !form.tittel.trim()) return
-    const dato = format(valgtDag, 'yyyy-MM-dd')
-    await lagreOktMut.mutateAsync({
-      userId: user.id, dato,
-      tittel: form.tittel, type: form.type,
-      varighet_min: form.varighet_min, notater: form.notater,
-      id: editOkt?.id,
-    })
-    setVisModal(false)
-    setEditOkt(null)
-  }
+const lagreOkt = async () => {
+  if (!user || !form.tittel.trim()) return
+  const dato = format(valgtDag, 'yyyy-MM-dd')
+  const forslag = editOkt ? [] : hentAnbefaltOvelser(form.tittel, dato)
+  const ovelser = forslag.map((o: any) => ({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 }))
+  await lagreOktMut.mutateAsync({
+    userId: user.id, dato,
+    tittel: form.tittel, type: form.type,
+    varighet_min: form.varighet_min, notater: form.notater,
+    id: editOkt?.id,
+    ovelser,
+  })
+  setVisModal(false)
+  setEditOkt(null)
+}
 
   // Direkte slett — ingen confirm(), bruker inline bekreftelse
   const slettOkt = async (okt: Okt, e: React.MouseEvent) => {

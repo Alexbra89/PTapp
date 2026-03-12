@@ -221,7 +221,7 @@ export function useLagreOkt() {
     mutationFn: async (payload: {
       userId: string; dato: string; tittel: string
       type: string; varighet_min: number; notater: string
-      id?: string
+      id?: string; ovelser?: any[]
     }) => {
       const { id, userId, ...rest } = payload
       if (id) {
@@ -232,11 +232,31 @@ export function useLagreOkt() {
       } else {
         const { data, error } = await supabase
           .from('okter')
-          .insert([{ ...rest, bruker_id: userId, ovelser: [] }])
+          .insert([{ ...rest, bruker_id: userId, ovelser: rest.ovelser ?? [] }])
           .select().single()
         if (error) throw new Error(error.message)
         return data
       }
+    },
+    onMutate: async (v) => {
+      // Optimistisk: vis økten umiddelbart FØR Supabase svarer
+      const manadKey = v.dato.slice(0, 7)
+      const qKey = QK.okterManed(v.userId, manadKey)
+      await qc.cancelQueries({ queryKey: qKey })
+      const forrige = qc.getQueryData(qKey)
+      if (!v.id) {
+        // Ny økt — legg til midlertidig med temp-id
+        const tempOkt = {
+          id: `temp-${Date.now()}`,
+          dato: v.dato, tittel: v.tittel, type: v.type,
+          varighet_min: v.varighet_min, notater: v.notater,
+          ovelser: v.ovelser ?? [], bruker_id: v.userId,
+        }
+        qc.setQueryData(qKey, (gammel: any[] = []) =>
+          [...gammel, tempOkt].sort((a, b) => a.dato.localeCompare(b.dato))
+        )
+      }
+      return { forrige, qKey }
     },
     onSuccess: (nyOkt: any, v) => {
       const manadKey = v.dato.slice(0, 7)
@@ -245,11 +265,16 @@ export function useLagreOkt() {
         if (nyOkt._isEdit) {
           return gammel.map((o: any) => o.id === nyOkt.id ? { ...o, ...nyOkt } : o)
         }
-        const uten = gammel.filter((o: any) => o.id !== nyOkt.id)
+        // Erstatt temp-økt med ekte data fra Supabase
+        const uten = gammel.filter((o: any) => !o.id.startsWith('temp-') && o.id !== nyOkt.id)
         return [...uten, nyOkt].sort((a: any, b: any) => a.dato.localeCompare(b.dato))
       })
       qc.invalidateQueries({ queryKey: QK.okterIdag(v.userId, v.dato) })
       qc.invalidateQueries({ queryKey: QK.stats(v.userId) })
+    },
+    onError: (_, __, ctx: any) => {
+      // Rull tilbake ved feil
+      if (ctx?.forrige) qc.setQueryData(ctx.qKey, ctx.forrige)
     },
   })
 }
