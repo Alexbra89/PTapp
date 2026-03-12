@@ -10,8 +10,10 @@ export async function middleware(request: NextRequest) {
     || request.headers.get('purpose') === 'prefetch'
     || request.headers.get('x-nextjs-data') !== null
 
+  // Normaliser trailing slash slik at /login/ og /login begge fungerer
+  const cleanPath = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname
   const publicRoutes = ['/login', '/signup']
-  const isPublicRoute = publicRoutes.includes(pathname)
+  const isPublicRoute = publicRoutes.includes(cleanPath)
 
   // For prefetch av offentlige ruter – svar umiddelbart uten auth-sjekk
   if (isPrefetch && isPublicRoute) {
@@ -44,23 +46,28 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Bruk getSession (raskere enn getUser for middleware)
   const { data: { session } } = await supabase.auth.getSession()
 
   // ── Auth-logikk ────────────────────────────────────────────────────────────
   if (!session && !isPublicRoute) {
     // Ikke innlogget → redirect til login
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', pathname)
+    loginUrl.searchParams.set('from', cleanPath)
     return NextResponse.redirect(loginUrl)
   }
 
   if (session && isPublicRoute) {
-    // Allerede innlogget → send til ROT (/)
-    return NextResponse.redirect(new URL('/', request.url))
+    // Allerede innlogget → send til dashboard
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // VIKTIG: IKKE redirect root-path! La det gå videre.
-  // (pathname === '/') skal bare fortsette uten redirect
+  // Root redirect
+  if (cleanPath === '' || pathname === '/') {
+    return NextResponse.redirect(
+      new URL(session ? '/dashboard' : '/login', request.url)
+    )
+  }
 
   // Sett cache-headers for raskere navigasjon
   response.headers.set('x-middleware-cache', 'no-cache')
@@ -70,6 +77,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // Matcher alle ruter UNNTATT Next.js-interne og statiske filer
     '/((?!_next/static|_next/image|favicon|icons|manifest|sw|workbox|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|otf|css|js)).*)',
   ],
 }

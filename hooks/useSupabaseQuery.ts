@@ -28,17 +28,18 @@ export function useUser() {
   return useQuery({
     queryKey: ['user'],
     queryFn:  async () => {
-      // Prøv session først (synkron) — fall tilbake på getUser (nettverkskall)
+      // getSession er synkron fra localStorage – ingen nettverkskall
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) return session.user
+      // Fallback: verifiser mot server (kun hvis session mangler)
       const { data: { user } } = await supabase.auth.getUser()
-      return user
+      return user ?? null
     },
-    staleTime: 10 * 60 * 1000,
-    gcTime:    15 * 60 * 1000,
-    // Ikke vis loading-tilstand ved første render — vent på data stille
-    refetchOnMount: true,
+    staleTime:           10 * 60 * 1000,
+    gcTime:              15 * 60 * 1000,
+    refetchOnMount:      false,   // Ikke re-fetch – session er allerede fersk
     refetchOnWindowFocus: false,
+    retry:               false,   // Ikke retry ved feil – bruker er bare ikke logget inn
   })
 }
 

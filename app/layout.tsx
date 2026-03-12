@@ -41,8 +41,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
-        {/* Hindre hvit flash på iOS */}
+        {/* Hindre hvit flash — critical inline CSS lastes synkront FØR JS */}
         <meta name="color-scheme" content="dark" />
+        <style dangerouslySetInnerHTML={{ __html: `
+          *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+          html,body{
+            background:#030308 !important;
+            color:#fff;
+            min-height:100vh;
+            -webkit-font-smoothing:antialiased;
+          }
+        ` }} />
       </head>
       <body>
         <Providers>
