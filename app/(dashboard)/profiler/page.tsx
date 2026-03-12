@@ -68,7 +68,7 @@ export default function ProfilPage() {
       await lagreMut.mutateAsync({
         id:          user.id,
         epost:       user.email ?? '',
-        navn:        String(navn).trim() || user.email ?? '',
+        navn:        (String(navn).trim()) || (user.email ?? ''),
         vekt:        Number(vekt)        || 0,
         hoyde:       Number(hoyde)       || 0,
         mal:         malVerdi,
