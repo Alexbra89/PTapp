@@ -35,8 +35,6 @@ const finnOvInfo = (navn: string) => ({
   muskler: OV_MUSKLER[navn.toLowerCase().trim()] ?? '',
 })
 
-// ── Øvelsesdatabase for forhåndsvisning i kalender ───────────────────────────
-// Hver gruppe har flere alternativer → variasjon basert på dato-seed
 const PREV_DB: Record<string, { navn: string; emoji: string; muskler: string; sett: number; reps: string }[]> = {
   bryst: [
     { navn:'Benkpress',            emoji:'🏋️', muskler:'Pecs, triceps',    sett:4, reps:'8-10'  },
@@ -123,7 +121,6 @@ const PREV_DB: Record<string, { navn: string; emoji: string; muskler: string; se
   ],
 }
 
-// Mapper titteltekst til kjente grupper (f.eks. "Bryst & Tricep" → ['bryst','tricep'])
 function parsGrupper(tittel: string): string[] {
   const t = tittel.toLowerCase()
   const ALIASES: [RegExp, string][] = [
@@ -145,20 +142,15 @@ function parsGrupper(tittel: string): string[] {
   return funnet
 }
 
-// Hent 3-4 øvelser per gruppe med variasjon basert på dato-seed
 function hentAnbefaltOvelser(tittel: string, dato: string): typeof PREV_DB[string] {
   const grupper = parsGrupper(tittel)
   if (grupper.length === 0) return []
-
-  // Bruk dato som deterministisk seed → samme dag gir alltid samme øvelser
   const seed = dato.replace(/-/g, '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-
   const resultat: typeof PREV_DB[string] = []
   for (const gruppe of grupper) {
-    const pool    = PREV_DB[gruppe] ?? []
-    const antall  = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
-    // Roter gjennom pool basert på seed – ulik kombinasjon per dag
-    const start = seed % Math.max(1, pool.length)
+    const pool   = PREV_DB[gruppe] ?? []
+    const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
+    const start  = seed % Math.max(1, pool.length)
     for (let i = 0; i < antall && i < pool.length; i++) {
       resultat.push(pool[(start + i) % pool.length])
     }
@@ -179,20 +171,20 @@ export default function KalenderPage() {
   const supabase = createClient()
   const qc       = useQueryClient()
 
-  const [maned,     setManed]     = useState(new Date())
-  const [valgtDag,  setValgtDag]  = useState<Date>(new Date())
-  const [visModal,  setVisModal]  = useState(false)
-  const [editOkt,   setEditOkt]   = useState<Okt | null>(null)
-  const [form,      setForm]      = useState({ tittel: '', type: 'styrke' as OktType, varighet_min: 60, notater: '' })
-  const [visDetalj, setVisDetalj] = useState<string | null>(null)
+  const [maned,       setManed]       = useState(new Date())
+  const [valgtDag,    setValgtDag]    = useState<Date>(new Date())
+  const [visModal,    setVisModal]    = useState(false)
+  const [editOkt,     setEditOkt]     = useState<Okt | null>(null)
+  const [form,        setForm]        = useState({ tittel: '', type: 'styrke' as OktType, varighet_min: 60, notater: '' })
+  const [visDetalj,   setVisDetalj]   = useState<string | null>(null)
+  // Inline slett-bekreftelse — ingen confirm() dialog
+  const [slettId,     setSlettId]     = useState<string | null>(null)
 
-  // ── React Query ────────────────────────────────────────────────────────────
-  const { data: user }                    = useUser()
+  const { data: user }                      = useUser()
   const { data: okterArr = [], isFetching } = useOkterManed(user?.id, maned)
   const lagreOktMut = useLagreOkt()
   const slettOktMut = useSlettOkt()
 
-  // Grupper array → { dato: Okt[] } i minnet – ingen ekstra fetch
   const okter: Record<string, Okt[]> = {}
   okterArr.forEach((o: Okt) => {
     if (!okter[o.dato]) okter[o.dato] = []
@@ -204,7 +196,6 @@ export default function KalenderPage() {
   const dagKey      = format(valgtDag, 'yyyy-MM-dd')
   const dagensOkter = okter[dagKey] ?? []
 
-  // Prefetch neste/forrige måned mens bruker klikker nav
   const bytManed = (dir: 1 | -1) => {
     const ny = dir === 1 ? addMonths(maned, 1) : subMonths(maned, 1)
     setManed(ny)
@@ -250,9 +241,16 @@ export default function KalenderPage() {
     setEditOkt(null)
   }
 
-  const slettOkt = async (okt: Okt) => {
-    if (!confirm('Slette denne økten?') || !user) return
-    await slettOktMut.mutateAsync({
+  // Direkte slett — ingen confirm(), bruker inline bekreftelse
+  const slettOkt = async (okt: Okt, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!user) return
+    setSlettId(null)
+    // Optimistisk: fjern fra cache FØR Supabase svarer
+    const qKey = QK.okterManed(user.id, format(maned, 'yyyy-MM'))
+    qc.setQueryData(qKey, (gammel: Okt[] = []) => gammel.filter(o => o.id !== okt.id))
+    // Kjør Supabase i bakgrunnen
+    slettOktMut.mutate({
       id: okt.id, userId: user.id,
       maned: format(maned, 'yyyy-MM'), dato: okt.dato,
     })
@@ -352,11 +350,12 @@ export default function KalenderPage() {
                 const meta   = TYPE_META[okt.type]
                 const ovList = okt.ovelser ?? []
                 const aapen  = visDetalj === okt.id
+                const bekrefter = slettId === okt.id
                 return (
                   <div key={okt.id} className="kal-okt glass-card"
                     style={{ borderColor: `${meta.color}25` }}>
                     <div className="kal-okt-topp"
-                      onClick={() => setVisDetalj(aapen ? null : okt.id)}>
+                      onClick={() => { if (!bekrefter) setVisDetalj(aapen ? null : okt.id) }}>
                       <div className="kal-okt-icon"
                         style={{ background: `${meta.color}12`, borderColor: `${meta.color}25` }}>
                         {meta.emoji}
@@ -373,14 +372,31 @@ export default function KalenderPage() {
                         </div>
                       </div>
                       <div className="kal-okt-ctrl">
-                        <button className="kal-edit-btn" onClick={e => åpnRediger(okt, e)}>✏️</button>
-                        <button className="kal-del-btn"
-                          onClick={e => { e.stopPropagation(); slettOkt(okt) }}>🗑️</button>
-                        <span className="kal-toggle">{aapen ? '▲' : '▼'}</span>
+                        {bekrefter ? (
+                          // ── Inline bekreftelse – ingen confirm() ──
+                          <>
+                            <button className="kal-slett-ja"
+                              onClick={e => slettOkt(okt, e)}>
+                              Slett
+                            </button>
+                            <button className="kal-slett-nei"
+                              onClick={e => { e.stopPropagation(); setSlettId(null) }}>
+                              Avbryt
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="kal-edit-btn"
+                              onClick={e => åpnRediger(okt, e)}>✏️</button>
+                            <button className="kal-del-btn"
+                              onClick={e => { e.stopPropagation(); setSlettId(okt.id) }}>🗑️</button>
+                            <span className="kal-toggle">{aapen ? '▲' : '▼'}</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {aapen && (
+                    {aapen && !bekrefter && (
                       <div className="kal-okt-detalj">
                         {okt.notater && <div className="kal-notater">📝 {okt.notater}</div>}
                         {ovList.length > 0 ? (
@@ -547,6 +563,10 @@ export default function KalenderPage() {
         .kal-edit-btn,.kal-del-btn{background:none;border:none;cursor:pointer;font-size:.85rem;padding:4px 6px;border-radius:6px;transition:background .12s}
         .kal-edit-btn:hover{background:rgba(255,255,255,.08)}
         .kal-del-btn:hover{background:rgba(255,50,50,.12)}
+        .kal-slett-ja{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(255,50,50,.15);border:1px solid rgba(255,50,50,.3);color:#ff5555;transition:all .12s;font-family:var(--font-body,sans-serif)}
+        .kal-slett-ja:hover{background:rgba(255,50,50,.28);border-color:rgba(255,50,50,.5)}
+        .kal-slett-nei{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);transition:all .12s;font-family:var(--font-body,sans-serif)}
+        .kal-slett-nei:hover{background:rgba(255,255,255,.1);color:#fff}
         .kal-toggle{font-size:.6rem;color:rgba(255,255,255,.22);margin-left:4px}
         .kal-okt-detalj{padding:0 1.25rem 1.25rem;border-top:1px solid rgba(255,255,255,.05);display:flex;flex-direction:column;gap:.75rem}
         .kal-notater{font-size:.78rem;color:rgba(255,255,255,.4);padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-top:.75rem}

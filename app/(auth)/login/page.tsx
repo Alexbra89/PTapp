@@ -27,8 +27,8 @@ export default function Login() {
         password: passord,
       })
       if (error) throw error
-      router.push('/dashboard')
       router.refresh()
+      router.push('/dashboard')
     } catch (err: any) {
       setError(
         err.message === 'Invalid login credentials'
