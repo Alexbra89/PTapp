@@ -221,6 +221,10 @@ function OktInner() {
 
 const bygg = async () => {
   const oktId = searchParams.get('okt')
+  const ovelserParam = searchParams.get('ovelser') // 🔥 NY!
+  
+  console.log('Starter bygg med:', { oktId, harOvelserParam: !!ovelserParam })
+  
   if (oktId) {
     // Fra kalender
     const { data } = await createClient().from('okter').select('*').eq('id', oktId).single()
@@ -228,21 +232,29 @@ const bygg = async () => {
       console.log('Hentet økt:', data)
       console.log('Øvelser fra DB:', data.ovelser)
       
+      // 🔥 PRIORITET 1: Bruk øvelser fra URL hvis de finnes
+      let ovelserData = data.ovelser ?? []
+      
+      if (ovelserParam) {
+        try {
+          ovelserData = JSON.parse(ovelserParam)
+          console.log('Bruker øvelser fra URL:', ovelserData)
+        } catch (e) {
+          console.error('Kunne ikke parse øvelser fra URL', e)
+        }
+      }
+      
       const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
       
-      // 🔥 NY: Hjelpefunksjon for å normalisere navn
       const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
       
-      const oveler = (data.ovelser ?? []).map((o: any) => {
-        // 🔥 BRUK DEN: Finn match med normaliserte navn
+      const oveler = ovelserData.map((o: any) => {
         const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
         
-        // Hvis vi har match, bruk DB-data, ellers bruk det som er lagret
         const sett = o.sett || 3
         const reps = o.reps || '10'
         
         if (match) {
-          // Vi har full detaljer fra DB
           return {
             ...match,
             sett: sett,
@@ -254,7 +266,6 @@ const bygg = async () => {
             })),
           }
         } else {
-          // Ingen match - bruk minimal data
           return {
             navn: o.navn || 'Ukjent øvelse',
             sett: sett,
@@ -282,7 +293,6 @@ const bygg = async () => {
       return
     }
   }
-
 
     // Fra generator
     const grupperStr = searchParams.get('grupper') ?? ''

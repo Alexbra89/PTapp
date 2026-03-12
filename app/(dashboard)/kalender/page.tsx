@@ -449,8 +449,23 @@ const lagreOkt = async () => {
                             </div>
                           )
                         })()}
-                        <button className="kal-start-btn"
-                          onClick={() => router.push(`/treninger/okt?okt=${okt.id}`)}>
+                        
+                        {/* Start-knapp med riktig onClick */}
+                        <button 
+                          className="kal-start-btn"
+                          onClick={() => {
+                            const params = new URLSearchParams()
+                            params.set('okt', okt.id)
+                            
+                            // VIKTIG: Hvis økten har øvelser, send dem med i URL
+                            if (okt.ovelser && okt.ovelser.length > 0) {
+                              console.log('Sender øvelser med i URL:', okt.ovelser)
+                              params.set('ovelser', JSON.stringify(okt.ovelser))
+                            }
+                            
+                            router.push(`/treninger/okt?${params.toString()}`)
+                          }}
+                        >
                           ▶ Start treningsøkt
                         </button>
                       </div>
@@ -462,7 +477,7 @@ const lagreOkt = async () => {
           )}
         </div>
       </div>
-
+      
       {/* ── MODAL ── */}
       {visModal && (
         <div className="kal-modal-bg" onClick={() => setVisModal(false)}>
