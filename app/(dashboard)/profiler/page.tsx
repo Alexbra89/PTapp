@@ -62,15 +62,17 @@ export default function ProfilPage() {
   const lagreProfil = async () => {
     if (!user) return
     setFeil('')
+    const gyldigeMal = ['ned_i_vekt', 'bygge_muskler', 'vedlikehold', 'kondisjon']
+    const malVerdi   = gyldigeMal.includes(mal) ? mal : 'bygge_muskler'
     try {
       await lagreMut.mutateAsync({
         id:          user.id,
         epost:       user.email ?? '',
-        navn: (navn as string).trim() || (user.email ?? ''),
-        vekt:        Number(vekt) || 0,
-        hoyde:       Number(hoyde) || 0,
-        mal,
-        onsket_vekt: Number(onsketVekt) || 0,
+        navn:        String(navn).trim() || user.email ?? '',
+        vekt:        Number(vekt)        || 0,
+        hoyde:       Number(hoyde)       || 0,
+        mal:         malVerdi,
+        onsket_vekt: Number(onsketVekt)  || 0,
       })
       setRedigerer(false)
       setMelding('Profil oppdatert! ✓')

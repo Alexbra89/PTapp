@@ -10,8 +10,6 @@ export default function Signup() {
   const [epost,     setEpost]     = useState('')
   const [passord,   setPassord]   = useState('')
   const [passord2,  setPassord2]  = useState('')
-  const [vekt,      setVekt]      = useState('70')
-  const [hoyde,     setHoyde]     = useState('170')
   const [error,     setError]     = useState('')
   const [suksess,   setSuksess]   = useState(false)
   const [laster,    setLaster]    = useState(false)
@@ -31,31 +29,40 @@ export default function Signup() {
 
     setLaster(true)
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      // 1. Opprett bruker
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: epost,
         password: passord,
         options: { data: { full_name: navn } },
       })
       if (signUpError) throw signUpError
 
-      // Opprett profil-rad med vekt og høyde
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      // 2. Logg inn umiddelbart (unngår hvitskjerm / epost-bekreftelse-limbo)
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: epost,
+        password: passord,
+      })
+      if (loginError) throw loginError
+
+      // 3. Opprett profil-rad med bruker-ID
+      const userId = loginData.user?.id ?? signUpData.user?.id
+      if (userId) {
         await supabase.from('profiler').upsert({
-          id: user.id,
+          id: userId,
           epost,
           navn,
-          vekt: parseFloat(vekt) || 70,
-          hoyde: parseInt(hoyde) || 170,
-          mal: 'vedlikehold',
+          vekt: 0, hoyde: 0, mal: 'bygge_muskler', onsket_vekt: 0,
         }, { onConflict: 'id' })
       }
 
       setSuksess(true)
-      setTimeout(() => router.push('/dashboard'), 2500)
+      setTimeout(() => {
+        router.push('/dashboard')
+        router.refresh()
+      }, 1500)
     } catch (err: any) {
-      if (err.message?.includes('already registered')) {
-        setError('Denne eposten er allerede registrert')
+      if (err.message?.includes('already registered') || err.message?.includes('already been registered')) {
+        setError('Denne eposten er allerede registrert — prøv å logge inn')
       } else {
         setError(err.message ?? 'Noe gikk galt')
       }
@@ -148,43 +155,6 @@ export default function Signup() {
                       required
                       autoComplete="email"
                     />
-                  </div>
-                </div>
-
-                {/* Vekt og høyde på samme rad */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.1rem' }}>
-                  <div className="login-field" style={{ marginBottom: 0 }}>
-                    <label className="login-field-label">Vekt (kg)</label>
-                    <div style={{ position: 'relative' }}>
-                      <span className="login-field-icon">⚖️</span>
-                      <input
-                        type="number"
-                        className="input login-field-input"
-                        value={vekt}
-                        onChange={e => setVekt(e.target.value)}
-                        placeholder="70"
-                        step="0.1"
-                        min="30"
-                        max="200"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="login-field" style={{ marginBottom: 0 }}>
-                    <label className="login-field-label">Høyde (cm)</label>
-                    <div style={{ position: 'relative' }}>
-                      <span className="login-field-icon">📏</span>
-                      <input
-                        type="number"
-                        className="input login-field-input"
-                        value={hoyde}
-                        onChange={e => setHoyde(e.target.value)}
-                        placeholder="170"
-                        min="100"
-                        max="250"
-                        required
-                      />
-                    </div>
                   </div>
                 </div>
 

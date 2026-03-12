@@ -218,15 +218,31 @@ export function useLagreOkt() {
     }) => {
       const { id, userId, ...rest } = payload
       if (id) {
-        await supabase.from('okter').update(rest).eq('id', id)
+        const { data, error } = await supabase
+          .from('okter').update(rest).eq('id', id).select().single()
+        if (error) throw new Error(error.message)
+        return { ...data, _isEdit: true }
       } else {
-        await supabase.from('okter').insert([{ ...rest, bruker_id: userId, ovelser: [] }])
+        const { data, error } = await supabase
+          .from('okter')
+          .insert([{ ...rest, bruker_id: userId, ovelser: [] }])
+          .select().single()
+        if (error) throw new Error(error.message)
+        return data
       }
     },
-    onSuccess: (_, v) => {
-      // Invalider måneden og dagensokt
-      qc.invalidateQueries({ queryKey: ['okter', v.userId, v.dato.slice(0,7)] })
-      qc.invalidateQueries({ queryKey: ['okterIdag', v.userId, v.dato] })
+    onSuccess: (nyOkt: any, v) => {
+      const manadKey = v.dato.slice(0, 7)
+      const qKey = QK.okterManed(v.userId, manadKey)
+      qc.setQueryData(qKey, (gammel: any[] = []) => {
+        if (nyOkt._isEdit) {
+          return gammel.map((o: any) => o.id === nyOkt.id ? { ...o, ...nyOkt } : o)
+        }
+        const uten = gammel.filter((o: any) => o.id !== nyOkt.id)
+        return [...uten, nyOkt].sort((a: any, b: any) => a.dato.localeCompare(b.dato))
+      })
+      qc.invalidateQueries({ queryKey: QK.okterIdag(v.userId, v.dato) })
+      qc.invalidateQueries({ queryKey: QK.stats(v.userId) })
     },
   })
 }
@@ -235,11 +251,17 @@ export function useSlettOkt() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id }: { id: string; userId: string; maned: string; dato: string }) => {
-      await supabase.from('okter').delete().eq('id', id)
+      const { error } = await supabase.from('okter').delete().eq('id', id)
+      if (error) throw new Error(error.message)
     },
     onSuccess: (_, v) => {
-      qc.invalidateQueries({ queryKey: ['okter', v.userId, v.maned] })
-      qc.invalidateQueries({ queryKey: ['okterIdag', v.userId, v.dato] })
+      // Optimistic: fjern fra cache umiddelbart
+      const qKey = QK.okterManed(v.userId, v.maned)
+      qc.setQueryData(qKey, (gammel: any[] = []) =>
+        gammel.filter((o: any) => o.id !== v.id)
+      )
+      qc.invalidateQueries({ queryKey: QK.okterIdag(v.userId, v.dato) })
+      qc.invalidateQueries({ queryKey: QK.stats(v.userId) })
     },
   })
 }
