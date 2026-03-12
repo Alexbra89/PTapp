@@ -24,22 +24,36 @@ export const QK = {
 } as const
 
 // ── Hent gjeldende bruker (caches i 10 min) ────────────────────────────────────
+// Les session fra localStorage synkront – ingen async, ingen loading-state
+function getSessionUserSync() {
+  try {
+    // Supabase lagrer session under denne nøkkelen i localStorage
+    const raw = localStorage.getItem(
+      Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token')) ?? ''
+    )
+    if (!raw) return undefined
+    const parsed = JSON.parse(raw)
+    return parsed?.user ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
 export function useUser() {
   return useQuery({
     queryKey: ['user'],
     queryFn:  async () => {
-      // getSession er synkron fra localStorage – ingen nettverkskall
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) return session.user
-      // Fallback: verifiser mot server (kun hvis session mangler)
-      const { data: { user } } = await supabase.auth.getUser()
-      return user ?? null
+      return session?.user ?? null
     },
+    // initialData leser synkront fra localStorage – useOkterManed starter umiddelbart
+    initialData:         () => getSessionUserSync(),
+    initialDataUpdatedAt: () => Date.now() - 30_000, // Behandle som 30s gammel
     staleTime:           10 * 60 * 1000,
     gcTime:              15 * 60 * 1000,
-    refetchOnMount:      false,   // Ikke re-fetch – session er allerede fersk
+    refetchOnMount:      true,
     refetchOnWindowFocus: false,
-    retry:               false,   // Ikke retry ved feil – bruker er bare ikke logget inn
+    retry:               false,
   })
 }
 
