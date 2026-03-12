@@ -371,7 +371,7 @@ const lagreOkt = async () => {
                             {meta.label}
                           </span>
                           <span className="kal-meta-txt">⏱ {okt.varighet_min} min</span>
-                          {ovList.length > 0 && <span className="kal-meta-txt">💪 {ovList.length} øvelser</span>}
+                          {ovList.length > 0 && <span className="kal-meta-txt">💪 {ovList.length} ovelser</span>}
                         </div>
                       </div>
                       <div className="kal-okt-ctrl">
@@ -404,7 +404,7 @@ const lagreOkt = async () => {
                         {okt.notater && <div className="kal-notater">📝 {okt.notater}</div>}
                         {ovList.length > 0 ? (
                           <div className="kal-ov-liste">
-                            <div className="kal-ov-lbl">Planlagte øvelser</div>
+                            <div className="kal-ov-lbl">Planlagte ovelser</div>
                             {ovList.map((ov, i) => {
                               const info = finnOvInfo(ov.navn)
                               return (
@@ -424,7 +424,7 @@ const lagreOkt = async () => {
                           return forslag.length > 0 ? (
                             <div className="kal-ov-liste">
                               <div className="kal-ov-lbl-preview">
-                                <span>✨ Anbefalte øvelser</span>
+                                <span>✨ Anbefalte ovelser</span>
                                 <span className="kal-ov-lbl-hint">Varieres automatisk per dag</span>
                               </div>
                               {forslag.map((ov, i) => (
@@ -445,7 +445,7 @@ const lagreOkt = async () => {
                             </div>
                           ) : (
                             <div className="kal-ingen-ov">
-                              Ingen øvelser lagt til — genereres automatisk når du starter
+                              Ingen ovelser lagt til — genereres automatisk når du starter
                             </div>
                           )
                         })()}
@@ -457,9 +457,9 @@ const lagreOkt = async () => {
                             const params = new URLSearchParams()
                             params.set('okt', okt.id)
                             
-                            // VIKTIG: Hvis økten har øvelser, send dem med i URL
+                            // VIKTIG: Hvis økten har ovelser, send dem med i URL
                             if (okt.ovelser && okt.ovelser.length > 0) {
-                              console.log('Sender øvelser med i URL:', okt.ovelser)
+                              console.log('Sender ovelser med i URL:', okt.ovelser)
                               params.set('ovelser', JSON.stringify(okt.ovelser))
                             }
                             
@@ -477,7 +477,7 @@ const lagreOkt = async () => {
           )}
         </div>
       </div>
-      
+
       {/* ── MODAL ── */}
       {visModal && (
         <div className="kal-modal-bg" onClick={() => setVisModal(false)}>
