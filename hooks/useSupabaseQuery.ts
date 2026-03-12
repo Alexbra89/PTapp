@@ -28,11 +28,17 @@ export function useUser() {
   return useQuery({
     queryKey: ['user'],
     queryFn:  async () => {
+      // Prøv session først (synkron) — fall tilbake på getUser (nettverkskall)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) return session.user
       const { data: { user } } = await supabase.auth.getUser()
       return user
     },
     staleTime: 10 * 60 * 1000,
     gcTime:    15 * 60 * 1000,
+    // Ikke vis loading-tilstand ved første render — vent på data stille
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -76,7 +82,7 @@ export function useOkterManed(userId?: string, maned?: Date) {
   const manadKey = maned ? format(maned, 'yyyy-MM') : ''
   return useQuery({
     queryKey: QK.okterManed(userId ?? '', manadKey),
-    enabled:  !!userId && !!maned,
+    enabled:  !!userId && !!maned && userId !== '',
     staleTime: 3 * 60 * 1000,
     queryFn:  async () => {
       const fra = format(startOfMonth(maned!), 'yyyy-MM-dd')
@@ -254,12 +260,21 @@ export function useSlettOkt() {
       const { error } = await supabase.from('okter').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
-    onSuccess: (_, v) => {
-      // Optimistic: fjern fra cache umiddelbart
+    onMutate: async (v) => {
+      // Fjern fra cache FØR nettverkskallet — umiddelbar UI-oppdatering
       const qKey = QK.okterManed(v.userId, v.maned)
+      await qc.cancelQueries({ queryKey: qKey })
+      const forrige = qc.getQueryData(qKey)
       qc.setQueryData(qKey, (gammel: any[] = []) =>
         gammel.filter((o: any) => o.id !== v.id)
       )
+      return { forrige, qKey }
+    },
+    onError: (_, __, ctx: any) => {
+      // Rull tilbake ved feil
+      if (ctx?.forrige) qc.setQueryData(ctx.qKey, ctx.forrige)
+    },
+    onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: QK.okterIdag(v.userId, v.dato) })
       qc.invalidateQueries({ queryKey: QK.stats(v.userId) })
     },
