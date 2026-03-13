@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useQueryClient } from '@tanstack/react-query'
+import { QK } from '@/hooks/useSupabaseQuery'
 
 type Sted   = 'hjemme' | 'gym'
 type Gruppe = 'bryst'|'rygg'|'bein'|'skuldre'|'bicep'|'tricep'|'core'|'fullkropp'|'tabata'|'cardio'
@@ -154,6 +156,7 @@ function genererOvelser(grupper: Gruppe[], datoStr: string) {
 
 function KonfigInner() {
   const supabase     = createClient()
+  const qc = useQueryClient()
   const router       = useRouter()
   const searchParams = useSearchParams()
   const oktId        = searchParams.get('okt')
@@ -225,35 +228,49 @@ function KonfigInner() {
   }
 
   // ── AUTOFYLL FIKSET — lagrer øvelser til Supabase ────────────────────────
-  const autofillKalender = async () => {
-    if (!autofillPlan) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    setAutofillLast(true)
-    const plan   = AUTOFYLL[autofillPlan]
-    const today  = new Date()
-    const monday = new Date(today); monday.setDate(today.getDate() - (today.getDay()+6)%7)
-    monday.setHours(0,0,0,0)
-    for (const [dagNavn, grp] of Object.entries(plan)) {
-      const idx  = UKEDAGER.indexOf(dagNavn)
-      const dato = new Date(monday); dato.setDate(monday.getDate()+idx)
-      const datoStr = dato.toISOString().split('T')[0]
-      const ovelser = genererOvelser(grp, datoStr)   // ← genererer øvelser
-      await supabase.from('okter').insert([{
-        bruker_id:    user.id,
-        dato:         datoStr,
-        tittel:       grp.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & '),
-        type:         grp.includes('cardio')||grp.includes('tabata') ? 'cardio' : 'styrke',
-        varighet_min: 60,
-        notater:      `Auto-generert: ${autofillPlan}`,
-        ovelser,                                       // ← lagres i Supabase
-      }])
-    }
-    setAutofillLast(false)
-    setAutofillMsg('Ukesplan lagt til i kalender! ✓')
-    setTimeout(() => setAutofillMsg(''), 3000)
-    setVisAutofill(false)
+const autofillKalender = async () => {
+  if (!autofillPlan) return
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  setAutofillLast(true)
+
+  const plan   = AUTOFYLL[autofillPlan]
+  const today  = new Date()
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - (today.getDay() + 6) % 7)
+  monday.setHours(0, 0, 0, 0)
+
+  const maaneder = new Set<string>()
+
+  for (const [dagNavn, grp] of Object.entries(plan)) {
+    const idx     = UKEDAGER.indexOf(dagNavn)
+    const dato    = new Date(monday)
+    dato.setDate(monday.getDate() + idx)
+    const datoStr = dato.toISOString().split('T')[0]
+    const ovelser = genererOvelser(grp, datoStr)
+    maaneder.add(datoStr.slice(0, 7))
+
+    await supabase.from('okter').insert([{
+      bruker_id:    user.id,
+      dato:         datoStr,
+      tittel:       grp.map(g => g[0].toUpperCase() + g.slice(1)).join(' & '),
+      type:         grp.includes('cardio') || grp.includes('tabata') ? 'cardio' : 'styrke',
+      varighet_min: 60,
+      notater:      `Auto-generert: ${autofillPlan}`,
+      ovelser,
+    }])
   }
+
+  // Ugyldiggjør cache for alle berørte måneder → kalender re-fetcher automatisk
+  for (const maned of maaneder) {
+    await qc.invalidateQueries({ queryKey: QK.okterManed(user.id, maned) })
+  }
+
+  setAutofillLast(false)
+  setAutofillMsg('Ukesplan lagt til i kalender! ✓')
+  setTimeout(() => setAutofillMsg(''), 3000)
+  setVisAutofill(false)
+}
 
   const tilgjOpp = OPPVARMING.filter(o => o.sted.includes(sted))
 

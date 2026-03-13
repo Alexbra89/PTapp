@@ -213,11 +213,11 @@ function OktInner() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [kjoerer, klokkeMode])
 
-  const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setAlarm(false) }
-  const startKlokke = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
-  const formatTid = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
+const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setAlarm(false) }
+const startKlokke = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
+const formatTid = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
 
-  useEffect(() => { bygg() }, [])
+useEffect(() => { bygg() }, [])
 
 const bygg = async () => {
   const oktId = searchParams.get('okt')
@@ -286,8 +286,16 @@ const bygg = async () => {
         }
       })
       
-      console.log('Prosesserte øvelser:', oveler)
+      // 🔥 NY LOGGING - SIER FRA NÅR VI SETTER DATA
+      console.log('Setter okter, lengde:', oveler.length)
       setOkter(oveler)
+      
+      // Sjekk om staten faktisk oppdateres
+      setTimeout(() => {
+        console.log('Etter setTimeout - okter lengde:', okter.length)
+      }, 100)
+      
+      console.log('Prosesserte øvelser:', oveler)
       setTittel(data.tittel)
       setLaster(false)
       return
