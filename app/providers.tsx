@@ -16,28 +16,29 @@ export function Providers({ children }: { children: React.ReactNode }) {
     },
   }))
 
-  useEffect(() => {
-    const supabase = createClient()
+useEffect(() => {
+  const supabase = createClient()
 
-    // Seed React Query-cache med bruker fra session – skjer synkront fra localStorage
-    // Dette gjør at useUser() returnerer data umiddelbart på første render
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        queryClient.setQueryData(['user'], session.user)
-      }
-    })
+  // Les session synkront fra localStorage FØR getSession() async-kallet
+  try {
+    const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+    if (key) {
+      const parsed = JSON.parse(localStorage.getItem(key) ?? '{}')
+      if (parsed?.user) queryClient.setQueryData(['user'], parsed.user)
+    }
+  } catch {}
 
-    // Lytt på auth-endringer (login/logout) og hold cache oppdatert
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      queryClient.setQueryData(['user'], session?.user ?? null)
-      if (!session) {
-        // Tøm all bruker-data fra cache ved logout
-        queryClient.clear()
-      }
-    })
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) queryClient.setQueryData(['user'], session.user)
+  })
 
-    return () => subscription.unsubscribe()
-  }, [queryClient])
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    queryClient.setQueryData(['user'], session?.user ?? null)
+    if (!session) queryClient.clear()
+  })
+
+  return () => subscription.unsubscribe()
+}, [queryClient])
 
   return (
     <QueryClientProvider client={queryClient}>

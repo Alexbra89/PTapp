@@ -235,10 +235,12 @@ const autofillKalender = async () => {
   setAutofillLast(true)
 
   const plan   = AUTOFYLL[autofillPlan]
-  const today  = new Date()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - (today.getDay() + 6) % 7)
-  monday.setHours(0, 0, 0, 0)
+const today  = new Date()
+const monday = new Date(today)
+const dagOffset = (today.getDay() + 6) % 7  // 0=man, 6=søn
+// Hvis vi er forbi mandag (dagOffset > 0) → hopp til NESTE mandag
+monday.setDate(today.getDate() - dagOffset + (dagOffset > 0 ? 7 : 0))
+monday.setHours(0, 0, 0, 0)
 
   const maaneder: string[] = []
 
