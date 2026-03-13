@@ -240,7 +240,7 @@ const autofillKalender = async () => {
   monday.setDate(today.getDate() - (today.getDay() + 6) % 7)
   monday.setHours(0, 0, 0, 0)
 
-  const maaneder = new Set<string>()
+  const maaneder: string[] = []
 
   for (const [dagNavn, grp] of Object.entries(plan)) {
     const idx     = UKEDAGER.indexOf(dagNavn)
@@ -248,7 +248,7 @@ const autofillKalender = async () => {
     dato.setDate(monday.getDate() + idx)
     const datoStr = dato.toISOString().split('T')[0]
     const ovelser = genererOvelser(grp, datoStr)
-    maaneder.add(datoStr.slice(0, 7))
+    if (!maaneder.includes(datoStr.slice(0, 7))) maaneder.push(datoStr.slice(0, 7))
 
     await supabase.from('okter').insert([{
       bruker_id:    user.id,
