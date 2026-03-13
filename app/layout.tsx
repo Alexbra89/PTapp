@@ -51,9 +51,32 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             min-height:100vh;
             -webkit-font-smoothing:antialiased;
           }
+          @keyframes _spin { to { transform: rotate(360deg) } }
+          #splash {
+            position:fixed; inset:0; z-index:9999;
+            background:#030308;
+            display:flex; align-items:center; justify-content:center;
+            transition:opacity 0.3s ease;
+          }
+          #splash-spinner {
+            width:44px; height:44px; border-radius:50%;
+            border:2px solid rgba(0,245,255,0.15);
+            border-top-color:#00f5ff;
+            animation:_spin 0.8s linear infinite;
+          }
         ` }} />
       </head>
       <body>
+        {/* Splash — vises mens JS laster, fjernes automatisk */}
+        <div id="splash">
+          <div id="splash-spinner" />
+        </div>
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.addEventListener('load', function() {
+            var s = document.getElementById('splash');
+            if (s) { s.style.opacity = '0'; setTimeout(function(){ s.remove() }, 300); }
+          });
+        `}} />
         <Providers>
           {children}
         </Providers>
