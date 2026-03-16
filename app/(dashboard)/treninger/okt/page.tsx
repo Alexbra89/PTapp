@@ -235,22 +235,26 @@ const bygg = async () => {
 if (modus === 'custom' && ovelserParam) {
   try {
     const customOvelser = JSON.parse(ovelserParam)
+    console.log('1️⃣ Custom øvelser fra URL:', customOvelser)
     
-    // Hent fra DB (med full data)
+    // Hent fra DB
     const dbOvelser = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+    console.log('2️⃣ DB øvelser (antall):', dbOvelser.length)
+    console.log('3️⃣ Første DB øvelse:', dbOvelser[0])
     
-    // Konverter JSON-øvelser til samme format som DB
+    // Konverter JSON-øvelser
     const jsonOvelser: any[] = []
     Object.keys(ovelserData).forEach(kategori => {
       const ovelser = (ovelserData as any)[kategori]
+      console.log(`4️⃣ Kategori ${kategori}:`, ovelser.length, 'øvelser')
       ovelser.forEach((o: any) => {
         jsonOvelser.push({
           navn: o.navn,
-          sett: 3,  // Standard
-          reps: '10', // Standard
-          hvile: '60s', // Standard
-          utstyr: o.utstyr === 'hjemme' ? 'Hjemme' : o.utstyr === 'senter' ? 'Gym' : o.utstyr,
-          emoji: '💪', // Standard
+          sett: 3,
+          reps: '10',
+          hvile: '60s',
+          utstyr: o.utstyr,
+          emoji: '💪',
           tips: 'Følg beskrivelsen',
           muskler: o.muskelgruppe,
           beskrivelse: o.beskrivelse,
@@ -258,25 +262,29 @@ if (modus === 'custom' && ovelserParam) {
         })
       })
     })
-    
-    console.log('DB øvelser:', dbOvelser.length)
-    console.log('JSON øvelser:', jsonOvelser.length)
+    console.log('5️⃣ JSON øvelser (antall):', jsonOvelser.length)
+    console.log('6️⃣ Første JSON øvelse:', jsonOvelser[0])
     
     const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
     
-    const oveler = customOvelser.map((o: any) => {
+    const oveler = customOvelser.map((o: any, index: number) => {
+      console.log(`7️⃣ Prosesserer øvelse ${index + 1}:`, o.navn)
+      
       // Prøv å finne match i DB først
       let match = dbOvelser.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+      console.log(`8️⃣ Match i DB:`, match ? 'FUNNET' : 'IKKE FUNNET')
       
       // Hvis ikke funnet i DB, prøv i jsonOvelser
       if (!match) {
         match = jsonOvelser.find((e: any) => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+        console.log(`9️⃣ Match i JSON:`, match ? 'FUNNET' : 'IKKE FUNNET')
       }
       
       const sett = o.sett || 3
       const reps = o.reps || '10'
       
       if (match) {
+        console.log(`🔟 MATCH FUNNET! Data:`, match)
         return {
           ...match,
           sett: sett,
@@ -288,6 +296,7 @@ if (modus === 'custom' && ovelserParam) {
           })),
         }
       } else {
+        console.log(`❌ INGEN MATCH for:`, o.navn)
         return {
           navn: o.navn || 'Ukjent øvelse',
           sett: sett,
@@ -308,13 +317,13 @@ if (modus === 'custom' && ovelserParam) {
       }
     })
     
-    console.log('✅ Custom økt med data:', oveler)
+    console.log('🎯 Ferdige øvelser:', oveler)
     setOkter(oveler)
     setTittel('Egendefinert økt')
     setLaster(false)
     return
   } catch (e) {
-    console.error('Feil ved parsing av custom øvelser', e)
+    console.error('❌ FEIL:', e)
   }
 }
   
