@@ -222,8 +222,64 @@ useEffect(() => { bygg() }, [])
 const bygg = async () => {
   const oktId = searchParams.get('okt')
   const ovelserParam = searchParams.get('ovelser')
+  const modus = searchParams.get('modus')
   
-  console.log('Starter bygg med:', { oktId, harOvelserParam: !!ovelserParam })
+  console.log('Starter bygg med:', { oktId, modus, harOvelserParam: !!ovelserParam })
+  
+  // Hvis custom-modus (valgte øvelser)
+  if (modus === 'custom' && ovelserParam) {
+    try {
+      const customOvelser = JSON.parse(ovelserParam)
+      const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+      const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+      
+      const oveler = customOvelser.map((o: any) => {
+        const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+        
+        const sett = o.sett || 3
+        const reps = o.reps || '10'
+        
+        if (match) {
+          return {
+            ...match,
+            sett: sett,
+            expanded: true,
+            sett_logg: Array.from({length: sett}, () => ({ 
+              reps: parseInt(reps.split('-')[0]) || 10, 
+              kg: 0, 
+              fullfort: false 
+            })),
+          }
+        } else {
+          return {
+            navn: o.navn || 'Ukjent øvelse',
+            sett: sett,
+            reps: reps,
+            hvile: '75s',
+            utstyr: '–',
+            emoji: '⚡',
+            muskler: '–',
+            beskrivelse: '',
+            tips: '–',
+            expanded: true,
+            sett_logg: Array.from({length: sett}, () => ({ 
+              reps: parseInt(reps.split('-')[0]) || 10, 
+              kg: 0, 
+              fullfort: false 
+            })),
+          }
+        }
+      })
+      
+      console.log('Custom økt - prosesserte øvelser:', oveler)
+      setOkter(oveler)
+      setTittel('Egendefinert økt')
+      setLaster(false)
+      return
+    } catch (e) {
+      console.error('Feil ved parsing av custom øvelser', e)
+    }
+  }
   
   if (oktId) {
     // Fra kalender
@@ -286,15 +342,8 @@ const bygg = async () => {
         }
       })
       
-      // 🔥 NY LOGGING - SIER FRA NÅR VI SETTER DATA
       console.log('Setter okter, lengde:', oveler.length)
       setOkter(oveler)
-      
-      // Sjekk om staten faktisk oppdateres
-      setTimeout(() => {
-        console.log('Etter setTimeout - okter lengde:', okter.length)
-      }, 100)
-      
       console.log('Prosesserte øvelser:', oveler)
       setTittel(data.tittel)
       setLaster(false)
@@ -302,37 +351,40 @@ const bygg = async () => {
     }
   }
 
-    // Fra generator
-    const grupperStr = searchParams.get('grupper') ?? ''
-    const sted       = (searchParams.get('sted') ?? 'gym') as Sted
-    const intensitet = searchParams.get('intensitet') ?? 'Moderat'
-    const dag        = parseInt(searchParams.get('dag') ?? '0')
-    const oppvIds    = (searchParams.get('oppvarming') ?? '').split(',').filter(Boolean)
+  // Fra generator
+  const grupperStr = searchParams.get('grupper') ?? ''
+  const sted       = (searchParams.get('sted') ?? 'gym') as Sted
+  const intensitet = searchParams.get('intensitet') ?? 'Moderat'
+  const dag        = parseInt(searchParams.get('dag') ?? '0')
+  const oppvIds    = (searchParams.get('oppvarming') ?? '').split(',').filter(Boolean)
 
-    const grupper = grupperStr.split(',').filter(Boolean) as Gruppe[]
-    const antall  = intensitet === 'Lett' ? 2 : intensitet === 'Hard' ? 4 : 3
+  const grupper = grupperStr.split(',').filter(Boolean) as Gruppe[]
+  const antall  = intensitet === 'Lett' ? 2 : intensitet === 'Hard' ? 4 : 3
 
-    let alle: OvelseDB[] = []
-    grupper.forEach(g => {
-      const pool = DB[g]?.[sted] ?? []
-      alle = alle.concat(shuffle(pool).slice(0, antall).map(o => ({
-        ...o, sett: intensitet === 'Hard' ? o.sett+1 : intensitet === 'Lett' ? Math.max(2,o.sett-1) : o.sett,
-      })))
-    })
+  let alle: OvelseDB[] = []
+  grupper.forEach(g => {
+    const pool = DB[g]?.[sted] ?? []
+    alle = alle.concat(shuffle(pool).slice(0, antall).map(o => ({
+      ...o, sett: intensitet === 'Hard' ? o.sett+1 : intensitet === 'Lett' ? Math.max(2,o.sett-1) : o.sett,
+    })))
+  })
 
-    const logg: OvelseLogg[] = alle.map(o => ({
-      ...o, expanded: true,
-      sett_logg: Array.from({length: o.sett}, () => ({ reps: parseInt(o.reps.split('-')[0])||10, kg: 0, fullfort: false })),
-    }))
+  const logg: OvelseLogg[] = alle.map(o => ({
+    ...o, expanded: true,
+    sett_logg: Array.from({length: o.sett}, () => ({ reps: parseInt(o.reps.split('-')[0])||10, kg: 0, fullfort: false })),
+  }))
 
-    const opp = OPPVARMING.filter(o => oppvIds.includes(o.id))
-    const dagsNavn = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'][dag]
-    const t = grupper.length > 0
-      ? grupper.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & ') + ' — ' + dagsNavn
-      : 'Treningsøkt'
+  const opp = OPPVARMING.filter(o => oppvIds.includes(o.id))
+  const dagsNavn = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'][dag]
+  const t = grupper.length > 0
+    ? grupper.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & ') + ' — ' + dagsNavn
+    : 'Treningsøkt'
 
-    setOkter(logg); setOppvar(opp); setTittel(t); setLaster(false)
-  }
+  setOkter(logg)
+  setOppvar(opp)
+  setTittel(t)
+  setLaster(false)
+}
 
   const oppdaterSett = (oIdx: number, sIdx: number, felt: string, val: any) =>
     setOkter(prev => prev.map((o,i) => i!==oIdx ? o : {
