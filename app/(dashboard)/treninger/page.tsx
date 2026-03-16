@@ -387,25 +387,48 @@ function KonfigInner() {
           </div>
         </div>
 
-        {/* ── MODUS-VELGER (NY) ── */}
-        <div className="tk-seksjon glass-card">
-          <div className="tk-lbl">🎯 Velg modus</div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              className={`tk-pill${modus === 'auto' ? ' on' : ''}`}
-              onClick={() => setModus('auto')}
-              style={{ flex: 1 }}
-            >
-              ⚡ Automatisk
-            </button>
-            <button
-              className={`tk-pill${modus === 'custom' ? ' on' : ''}`}
-              onClick={() => setModus('custom')}
-              style={{ flex: 1 }}
-            >
-              ✏️ Velg selv
-            </button>
-          </div>
+        {/* ── MODUS-FANER ── */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '0.5rem',
+          marginBottom: '1rem',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          paddingBottom: '0.5rem'
+        }}>
+          <button
+            onClick={() => setModus('auto')}
+            style={{
+              flex: 1,
+              padding: '0.75rem',
+              borderRadius: '8px 8px 0 0',
+              background: modus === 'auto' ? 'rgba(0,245,255,0.1)' : 'transparent',
+              color: modus === 'auto' ? 'var(--cyan)' : 'rgba(255,255,255,0.5)',
+              border: 'none',
+              borderBottom: modus === 'auto' ? '2px solid var(--cyan)' : 'none',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: modus === 'auto' ? 600 : 400
+            }}
+          >
+            ⚡ Automatisk
+          </button>
+          <button
+            onClick={() => setModus('custom')}
+            style={{
+              flex: 1,
+              padding: '0.75rem',
+              borderRadius: '8px 8px 0 0',
+              background: modus === 'custom' ? 'rgba(0,245,255,0.1)' : 'transparent',
+              color: modus === 'custom' ? 'var(--cyan)' : 'rgba(255,255,255,0.5)',
+              border: 'none',
+              borderBottom: modus === 'custom' ? '2px solid var(--cyan)' : 'none',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: modus === 'custom' ? 600 : 400
+            }}
+          >
+            ✏️ Velg selv
+          </button>
         </div>
 
         {/* Muskelgruppe - vises KUN i auto-modus */}
