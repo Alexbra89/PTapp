@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 // LIM INN ALLE DINE 100+ ØVELSER HER
 const OVELSER = [
@@ -106,7 +107,6 @@ const OVELSER = [
   { id:'scapularPushup', navn:'Skulderblad push-up', kategori:'rygg', muskelgruppe:'Serratus anterior, skulderblad', vanskelighet:'Nybegynner', utstyr:'Ingen', sted:'hjemme', emoji:'🦋', animType:'press', sett:3, reps:'15', hvile:'45s', beskrivelse:'Plankeposisjon, press skulderblad fra hverandre og dra dem sammen. Liten bevegelse, stor effekt for serratus og rotator cuff.', tips:['Armene rette – bare skulderblad beveger seg','Protrasjon og retrasjon','Viktig for rotator cuff helse'], utforing:['Start i plankeposisjon med rette armer','Armene rette gjennom hele','Press skulderblad fra hverandre (protrasjon) – thorax løfter seg','Trekk skulderblad mot hverandre (retrasjon) – thorax synker','Liten men presis bevegelse','Gjenta langsomt og kontrollert'] },
 ]
 
-
 interface ValgtOvelse {
   id: string
   navn: string
@@ -130,12 +130,42 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
   const [valgtKategori, setValgtKategori] = useState<string>('alle')
   const [midlertidigValgte, setMidlertidigValgte] = useState<ValgtOvelse[]>(valgteOvelser)
   
-  // Hent unike kategorier
-  const kategoriArray = OVELSER.map(o => o.kategori)
+  // 🔥 NYE STATES FOR EGNE ØVELSER
+  const [visNyOvelseModal, setVisNyOvelseModal] = useState(false)
+  const [egneOvelser, setEgneOvelser] = useState<any[]>([])
+  const [lasterEgne, setLasterEgne] = useState(true)
+  const supabase = createClient()
+  
+  // Hent brukerens egne øvelser
+  useEffect(() => {
+    const hentEgneOvelser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setLasterEgne(false)
+        return
+      }
+      
+      const { data } = await supabase
+        .from('bruker_ovelser')
+        .select('*')
+        .eq('bruker_id', user.id)
+      
+      setEgneOvelser(data || [])
+      setLasterEgne(false)
+    }
+    
+    hentEgneOvelser()
+  }, [])
+  
+  // Slå sammen standard øvelser + egne øvelser
+  const alleOvelser = [...OVELSER, ...egneOvelser]
+  
+  // Hent unike kategorier (inkludert fra egne øvelser)
+  const kategoriArray = alleOvelser.map(o => o.kategori)
   const unikeKategorier = ['alle', ...new Set(kategoriArray)]
   
   // Filtrer øvelser basert på søk og kategori
-  const filtrerteOvelser = OVELSER.filter((o) => {
+  const filtrerteOvelser = alleOvelser.filter((o) => {
     const matchSok = sok === '' || 
       o.navn.toLowerCase().includes(sok.toLowerCase()) ||
       o.muskelgruppe.toLowerCase().includes(sok.toLowerCase())
@@ -145,7 +175,7 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
     return matchSok && matchKategori
   })
   
-  const toggleOvelse = (ovelse: typeof OVELSER[0]) => {
+  const toggleOvelse = (ovelse: typeof alleOvelser[0]) => {
     const finnes = midlertidigValgte.find(o => o.id === ovelse.id)
     if (finnes) {
       setMidlertidigValgte(midlertidigValgte.filter(o => o.id !== ovelse.id))
@@ -193,15 +223,22 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
       >
         {/* Venstre: Bibliotek */}
         <div className="glass-card" style={{ padding: '1rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>📚 Velg øvelser</h3>
-          
-          <input
-            className="input"
-            placeholder="Søk etter øvelse..."
-            value={sok}
-            onChange={(e) => setSok(e.target.value)}
-            style={{ marginBottom: '1rem' }}
-          />
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem' }}>
+            <input
+              className="input"
+              placeholder="Søk etter øvelse..."
+              value={sok}
+              onChange={(e) => setSok(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setVisNyOvelseModal(true)}
+              style={{ whiteSpace: 'nowrap', padding: '0.5rem 1rem' }}
+            >
+              ➕ Ny
+            </button>
+          </div>
           
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             {unikeKategorier.map((kategori) => (
@@ -334,6 +371,178 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
           }
         }
       `}</style>
+
+      {/* Modal for ny øvelse */}
+      {visNyOvelseModal && (
+        <NyOvelseModal 
+          onClose={() => setVisNyOvelseModal(false)}
+          onSave={(nyOvelse) => {
+            setEgneOvelser([...egneOvelser, nyOvelse])
+            setVisNyOvelseModal(false)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Modal-komponent for å opprette ny øvelse
+function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovelse: any) => void }) {
+  const [navn, setNavn] = useState('')
+  const [kategori, setKategori] = useState('')
+  const [muskelgruppe, setMuskelgruppe] = useState('')
+  const [beskrivelse, setBeskrivelse] = useState('')
+  const [utstyr, setUtstyr] = useState('')
+  const [sett, setSett] = useState(3)
+  const [reps, setReps] = useState('10')
+  const [lagrer, setLagrer] = useState(false)
+  const supabase = createClient()
+  
+  const lagre = async () => {
+    if (!navn || !kategori) return
+    
+    setLagrer(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setLagrer(false)
+      return
+    }
+    
+    const nyOvelse = {
+      id: `egen-${Date.now()}`,
+      navn,
+      kategori,
+      muskelgruppe: muskelgruppe || kategori,
+      vanskelighet: 'Middels',
+      utstyr: utstyr || '–',
+      sted: 'begge',
+      emoji: '💪',
+      beskrivelse: beskrivelse || 'Ingen beskrivelse',
+      tips: [],
+      sett,
+      reps,
+      hvile: '60s',
+      animType: 'press',
+      utforing: []
+    }
+    
+    // Lagre til Supabase
+    const { error } = await supabase.from('bruker_ovelser').insert({
+      bruker_id: user.id,
+      ...nyOvelse
+    })
+    
+    setLagrer(false)
+    if (!error) {
+      onSave(nyOvelse)
+    }
+  }
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.8)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '1rem'
+    }}>
+      <div className="glass-card" style={{ maxWidth: '500px', width: '100%', padding: '1.5rem' }}>
+        <h3 style={{ marginBottom: '1.5rem' }}>➕ Opprett ny øvelse</h3>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Navn *</label>
+          <input
+            className="input"
+            placeholder="f.eks. Kabel face pull med rotering"
+            value={navn}
+            onChange={(e) => setNavn(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Kategori *</label>
+          <input
+            className="input"
+            placeholder="f.eks. skuldre, rygg, bryst"
+            value={kategori}
+            onChange={(e) => setKategori(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Muskelgruppe</label>
+          <input
+            className="input"
+            placeholder="f.eks. Bakre deltoid, rotator cuff"
+            value={muskelgruppe}
+            onChange={(e) => setMuskelgruppe(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Beskrivelse</label>
+          <textarea
+            className="input"
+            placeholder="Kort beskrivelse av øvelsen..."
+            value={beskrivelse}
+            onChange={(e) => setBeskrivelse(e.target.value)}
+            style={{ width: '100%', minHeight: '80px' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Utstyr</label>
+          <input
+            className="input"
+            placeholder="f.eks. Kabelmaskin, hantler"
+            value={utstyr}
+            onChange={(e) => setUtstyr(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Sett</label>
+            <input
+              type="number"
+              min="1"
+              className="input"
+              value={sett}
+              onChange={(e) => setSett(parseInt(e.target.value) || 1)}
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Reps</label>
+            <input
+              className="input"
+              value={reps}
+              onChange={(e) => setReps(e.target.value)}
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-ghost" onClick={onClose} disabled={lagrer}>
+            Avbryt
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={lagre} 
+            disabled={lagrer || !navn || !kategori}
+          >
+            {lagrer ? 'Lagrer...' : 'Lagre øvelse'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
