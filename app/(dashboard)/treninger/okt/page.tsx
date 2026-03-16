@@ -3,6 +3,11 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import ovelserData from '@/data/ovelser.json'  // ← NY LINJE 1: Henter alle øvelser
+
+console.log('🎯 SJEKKER ØVELSER:')
+console.log('Type:', typeof ovelserData)
+console.log('Kategorier:', Object.keys(ovelserData))  // ← NY LINJE 2: Logger for å se
 
 function spillAlarm() {
   try {
@@ -230,20 +235,42 @@ const bygg = async () => {
 if (modus === 'custom' && ovelserParam) {
   try {
     const customOvelser = JSON.parse(ovelserParam)
-    const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+    
+    // Hent fra DB (din eksisterende database med full data)
+    const dbOvelser = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+    
+    // Hent fra ovelser.json - konverter til flat array
+    const jsonOvelser: any[] = []
+    Object.keys(ovelserData).forEach(kategori => {
+      const ovelser = (ovelserData as any)[kategori]
+      ovelser.forEach((o: any) => {
+        jsonOvelser.push({
+          ...o,
+          kategori: kategori
+        })
+      })
+    })
+    
+    console.log('DB øvelser:', dbOvelser.length)
+    console.log('JSON øvelser:', jsonOvelser.length)
+    
     const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
     
     const oveler = customOvelser.map((o: any) => {
-      // Prøv å finne match i DB for å få FULL data
-      const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+      // Prøv å finne match i DB først (for full data)
+      let match = dbOvelser.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+      
+      // Hvis ikke funnet i DB, prøv i jsonOvelser
+      if (!match) {
+        match = jsonOvelser.find((e: any) => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+      }
       
       const sett = o.sett || 3
       const reps = o.reps || '10'
       
       if (match) {
-        // ✅ VI HAR FULL DATA! Samme som auto-genererte økter
         return {
-          ...match,  // Henter alt fra DB (beskrivelse, tips, emoji, muskler, hvile, utstyr)
+          ...match,
           sett: sett,
           expanded: true,
           sett_logg: Array.from({length: sett}, () => ({ 
@@ -253,7 +280,6 @@ if (modus === 'custom' && ovelserParam) {
           })),
         }
       } else {
-        // ⚠️ Fallback hvis match ikke finnes
         return {
           navn: o.navn || 'Ukjent øvelse',
           sett: sett,
