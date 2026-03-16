@@ -87,8 +87,14 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
   
   return (
     <div className="ov-velger">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        
+      <div 
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: '1rem',
+        }} 
+        className="ov-velger-grid"
+      >
         {/* Venstre: Bibliotek */}
         <div className="glass-card" style={{ padding: '1rem' }}>
           <h3 style={{ marginBottom: '1rem' }}>📚 Velg øvelser</h3>
@@ -223,6 +229,15 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
           </button>
         </div>
       </div>
+
+      {/* NY STYLE FOR MOBIL */}
+      <style>{`
+        @media (max-width: 640px) {
+          .ov-velger-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
