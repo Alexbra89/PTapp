@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useQueryClient } from '@tanstack/react-query'
 import { QK } from '@/hooks/useSupabaseQuery'
+import OvelsesVelger from '@/components/OvelsesVelger'
 
 type Sted   = 'hjemme' | 'gym'
 type Gruppe = 'bryst'|'rygg'|'bein'|'skuldre'|'bicep'|'tricep'|'core'|'fullkropp'|'tabata'|'cardio'
@@ -172,6 +173,10 @@ function KonfigInner() {
   const [autofillMsg, setAutofillMsg]  = useState('')
   const [autofillLast,setAutofillLast] = useState(false)
 
+  // 🔥 NYE STATES FOR MODUS-VELGER
+  const [modus, setModus] = useState<'auto' | 'custom'>('auto')
+  const [valgteOvelser, setValgteOvelser] = useState<any[]>([])
+
   const [klokkeMode, setKlokkeMode] = useState<KlokkeMode>('stopp')
   const [sekunder,   setSekunder]   = useState(0)
   const [kjoerer,    setKjoerer]    = useState(false)
@@ -219,60 +224,75 @@ function KonfigInner() {
     setGrupper(p => p.includes(g) ? p.filter(x=>x!==g) : [...p, g])
 
   const startOkt = () => {
-    if (grupper.length === 0) return
-    const params = new URLSearchParams({
-      grupper: grupper.join(','), sted, nivaa, intensitet,
-      dag: String(dag), oppvarming: oppvarming.join(','),
-    })
+    if (modus === 'auto' && grupper.length === 0) return
+    if (modus === 'custom' && valgteOvelser.length === 0) return
+    
+    const params = new URLSearchParams()
+    
+    if (modus === 'auto') {
+      params.set('grupper', grupper.join(','))
+      params.set('sted', sted)
+      params.set('nivaa', nivaa)
+      params.set('intensitet', intensitet)
+      params.set('dag', String(dag))
+      params.set('oppvarming', oppvarming.join(','))
+      params.set('modus', 'auto')
+    } else {
+      params.set('ovelser', JSON.stringify(valgteOvelser))
+      params.set('modus', 'custom')
+      params.set('sted', sted)
+      params.set('oppvarming', oppvarming.join(','))
+    }
+    
     router.push(`/treninger/okt?${params.toString()}`)
   }
 
   // ── AUTOFYLL FIKSET — lagrer øvelser til Supabase ────────────────────────
-const autofillKalender = async () => {
-  if (!autofillPlan) return
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-  setAutofillLast(true)
+  const autofillKalender = async () => {
+    if (!autofillPlan) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    setAutofillLast(true)
 
-  const plan   = AUTOFYLL[autofillPlan]
-const today  = new Date()
-const monday = new Date(today)
-const dagOffset = (today.getDay() + 6) % 7  // 0=man, 6=søn
-// Hvis vi er forbi mandag (dagOffset > 0) → hopp til NESTE mandag
-monday.setDate(today.getDate() - dagOffset + (dagOffset > 0 ? 7 : 0))
-monday.setHours(0, 0, 0, 0)
+    const plan   = AUTOFYLL[autofillPlan]
+    const today  = new Date()
+    const monday = new Date(today)
+    const dagOffset = (today.getDay() + 6) % 7  // 0=man, 6=søn
+    // Hvis vi er forbi mandag (dagOffset > 0) → hopp til NESTE mandag
+    monday.setDate(today.getDate() - dagOffset + (dagOffset > 0 ? 7 : 0))
+    monday.setHours(0, 0, 0, 0)
 
-  const maaneder: string[] = []
+    const maaneder: string[] = []
 
-  for (const [dagNavn, grp] of Object.entries(plan)) {
-    const idx     = UKEDAGER.indexOf(dagNavn)
-    const dato    = new Date(monday)
-    dato.setDate(monday.getDate() + idx)
-    const datoStr = dato.toISOString().split('T')[0]
-    const ovelser = genererOvelser(grp, datoStr)
-    if (!maaneder.includes(datoStr.slice(0, 7))) maaneder.push(datoStr.slice(0, 7))
+    for (const [dagNavn, grp] of Object.entries(plan)) {
+      const idx     = UKEDAGER.indexOf(dagNavn)
+      const dato    = new Date(monday)
+      dato.setDate(monday.getDate() + idx)
+      const datoStr = dato.toISOString().split('T')[0]
+      const ovelser = genererOvelser(grp, datoStr)
+      if (!maaneder.includes(datoStr.slice(0, 7))) maaneder.push(datoStr.slice(0, 7))
 
-    await supabase.from('okter').insert([{
-      bruker_id:    user.id,
-      dato:         datoStr,
-      tittel:       grp.map(g => g[0].toUpperCase() + g.slice(1)).join(' & '),
-      type:         grp.includes('cardio') || grp.includes('tabata') ? 'cardio' : 'styrke',
-      varighet_min: 60,
-      notater:      `Auto-generert: ${autofillPlan}`,
-      ovelser,
-    }])
+      await supabase.from('okter').insert([{
+        bruker_id:    user.id,
+        dato:         datoStr,
+        tittel:       grp.map(g => g[0].toUpperCase() + g.slice(1)).join(' & '),
+        type:         grp.includes('cardio') || grp.includes('tabata') ? 'cardio' : 'styrke',
+        varighet_min: 60,
+        notater:      `Auto-generert: ${autofillPlan}`,
+        ovelser,
+      }])
+    }
+
+    // Ugyldiggjør cache for alle berørte måneder → kalender re-fetcher automatisk
+    for (const maned of maaneder) {
+      await qc.invalidateQueries({ queryKey: QK.okterManed(user.id, maned) })
+    }
+
+    setAutofillLast(false)
+    setAutofillMsg('Ukesplan lagt til i kalender! ✓')
+    setTimeout(() => setAutofillMsg(''), 3000)
+    setVisAutofill(false)
   }
-
-  // Ugyldiggjør cache for alle berørte måneder → kalender re-fetcher automatisk
-  for (const maned of maaneder) {
-    await qc.invalidateQueries({ queryKey: QK.okterManed(user.id, maned) })
-  }
-
-  setAutofillLast(false)
-  setAutofillMsg('Ukesplan lagt til i kalender! ✓')
-  setTimeout(() => setAutofillMsg(''), 3000)
-  setVisAutofill(false)
-}
 
   const tilgjOpp = OPPVARMING.filter(o => o.sted.includes(sted))
 
@@ -367,47 +387,72 @@ monday.setHours(0, 0, 0, 0)
           </div>
         </div>
 
-        {/* Muskelgruppe */}
+        {/* ── MODUS-VELGER (NY) ── */}
         <div className="tk-seksjon glass-card">
-          <div className="tk-lbl">💪 Muskelgruppe <span style={{color:'rgba(255,255,255,0.3)',fontWeight:400}}>(velg én eller flere)</span></div>
-          <div className="tk-gruppe-grid">
-            {GRUPPER.map(g => (
-              <button key={g.key} className={`tk-gruppe${grupper.includes(g.key)?' on':''}`}
-                onClick={() => toggleGruppe(g.key)}>
-                <span className="tk-gruppe-em">{g.emoji}</span>
-                <span className="tk-gruppe-l">{g.label}</span>
-              </button>
-            ))}
+          <div className="tk-lbl">🎯 Velg modus</div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className={`tk-pill${modus === 'auto' ? ' on' : ''}`}
+              onClick={() => setModus('auto')}
+              style={{ flex: 1 }}
+            >
+              ⚡ Automatisk
+            </button>
+            <button
+              className={`tk-pill${modus === 'custom' ? ' on' : ''}`}
+              onClick={() => setModus('custom')}
+              style={{ flex: 1 }}
+            >
+              ✏️ Velg selv
+            </button>
           </div>
-          {grupper.length > 0 && (
-            <div className="tk-valgte">
-              {grupper.map(g => (
-                <span key={g} className="tk-badge">
-                  {GRUPPER.find(x=>x.key===g)?.emoji} {GRUPPER.find(x=>x.key===g)?.label}
-                  <button onClick={() => toggleGruppe(g)}>✕</button>
-                </span>
+        </div>
+
+        {/* Muskelgruppe - vises KUN i auto-modus */}
+        {modus === 'auto' && (
+          <div className="tk-seksjon glass-card">
+            <div className="tk-lbl">💪 Muskelgruppe <span style={{color:'rgba(255,255,255,0.3)',fontWeight:400}}>(velg én eller flere)</span></div>
+            <div className="tk-gruppe-grid">
+              {GRUPPER.map(g => (
+                <button key={g.key} className={`tk-gruppe${grupper.includes(g.key)?' on':''}`}
+                  onClick={() => toggleGruppe(g.key)}>
+                  <span className="tk-gruppe-em">{g.emoji}</span>
+                  <span className="tk-gruppe-l">{g.label}</span>
+                </button>
               ))}
             </div>
-          )}
-        </div>
+            {grupper.length > 0 && (
+              <div className="tk-valgte">
+                {grupper.map(g => (
+                  <span key={g} className="tk-badge">
+                    {GRUPPER.find(x=>x.key===g)?.emoji} {GRUPPER.find(x=>x.key===g)?.label}
+                    <button onClick={() => toggleGruppe(g)}>✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Nivå + Intensitet */}
-        <div className="tk-seksjon glass-card tk-2kol">
-          <div>
-            <div className="tk-lbl">🎚 Nivå</div>
-            <div className="tk-pill-rad">
-              {NIVAER.map(n => <button key={n} className={`tk-pill${nivaa===n?' on':''}`} onClick={() => setNivaa(n)}>{n}</button>)}
+        {/* Nivå + Intensitet - vises KUN i auto-modus */}
+        {modus === 'auto' && (
+          <div className="tk-seksjon glass-card tk-2kol">
+            <div>
+              <div className="tk-lbl">🎚 Nivå</div>
+              <div className="tk-pill-rad">
+                {NIVAER.map(n => <button key={n} className={`tk-pill${nivaa===n?' on':''}`} onClick={() => setNivaa(n)}>{n}</button>)}
+              </div>
+            </div>
+            <div>
+              <div className="tk-lbl">🔥 Intensitet</div>
+              <div className="tk-pill-rad">
+                {INTENSITET.map(it => <button key={it} className={`tk-pill${intensitet===it?' on':''}`} onClick={() => setIntensitet(it)}>{it}</button>)}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="tk-lbl">🔥 Intensitet</div>
-            <div className="tk-pill-rad">
-              {INTENSITET.map(it => <button key={it} className={`tk-pill${intensitet===it?' on':''}`} onClick={() => setIntensitet(it)}>{it}</button>)}
-            </div>
-          </div>
-        </div>
+        )}
 
-        {/* Oppvarming */}
+        {/* Oppvarming - vises i begge moduser */}
         <div className="tk-seksjon glass-card">
           <div className="tk-lbl">🔥 Oppvarming <span style={{color:'rgba(255,255,255,0.3)',fontWeight:400}}>(valgfritt)</span></div>
           <div className="tk-opp-grid">
@@ -423,6 +468,18 @@ monday.setHours(0, 0, 0, 0)
             ))}
           </div>
         </div>
+
+        {/* Øvelsesvelger - vises KUN i custom-modus */}
+        {modus === 'custom' && (
+          <div className="tk-seksjon glass-card" style={{ padding: 0 }}>
+            <OvelsesVelger 
+              onSelect={(ovelser) => {
+                setValgteOvelser(ovelser)
+                console.log('Valgte øvelser:', ovelser)
+              }}
+            />
+          </div>
+        )}
 
         {/* Autofyll kalender */}
         <div className="tk-seksjon glass-card">
@@ -461,14 +518,24 @@ monday.setHours(0, 0, 0, 0)
 
       {/* ── Start-knapp ── */}
       <button
-        className={`tk-start-btn${grupper.length===0?' tk-disabled':''}`}
-        disabled={grupper.length === 0}
+        className={`tk-start-btn${
+          (modus === 'auto' && grupper.length === 0) || 
+          (modus === 'custom' && valgteOvelser.length === 0) ? ' tk-disabled' : ''
+        }`}
+        disabled={
+          (modus === 'auto' && grupper.length === 0) || 
+          (modus === 'custom' && valgteOvelser.length === 0)
+        }
         onClick={startOkt}
       >
-        ⚡ Generer og start treningsøkt
+        ⚡ {modus === 'auto' ? 'Generer og start treningsøkt' : 'Start med valgte øvelser'}
       </button>
-      {grupper.length === 0 && (
+      
+      {modus === 'auto' && grupper.length === 0 && (
         <p className="tk-hint">Velg minst én muskelgruppe for å starte</p>
+      )}
+      {modus === 'custom' && valgteOvelser.length === 0 && (
+        <p className="tk-hint">Velg minst én øvelse for å starte</p>
       )}
 
       <style>{`
