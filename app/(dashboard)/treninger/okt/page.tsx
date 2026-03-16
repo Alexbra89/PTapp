@@ -227,59 +227,62 @@ const bygg = async () => {
   console.log('Starter bygg med:', { oktId, modus, harOvelserParam: !!ovelserParam })
   
   // Hvis custom-modus (valgte øvelser)
-  if (modus === 'custom' && ovelserParam) {
-    try {
-      const customOvelser = JSON.parse(ovelserParam)
-      const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
-      const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+if (modus === 'custom' && ovelserParam) {
+  try {
+    const customOvelser = JSON.parse(ovelserParam)
+    const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+    const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+    
+    const oveler = customOvelser.map((o: any) => {
+      // Prøv å finne match i DB for å få FULL data
+      const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
       
-      const oveler = customOvelser.map((o: any) => {
-        const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
-        
-        const sett = o.sett || 3
-        const reps = o.reps || '10'
-        
-        if (match) {
-          return {
-            ...match,
-            sett: sett,
-            expanded: true,
-            sett_logg: Array.from({length: sett}, () => ({ 
-              reps: parseInt(reps.split('-')[0]) || 10, 
-              kg: 0, 
-              fullfort: false 
-            })),
-          }
-        } else {
-          return {
-            navn: o.navn || 'Ukjent øvelse',
-            sett: sett,
-            reps: reps,
-            hvile: '75s',
-            utstyr: '–',
-            emoji: '⚡',
-            muskler: '–',
-            beskrivelse: '',
-            tips: '–',
-            expanded: true,
-            sett_logg: Array.from({length: sett}, () => ({ 
-              reps: parseInt(reps.split('-')[0]) || 10, 
-              kg: 0, 
-              fullfort: false 
-            })),
-          }
+      const sett = o.sett || 3
+      const reps = o.reps || '10'
+      
+      if (match) {
+        // ✅ VI HAR FULL DATA! Samme som auto-genererte økter
+        return {
+          ...match,  // Henter alt fra DB (beskrivelse, tips, emoji, muskler, hvile, utstyr)
+          sett: sett,
+          expanded: true,
+          sett_logg: Array.from({length: sett}, () => ({ 
+            reps: parseInt(reps.split('-')[0]) || 10, 
+            kg: 0, 
+            fullfort: false 
+          })),
         }
-      })
-      
-      console.log('Custom økt - prosesserte øvelser:', oveler)
-      setOkter(oveler)
-      setTittel('Egendefinert økt')
-      setLaster(false)
-      return
-    } catch (e) {
-      console.error('Feil ved parsing av custom øvelser', e)
-    }
+      } else {
+        // ⚠️ Fallback hvis match ikke finnes
+        return {
+          navn: o.navn || 'Ukjent øvelse',
+          sett: sett,
+          reps: reps,
+          hvile: '75s',
+          utstyr: '–',
+          emoji: '⚡',
+          muskler: '–',
+          beskrivelse: '',
+          tips: '–',
+          expanded: true,
+          sett_logg: Array.from({length: sett}, () => ({ 
+            reps: parseInt(reps.split('-')[0]) || 10, 
+            kg: 0, 
+            fullfort: false 
+          })),
+        }
+      }
+    })
+    
+    console.log('✅ Custom økt med FULL data:', oveler)
+    setOkter(oveler)
+    setTittel('Egendefinert økt')
+    setLaster(false)
+    return
+  } catch (e) {
+    console.error('Feil ved parsing av custom øvelser', e)
   }
+}
   
   if (oktId) {
     // Fra kalender
