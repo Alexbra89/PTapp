@@ -236,16 +236,24 @@ if (modus === 'custom' && ovelserParam) {
   try {
     const customOvelser = JSON.parse(ovelserParam)
     
-    // Hent fra DB (din eksisterende database med full data)
+    // Hent fra DB (med full data)
     const dbOvelser = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
     
-    // Hent fra ovelser.json - konverter til flat array
+    // Konverter JSON-øvelser til samme format som DB
     const jsonOvelser: any[] = []
     Object.keys(ovelserData).forEach(kategori => {
       const ovelser = (ovelserData as any)[kategori]
       ovelser.forEach((o: any) => {
         jsonOvelser.push({
-          ...o,
+          navn: o.navn,
+          sett: 3,  // Standard
+          reps: '10', // Standard
+          hvile: '60s', // Standard
+          utstyr: o.utstyr === 'hjemme' ? 'Hjemme' : o.utstyr === 'senter' ? 'Gym' : o.utstyr,
+          emoji: '💪', // Standard
+          tips: 'Følg beskrivelsen',
+          muskler: o.muskelgruppe,
+          beskrivelse: o.beskrivelse,
           kategori: kategori
         })
       })
@@ -257,7 +265,7 @@ if (modus === 'custom' && ovelserParam) {
     const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
     
     const oveler = customOvelser.map((o: any) => {
-      // Prøv å finne match i DB først (for full data)
+      // Prøv å finne match i DB først
       let match = dbOvelser.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
       
       // Hvis ikke funnet i DB, prøv i jsonOvelser
@@ -300,7 +308,7 @@ if (modus === 'custom' && ovelserParam) {
       }
     })
     
-    console.log('✅ Custom økt med FULL data:', oveler)
+    console.log('✅ Custom økt med data:', oveler)
     setOkter(oveler)
     setTittel('Egendefinert økt')
     setLaster(false)
