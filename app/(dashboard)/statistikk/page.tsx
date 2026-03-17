@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useUser, useProfil, useStats, useAktivitet, useVektlogg, useLoggVekt } from '@/hooks/useSupabaseQuery'
+import ProgresjonOvelse from './ProgresjonOvelse'
 
 // ── Lazy-load Recharts — hver komponent lastes separat ───────────────────────
 const ResponsiveContainer = dynamic(
@@ -405,6 +406,9 @@ export default function StatistikkPage() {
             ))}
           </div>
 
+          {/* 🔥 NY: Progresjonsgraf for alle øvelser */}
+          {user?.id && <ProgresjonOvelse userId={user.id} />}
+
           <div className="st-charts">
             <div className="glass-card st-chart-card">
               <div className="st-chart-title">📅 Ukentlig aktivitet</div>
@@ -644,7 +648,7 @@ export default function StatistikkPage() {
         </div>
       )}
 
-   <style>{`
+      <style>{`
         .st-page{max-width:1000px}
         .st-faner{display:flex;gap:4px;padding:6px;margin-bottom:1.25rem}
         .st-fane{flex:1;padding:.6rem;border-radius:10px;border:none;background:transparent;color:rgba(255,255,255,.4);font-size:.82rem;font-family:var(--font-body);cursor:pointer;transition:all .15s;font-weight:500}
