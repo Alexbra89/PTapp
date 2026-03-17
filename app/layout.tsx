@@ -31,13 +31,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="nb" suppressHydrationWarning>
       <head>
         {/* PWA – iOS Safari */}
-        <meta name="apple-mobile-web-app-capable"          content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title"            content="Trening" />
-        <meta name="mobile-web-app-capable"                content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Trening" />
+        <meta name="mobile-web-app-capable" content="yes" />
 
         {/* Ikoner */}
-        <link rel="apple-touch-icon"      href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
@@ -65,19 +65,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             animation:_spin 0.8s linear infinite;
           }
         ` }} />
+        
+        {/* Forbedret splash-fjerning */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var removeSplash = function() {
+              var s = document.getElementById('splash');
+              if (s && s.parentNode) {
+                s.style.opacity = '0';
+                setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 300);
+              }
+            };
+            
+            // Fjern så snart som mulig
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', removeSplash);
+            } else {
+              removeSplash();
+            }
+            
+            // Sikkerhetsmargin
+            setTimeout(removeSplash, 500);
+          })();
+        `}} />
       </head>
       <body>
-        {/* Splash — vises mens JS laster, fjernes automatisk */}
-        <div id="splash">
-          <div id="splash-spinner" />
-        </div>
-        <script dangerouslySetInnerHTML={{ __html: `
-          window.addEventListener('load', function() {
-            var s = document.getElementById('splash');
-            if (s) { s.style.opacity = '0'; setTimeout(function(){ s.remove() }, 300); }
-          });
-        `}} />
         <Providers>
+          {/* Splash inne i Providers */}
+          <div id="splash">
+            <div id="splash-spinner" />
+          </div>
           {children}
         </Providers>
       </body>
