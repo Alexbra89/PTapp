@@ -234,7 +234,7 @@ const bygg = async () => {
   // Hvis custom-modus (valgte øvelser)
 if (modus === 'custom' && ovelserParam) {
   try {
-    const customOvelser = JSON.parse(ovelserParam)
+    const customOvelser = JSON.parse(decodeURIComponent(ovelserParam)) 
     console.log('1️⃣ Custom øvelser fra URL:', customOvelser)
     
     // Hent fra DB
