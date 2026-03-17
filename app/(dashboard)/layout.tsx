@@ -23,8 +23,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
-  }, [])
+    const sjekkInnlogging = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('Bruker ved oppstart:', user?.email)
+      setUser(user)
+      
+      // Hvis ikke innlogget, send til login
+      if (!user) {
+        console.log('Ingen bruker, redirect til login')
+        router.push('/login')
+      }
+    }
+    
+    sjekkInnlogging()
+
+    // Lytt på auth-endringer
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event:', event, session?.user?.email)
+      
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+        router.push('/login')
+      } else if (event === 'SIGNED_IN') {
+        setUser(session?.user)
+        router.refresh()
+      }
+    })
+
+    return () => subscription?.unsubscribe()
+  }, [router, supabase])
 
   const loggUt = async () => {
     setLoggingUt(true)

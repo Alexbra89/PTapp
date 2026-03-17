@@ -126,6 +126,7 @@ interface Props {
 }
 
 export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
+  console.log('🟢 KOMPONENTEN LASTES')  
   const [sok, setSok] = useState('')
   const [valgtKategori, setValgtKategori] = useState<string>('alle')
   const [midlertidigValgte, setMidlertidigValgte] = useState<ValgtOvelse[]>(valgteOvelser)
@@ -135,11 +136,26 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
   const [egneOvelser, setEgneOvelser] = useState<any[]>([])
   const [lasterEgne, setLasterEgne] = useState(true)
   const supabase = createClient()
+  console.log('Supabase klient opprettet')
   
+  useEffect(() => {
+  const testAuth = async () => {
+    const { data } = await supabase.auth.getSession()
+    console.log('Session fra getSession():', data.session)
+    
+    const { data: userData } = await supabase.auth.getUser()
+    console.log('Bruker fra getUser():', userData.user)
+    
+    console.log('localStorage etter auth-kall:', Object.keys(localStorage))
+  }
+  testAuth()
+}, [])
+
   // Hent brukerens egne øvelser
   useEffect(() => {
     const hentEgneOvelser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      console.log('Bruker ved henting:', user?.id)
       if (!user) {
         setLasterEgne(false)
         return
