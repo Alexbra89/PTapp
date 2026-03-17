@@ -62,7 +62,7 @@ export default function ProgresjonOvelse({ userId }: Props) {
         .from('treningslogger')
         .select('dato, sett')
         .eq('bruker_id', userId)
-        .eq('ovelse', valgtOvelse)
+        .eq('ovelse_id', valgtOvelse)
         .order('dato', { ascending: true })
 
       if (!logger || logger.length === 0) {

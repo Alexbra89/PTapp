@@ -41,60 +41,69 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
-        {/* Hindre hvit flash — critical inline CSS lastes synkront FØR JS */}
-        <meta name="color-scheme" content="dark" />
+        {/* Hindre hvit flash */}
         <style dangerouslySetInnerHTML={{ __html: `
-          *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-          html,body{
-            background:#030308 !important;
-            color:#fff;
-            min-height:100vh;
-            -webkit-font-smoothing:antialiased;
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body {
+            background: #030308 !important;
+            color: #fff;
+            min-height: 100vh;
           }
-          @keyframes _spin { to { transform: rotate(360deg) } }
-          #splash {
-            position:fixed; inset:0; z-index:9999;
-            background:#030308;
-            display:flex; align-items:center; justify-content:center;
-            transition:opacity 0.3s ease;
+          #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #030308;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
           }
           #splash-spinner {
-            width:44px; height:44px; border-radius:50%;
-            border:2px solid rgba(0,245,255,0.15);
-            border-top-color:#00f5ff;
-            animation:_spin 0.8s linear infinite;
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(0,245,255,0.1);
+            border-top: 3px solid #00f5ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
           }
-        ` }} />
-        
-        {/* Forbedret splash-fjerning */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function() {
-            var removeSplash = function() {
-              var s = document.getElementById('splash');
-              if (s && s.parentNode) {
-                s.style.opacity = '0';
-                setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 300);
-              }
-            };
-            
-            // Fjern så snart som mulig
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', removeSplash);
-            } else {
-              removeSplash();
-            }
-            
-            // Sikkerhetsmargin
-            setTimeout(removeSplash, 500);
-          })();
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         `}} />
       </head>
       <body>
+        <div id="splash-screen">
+          <div id="splash-spinner" />
+        </div>
+        
+        <script dangerouslySetInnerHTML={{ __html: `
+          // Fjern splash-screen NÅR React er klart (ikke før)
+          window.removeSplash = function() {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+              splash.style.opacity = '0';
+              setTimeout(() => splash.remove(), 500);
+            }
+          };
+          
+          // Vent til React er ferdig lastet
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+              // Gi React litt tid til å starte
+              setTimeout(window.removeSplash, 100);
+            });
+          } else {
+            setTimeout(window.removeSplash, 100);
+          }
+          
+          // Sikkerhetsmargin - fjern uansett etter 3 sekunder
+          setTimeout(window.removeSplash, 3000);
+        `}} />
+        
         <Providers>
-          {/* Splash inne i Providers */}
-          <div id="splash">
-            <div id="splash-spinner" />
-          </div>
           {children}
         </Providers>
       </body>
