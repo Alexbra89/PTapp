@@ -46,28 +46,6 @@ const Tooltip = dynamic(
   { ssr: false }
 )
 
-// ── Utfordringer (klient-only, localStorage) ──────────────────────────────────
-interface Utfordring {
-  id: string; tittel: string; beskrivelse: string
-  maal: number; enhet: string; emoji: string
-  fullfort: boolean; fremgang: number
-}
-
-const UTFORDRINGER_POOL = [
-  { tittel:'10.000 skritt',   beskrivelse:'Gå 10.000 skritt i dag',              maal:10000, enhet:'skritt',   emoji:'👣' },
-  { tittel:'Drikk 2,5L vann', beskrivelse:'Drikk 2,5 liter vann i dag',          maal:2500,  enhet:'ml',       emoji:'💧' },
-  { tittel:'3 treningsøkter', beskrivelse:'Fullfør 3 treningsøkter denne uken',  maal:3,     enhet:'økter',    emoji:'🏋️' },
-  { tittel:'Sov 7+ timer',    beskrivelse:'Sov minst 7 timer 3 netter på rad',   maal:3,     enhet:'netter',   emoji:'😴' },
-  { tittel:'Spis grønnsaker', beskrivelse:'Spis 3 grønnsaker per dag i 5 dager', maal:5,     enhet:'dager',    emoji:'🥦' },
-  { tittel:'Ingen sukker',    beskrivelse:'Unngå sukker i 3 dager denne uken',   maal:3,     enhet:'dager',    emoji:'🚫' },
-  { tittel:'Strekk 10 min',   beskrivelse:'Strekk deg i 10 min etter trening',   maal:10,    enhet:'min',      emoji:'🧘' },
-  { tittel:'Ned 0,5 kg',      beskrivelse:'Gå ned 0,5 kg denne uken',            maal:1,     enhet:'kg',       emoji:'⚖️' },
-  { tittel:'Planke 2 min',    beskrivelse:'Hold planke i 2 minutter totalt',      maal:120,   enhet:'sek',      emoji:'💪' },
-  { tittel:'20 min gange',    beskrivelse:'Gå en tur på minst 20 minutter',       maal:20,    enhet:'min',      emoji:'🚶' },
-  { tittel:'Push-up streak',  beskrivelse:'Gjør 100 push-ups fordelt på dagen',   maal:100,   enhet:'push-ups', emoji:'🤸' },
-  { tittel:'Proteinrik dag',  beskrivelse:'Spis protein til hvert måltid i dag',  maal:3,     enhet:'måltider', emoji:'🥩' },
-]
-
 const supabase = createClient()
 
 // ── PR øvelsesliste ────────────────────────────────────────────────────────────
@@ -260,18 +238,6 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
   )
 }
 
-function getUkensUtfordringer(ukeNr: number, mal: string) {
-  const seed = ukeNr * 7 + (mal === 'ned_i_vekt' ? 1 : mal === 'bygge_muskler' ? 2 : 3)
-  const pool = mal === 'ned_i_vekt'
-    ? UTFORDRINGER_POOL.filter(u => ['💧','👣','⚖️','🚶','🚫'].includes(u.emoji))
-    : mal === 'bygge_muskler'
-    ? UTFORDRINGER_POOL.filter(u => ['🏋️','💪','🤸','🥩','🧘'].includes(u.emoji))
-    : UTFORDRINGER_POOL
-  return [...pool]
-    .sort((a, b) => ((seed * a.tittel.length * 31) % pool.length) - ((seed * b.tittel.length * 17) % pool.length))
-    .slice(0, 3)
-}
-
 const TRENINGS_TIPS: Record<string, string[]> = {
   ned_i_vekt: [
     '💧 Drikk 2,5–3 liter vann daglig — vann øker forbrenningen og reduserer sultfølelsen',
@@ -320,8 +286,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function StatistikkPage() {
-  const [aktivFane,    setAktivFane]    = useState<'stats'|'pr'|'vekt'|'utfordringer'>('stats')
-  const [utfordringer, setUtfordringer] = useState<Utfordring[]>([])
+  const [aktivFane,    setAktivFane]    = useState<'stats'|'pr'|'vekt'>('stats')
   const [nyVekt,       setNyVekt]       = useState<number|''>('')
 
   // ── React Query — caches automatisk, ingen re-fetch ved navigasjon ─────────
@@ -336,38 +301,12 @@ export default function StatistikkPage() {
   const onsketVektMaal = profil?.onsket_vekt ?? 0
   const muskelfokus    = stats?.muskelfokus ?? []
 
-  // Utfordringer fra localStorage — ingen Supabase-kall
-  useEffect(() => {
-    const ukeNr  = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
-    const valgte = getUkensUtfordringer(ukeNr, brukerMal)
-    const lagret = JSON.parse(localStorage.getItem(`utfordringer_${ukeNr}`) ?? '{}')
-    setUtfordringer(valgte.map((u, i) => ({
-      ...u, id: `${ukeNr}_${i}`,
-      fullfort: lagret[i]?.fullfort ?? false,
-      fremgang: lagret[i]?.fremgang ?? 0,
-    })))
-  }, [brukerMal])
-
   const loggVekt = async () => {
     if (!nyVekt || !user) return
     await loggVektMut.mutateAsync({ userId: user.id, vekt: Number(nyVekt), vektLogger })
     setNyVekt('')
   }
 
-  const toggleUtfordring = (idx: number, fremgang: number) => {
-    const ukeNr = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
-    const oppdatert = utfordringer.map((u, i) => {
-      if (i !== idx) return u
-      const nyF = Math.min(fremgang, u.maal)
-      return { ...u, fremgang: nyF, fullfort: nyF >= u.maal }
-    })
-    setUtfordringer(oppdatert)
-    const lagret: any = {}
-    oppdatert.forEach((u, i) => { lagret[i] = { fullfort: u.fullfort, fremgang: u.fremgang } })
-    localStorage.setItem(`utfordringer_${ukeNr}`, JSON.stringify(lagret))
-  }
-
-  const alleFullfort = utfordringer.length > 0 && utfordringer.every(u => u.fullfort)
   const tipsListe    = TRENINGS_TIPS[brukerMal] ?? TRENINGS_TIPS.bygge_muskler
   const vektEndring  = vektLogger.length >= 2
     ? (vektLogger[vektLogger.length-1].vekt - vektLogger[0].vekt).toFixed(1) : null
@@ -376,12 +315,12 @@ export default function StatistikkPage() {
     <div className="st-page anim-fade-up">
       <div className="page-header">
         <h1 className="page-title">Statistikk</h1>
-        <p className="page-subtitle">Din treningsfremgang og ukentlige utfordringer</p>
+        <p className="page-subtitle">Din treningsfremgang</p>
       </div>
 
       {/* Faner */}
       <div className="st-faner glass-card">
-        {([['stats','📊','Oversikt'],['pr','🏆','PR-rekorder'],['vekt','⚖️','Vektlogg'],['utfordringer','⚡','Utfordringer']] as const).map(([k,e,l]) => (
+        {([['stats','📊','Oversikt'],['pr','🏆','PR-rekorder'],['vekt','⚖️','Vektlogg']] as const).map(([k,e,l]) => (
           <button key={k} className={`st-fane${aktivFane===k?' active':''}`} onClick={() => setAktivFane(k)}>
             {e} {l}
           </button>
@@ -406,7 +345,7 @@ export default function StatistikkPage() {
             ))}
           </div>
 
-          {/* 🔥 NY: Progresjonsgraf for alle øvelser */}
+          {/* Progresjonsgraf for alle øvelser */}
           {user?.id && <ProgresjonOvelse userId={user.id} />}
 
           <div className="st-charts">
@@ -557,97 +496,6 @@ export default function StatistikkPage() {
         </div>
       )}
 
-      {/* ── UTFORDRINGER ── */}
-      {aktivFane === 'utfordringer' && (
-        <div className="st-utf-page">
-          <div className="st-utf-header glass-card">
-            <div>
-              <div className="st-utf-tittel">🏆 Ukens utfordringer</div>
-              <div className="st-utf-sub">Uke {format(new Date(), 'w', { locale:nb })} · Nye utfordringer hver mandag</div>
-            </div>
-            <div className="st-utf-progress">{utfordringer.filter(u=>u.fullfort).length}/{utfordringer.length}</div>
-          </div>
-
-          {alleFullfort && (
-            <div className="st-utf-feiring glass-card">
-              <div className="st-utf-feiring-em">🎉</div>
-              <div>
-                <div className="st-utf-feiring-tittel">Imponerende! Du fullførte alle ukens utfordringer!</div>
-                <div className="st-utf-feiring-sub">Du er en sann treningshelt. Nye utfordringer venter neste uke 💪</div>
-              </div>
-            </div>
-          )}
-
-          <div className="st-utf-liste">
-            {utfordringer.map((u, i) => {
-              const prosent = Math.min(100, Math.round((u.fremgang / u.maal) * 100))
-              return (
-                <div key={u.id} className={`st-utf-kort glass-card${u.fullfort?' st-utf-done':''}`}>
-                  <div className="st-utf-top">
-                    <div className="st-utf-em">{u.emoji}</div>
-                    <div className="st-utf-info">
-                      <div className="st-utf-navn">{u.tittel}</div>
-                      <div className="st-utf-besk">{u.beskrivelse}</div>
-                    </div>
-                    {u.fullfort && <div className="st-utf-check">✓</div>}
-                  </div>
-                  <div className="st-utf-fremgang-bar">
-                    <div className="st-utf-bar-bg">
-                      <div className="st-utf-bar-fill" style={{ width:`${prosent}%` }} />
-                    </div>
-                    <span className="st-utf-prosent">{prosent}%</span>
-                  </div>
-                  <div className="st-utf-kontroll">
-                    {u.maal > 1000 ? (
-                      // Store tall (vann, skritt) - bruk slider
-                      <div style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                          <span className="st-utf-tall">{u.fremgang} / {u.maal} {u.enhet}</span>
-                          {!u.fullfort && (
-                            <button className="btn btn-primary st-utf-done-btn" onClick={() => toggleUtfordring(i, u.maal)}>
-                              Fullført! 🎉
-                            </button>
-                          )}
-                        </div>
-                        {!u.fullfort && (
-                          <input
-                            type="range"
-                            min="0"
-                            max={u.maal}
-                            value={u.fremgang}
-                            onChange={(e) => toggleUtfordring(i, parseInt(e.target.value))}
-                            style={{
-                              width: '100%',
-                              height: '6px',
-                              background: 'rgba(255,255,255,0.1)',
-                              borderRadius: '3px',
-                              outline: 'none',
-                              WebkitAppearance: 'none'
-                            }}
-                          />
-                        )}
-                      </div>
-                    ) : (
-                      // Små tall (økter, dager) - behold knapper
-                      <>
-                        <span className="st-utf-tall">{u.fremgang} / {u.maal} {u.enhet}</span>
-                        {!u.fullfort && (
-                          <div className="st-utf-btns">
-                            <button className="st-utf-btn" onClick={() => toggleUtfordring(i, Math.max(0, u.fremgang-1))}>−</button>
-                            <button className="st-utf-btn st-utf-btn-add" onClick={() => toggleUtfordring(i, u.fremgang+1)}>+</button>
-                            <button className="btn btn-primary st-utf-done-btn" onClick={() => toggleUtfordring(i, u.maal)}>Fullført! 🎉</button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       <style>{`
         .st-page{max-width:1000px}
         .st-faner{display:flex;gap:4px;padding:6px;margin-bottom:1.25rem}
@@ -683,35 +531,6 @@ export default function StatistikkPage() {
         .st-vekt-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px}
         .st-vekt-dato{flex:1;font-size:.82rem;color:rgba(255,255,255,.5)}
         .st-vekt-tall{font-family:var(--font-display);font-size:.9rem;font-weight:700;color:#fff}
-        .st-utf-page{display:flex;flex-direction:column;gap:1rem}
-        .st-utf-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem}
-        .st-utf-tittel{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#fff}
-        .st-utf-sub{font-size:.75rem;color:rgba(255,255,255,.35);margin-top:3px}
-        .st-utf-progress{font-family:var(--font-display);font-size:1.6rem;font-weight:800;color:var(--cyan)}
-        .st-utf-feiring{display:flex;align-items:center;gap:1.25rem;padding:1.25rem 1.5rem;border-color:rgba(0,255,136,.25)!important;background:rgba(0,255,136,.05)!important}
-        .st-utf-feiring-em{font-size:2.5rem;flex-shrink:0}
-        .st-utf-feiring-tittel{font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--green);margin-bottom:4px}
-        .st-utf-feiring-sub{font-size:.82rem;color:rgba(255,255,255,.5)}
-        .st-utf-liste{display:flex;flex-direction:column;gap:.75rem}
-        .st-utf-kort{padding:1.25rem;transition:border-color .3s}
-        .st-utf-done{border-color:rgba(0,255,136,.25)!important;background:rgba(0,255,136,.04)!important}
-        .st-utf-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:.875rem}
-        .st-utf-em{font-size:1.6rem;flex-shrink:0}
-        .st-utf-info{flex:1}
-        .st-utf-navn{font-family:var(--font-display);font-size:.95rem;font-weight:700;color:#fff;margin-bottom:3px}
-        .st-utf-besk{font-size:.78rem;color:rgba(255,255,255,.4)}
-        .st-utf-check{width:28px;height:28px;border-radius:50%;background:var(--green);color:#000;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-        .st-utf-fremgang-bar{display:flex;align-items:center;gap:10px;margin-bottom:.75rem}
-        .st-utf-bar-bg{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
-        .st-utf-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--cyan),var(--purple));transition:width .4s ease}
-        .st-utf-prosent{font-size:.72rem;color:rgba(255,255,255,.35);width:36px;text-align:right}
-        .st-utf-kontroll{display:flex;align-items:center;justify-content:space-between;gap:10px}
-        .st-utf-tall{font-size:.8rem;color:rgba(255,255,255,.4)}
-        .st-utf-btns{display:flex;gap:6px;align-items:center}
-        .st-utf-btn{width:28px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);cursor:pointer;font-size:.9rem;transition:all .15s;display:flex;align-items:center;justify-content:center;font-family:var(--font-body)}
-        .st-utf-btn:hover{background:rgba(255,255,255,.1)}
-        .st-utf-btn-add{border-color:rgba(0,245,255,.3);color:var(--cyan)}
-        .st-utf-done-btn{font-size:.78rem!important;padding:.35rem .85rem!important}
 
         /* ── PR REKORDER ── */
         .pr-page{display:flex;flex-direction:column;gap:.75rem}
@@ -755,48 +574,6 @@ export default function StatistikkPage() {
         .pr-nåvaerende{display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.4);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;flex-wrap:wrap}
         .pr-nåvaerende strong{color:#fff}
         .pr-ny-rekord-badge{padding:2px 8px;border-radius:999px;background:rgba(255,100,0,.15);border:1px solid rgba(255,100,0,.3);color:#ff8c00;font-size:.65rem;font-weight:600}
-        
-        /* ─── NY CSS FOR SLIDER ─── */
-        .st-utf-fremgang {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          flex: 1;
-        }
-
-        .st-utf-slider-wrap {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .st-utf-slider {
-          flex: 1;
-          height: 4px;
-          -webkit-appearance: none;
-          background: rgba(255,255,255,0.1);
-          border-radius: 2px;
-          outline: none;
-        }
-
-        .st-utf-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: var(--cyan);
-          cursor: pointer;
-          box-shadow: 0 0 10px var(--cyan);
-          border: 2px solid white;
-        }
-
-        .st-utf-slider-verdi {
-          min-width: 60px;
-          font-size: 0.9rem;
-          font-weight: 600;
-          text-align: right;
-        }
-        /* ─── SLUTT NY CSS ─── */
       `}</style>
     </div>
   )

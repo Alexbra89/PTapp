@@ -10,6 +10,7 @@ const NAV = [
   { href: '/treninger', icon: '🏋️', label: 'Treninger' },
   { href: '/ovelser', icon: '💪', label: 'Øvelser' },
   { href: '/kalender', icon: '📅', label: 'Kalender' },
+  { href: '/utfordringer', icon: '🏆', label: 'Utfordringer' },
   { href: '/statistikk', icon: '📊', label: 'Statistikk' },
   { href: '/profiler', icon: '👤', label: 'Profil' },
 ]
