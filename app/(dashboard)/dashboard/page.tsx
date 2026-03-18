@@ -31,14 +31,14 @@ export default function DashboardPage() {
   }
   const tips = malTips[treningsmaal] ?? malTips.bygge_muskler
 
-  const HURTIGLENKER = [
-    { href: '/treninger',  icon: '⚡', label: 'Start trening',  sub: 'Generer ny økt',        color: '#00f5ff' },
-    { href: '/kalender',   icon: '📅', label: 'Kalender',       sub: 'Se ukens plan',         color: '#00ff88' },
-    { href: '/ovelser',    icon: '💪', label: 'Øvelsesbibl.',   sub: '100+ øvelser',          color: '#b44eff' },
-    { href: '/statistikk', icon: '📊', label: 'Statistikk',     sub: 'Fremgang & mål',        color: '#ff8c00' },
-    { href: '/statistikk', icon: '🏆', label: 'Utfordringer',   sub: 'Ukentlige mål',         color: '#ff6600' },
-    { href: '/profiler',   icon: '👤', label: 'Profil',         sub: 'Rediger innstillinger', color: '#a855f7' },
-  ]
+const HURTIGLENKER = [
+  { href: '/treninger',  icon: '⚡', label: 'Start trening',  sub: 'Generer ny økt',        color: '#00f5ff' },
+  { href: '/kalender',   icon: '📅', label: 'Kalender',       sub: 'Se ukens plan',         color: '#00ff88' },
+  { href: '/ovelser',    icon: '💪', label: 'Øvelsesbibl.',   sub: '100+ øvelser',          color: '#b44eff' },
+  { href: '/statistikk', icon: '📊', label: 'Statistikk',     sub: 'Fremgang & mål',        color: '#ff8c00' },
+  { href: '/utfordringer', icon: '🏆', label: 'Utfordringer', sub: 'Ukentlige mål',         color: '#ff6600' }, // ← ENDRE DENNE!
+  { href: '/profiler',   icon: '👤', label: 'Profil',         sub: 'Rediger innstillinger', color: '#a855f7' },
+]
 
   return (
     <div className="db-page anim-fade-up">
