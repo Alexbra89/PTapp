@@ -14,7 +14,7 @@ import { useUser, useOkterManed, useLagreOkt, useSlettOkt, QK } from '@/hooks/us
 type OktType = 'styrke' | 'cardio' | 'hvile' | 'annet'
 interface Okt {
   id: string; dato: string; tittel: string; type: OktType
-  varighet_min: number; notater?: string
+  varighet_min: number; notater?: string; fullfort?: boolean
   ovelser?: { navn: string; sett: number; reps: string; kg?: number }[]
 }
 
@@ -207,7 +207,7 @@ export default function KalenderPage() {
           const fra = format(startOfMonth(ny), 'yyyy-MM-dd')
           const til = format(endOfMonth(ny),   'yyyy-MM-dd')
           const { data } = await supabase.from('okter')
-            .select('id, dato, tittel, type, varighet_min, notater, ovelser')
+            .select('id, dato, tittel, type, varighet_min, notater, ovelser, fullfort')
             .eq('bruker_id', user.id)
             .gte('dato', fra).lte('dato', til).order('dato')
           return data ?? []
@@ -350,13 +350,17 @@ const lagreOkt = async () => {
           ) : (
             <div className="kal-okter-liste">
               {dagensOkter.map(okt => {
-                const meta   = TYPE_META[okt.type]
+                const meta = TYPE_META[okt.type]
                 const ovList = okt.ovelser ?? []
-                const aapen  = visDetalj === okt.id
+                const aapen = visDetalj === okt.id
                 const bekrefter = slettId === okt.id
                 return (
                   <div key={okt.id} className="kal-okt glass-card"
-                    style={{ borderColor: `${meta.color}25` }}>
+                    style={{
+                      borderColor: `${meta.color}25`,
+                      backgroundColor: okt.fullfort ? 'rgba(0,255,136,0.03)' : 'transparent',
+                      borderLeft: okt.fullfort ? '4px solid var(--green)' : 'none'
+                    }}>
                     <div className="kal-okt-topp"
                       onClick={() => { if (!bekrefter) setVisDetalj(aapen ? null : okt.id) }}>
                       <div className="kal-okt-icon"
@@ -364,7 +368,22 @@ const lagreOkt = async () => {
                         {meta.emoji}
                       </div>
                       <div className="kal-okt-info">
-                        <div className="kal-okt-navn">{okt.tittel}</div>
+                        <div className="kal-okt-navn">
+                          {okt.tittel}
+                          {okt.fullfort && (
+                            <span style={{
+                              marginLeft: '8px',
+                              color: 'var(--green)',
+                              fontSize: '0.7rem',
+                              background: 'rgba(0,255,136,0.1)',
+                              padding: '2px 6px',
+                              borderRadius: '999px',
+                              display: 'inline-block'
+                            }}>
+                              ✅ Fullført
+                            </span>
+                          )}
+                        </div>
                         <div className="kal-okt-meta">
                           <span className="kal-badge"
                             style={{ color: meta.color, borderColor: `${meta.color}30`, background: `${meta.color}10` }}>
@@ -376,7 +395,6 @@ const lagreOkt = async () => {
                       </div>
                       <div className="kal-okt-ctrl">
                         {bekrefter ? (
-                          // ── Inline bekreftelse – ingen confirm() ──
                           <>
                             <button className="kal-slett-ja"
                               onClick={e => slettOkt(okt, e)}>

@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import ovelserData from '@/data/ovelser.json'  // ← NY LINJE 1: Henter alle øvelser
+import ovelserData from '@/data/ovelser.json'
 
 console.log('🎯 SJEKKER ØVELSER:')
 console.log('Type:', typeof ovelserData)
-console.log('Kategorier:', Object.keys(ovelserData))  // ← NY LINJE 2: Logger for å se
+console.log('Kategorier:', Object.keys(ovelserData))
 
 function spillAlarm() {
   try {
@@ -218,307 +218,314 @@ function OktInner() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [kjoerer, klokkeMode])
 
-const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setAlarm(false) }
-const startKlokke = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
-const formatTid = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
+  const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setAlarm(false) }
+  const startKlokke = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
+  const formatTid = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
 
-useEffect(() => { bygg() }, [])
+  useEffect(() => { bygg() }, [])
 
-const bygg = async () => {
-  const oktId = searchParams.get('okt')
-  const ovelserParam = searchParams.get('ovelser')
-  const modus = searchParams.get('modus')
-  
-  console.log('Starter bygg med:', { oktId, modus, harOvelserParam: !!ovelserParam })
-  
-  // Hjelpefunksjon for å hente siste brukte verdier
-  const hentSisteData = async (userId: string, ovelseNavn: string) => {
-    const { data } = await supabase
-      .from('treningslogger')
-      .select('sett')
-      .eq('bruker_id', userId)
-      .eq('ovelse_navn', ovelseNavn)
-      .order('dato', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+  const bygg = async () => {
+    const oktId = searchParams.get('okt')
+    const ovelserParam = searchParams.get('ovelser')
+    const modus = searchParams.get('modus')
     
-    if (data?.sett && data.sett.length > 0) {
-      const forsteSett = data.sett[0]
-      return {
-        sett: data.sett.length,
-        reps: forsteSett.reps?.toString() || '10',
-        kg: forsteSett.vekt || forsteSett.kg || 0
+    console.log('Starter bygg med:', { oktId, modus, harOvelserParam: !!ovelserParam })
+    
+    // Hjelpefunksjon for å hente siste treningsdata (husker ALLE sett)
+    const hentSisteTreningsData = async (userId: string, ovelseNavn: string) => {
+      const { data } = await supabase
+        .from('treningslogger')
+        .select('sett, dato')
+        .eq('bruker_id', userId)
+        .eq('ovelse_navn', ovelseNavn)
+        .order('dato', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      
+      if (data?.sett && data.sett.length > 0) {
+        // Returner ALLE sett med reps OG kg
+        return {
+          sett_logg: data.sett.map((s: any) => ({
+            reps: s.reps,
+            kg: s.vekt || s.kg || 0
+          }))
+        }
+      }
+      return null
+    }
+
+    // Hvis custom-modus (valgte øvelser)
+    if (modus === 'custom' && ovelserParam) {
+      try {
+        const customOvelser = JSON.parse(decodeURIComponent(ovelserParam))
+        console.log('1️⃣ Custom øvelser fra URL:', customOvelser)
+        
+        const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+        const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+        
+        let oveler = customOvelser.map((o: any) => {
+          const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+          
+          const sett = o.sett || 3
+          const reps = o.reps || '10'
+          
+          if (match) {
+            return {
+              ...match,
+              sett: sett,
+              reps: reps,
+              expanded: true,
+              sett_logg: Array.from({length: sett}, () => ({ 
+                reps: parseInt(reps.split('-')[0]) || 10, 
+                kg: 0, 
+                fullfort: false 
+              })),
+            }
+          } else {
+            return {
+              navn: o.navn || 'Ukjent øvelse',
+              sett: sett,
+              reps: reps,
+              hvile: '75s',
+              utstyr: '–',
+              emoji: '⚡',
+              muskler: '–',
+              beskrivelse: '',
+              tips: '–',
+              expanded: true,
+              sett_logg: Array.from({length: sett}, () => ({ 
+                reps: parseInt(reps.split('-')[0]) || 10, 
+                kg: 0, 
+                fullfort: false 
+              })),
+            }
+          }
+        })
+        
+        // Hent siste treningsdata for hver øvelse - CUSTOM MODUS
+        const { data: { user: customUser } } = await supabase.auth.getUser()
+        if (customUser) {
+          for (let i = 0; i < oveler.length; i++) {
+            const sisteData = await hentSisteTreningsData(customUser.id, oveler[i].navn)
+            if (sisteData) {
+              oveler[i].sett = sisteData.sett_logg.length
+              oveler[i].sett_logg = sisteData.sett_logg.map((sett: { reps: number; kg: number }) => ({
+                reps: sett.reps,
+                kg: sett.kg,
+                fullfort: false
+              }))
+              if (sisteData.sett_logg[0]) {
+                oveler[i].reps = sisteData.sett_logg[0].reps.toString()
+              }
+            }
+          }
+        }
+        
+        console.log('✅ Custom økt med historiske data:', oveler)
+        setOkter(oveler)
+        setTittel('Egendefinert økt')
+        setLaster(false)
+        return
+      } catch (e) {
+        console.error('❌ FEIL:', e)
       }
     }
-    return null
-  }
-
-  // Hvis custom-modus (valgte øvelser)
-  if (modus === 'custom' && ovelserParam) {
-    try {
-      const customOvelser = JSON.parse(decodeURIComponent(ovelserParam))
-      console.log('1️⃣ Custom øvelser fra URL:', customOvelser)
-      
-      const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
-      const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
-      
-      let oveler = customOvelser.map((o: any) => {
-        const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+    
+    if (oktId) {
+      // Fra kalender
+      const { data } = await createClient().from('okter').select('*').eq('id', oktId).single()
+      if (data) {
+        console.log('Hentet økt:', data)
+        console.log('Øvelser fra DB:', data.ovelser)
         
-        const sett = o.sett || 3
-        const reps = o.reps || '10'
+        // Bruk øvelser fra URL hvis de finnes
+        let ovelserData = data.ovelser ?? []
         
-        if (match) {
-          return {
-            ...match,
-            sett: sett,
-            reps: reps,
-            expanded: true,
-            sett_logg: Array.from({length: sett}, () => ({ 
-              reps: parseInt(reps.split('-')[0]) || 10, 
-              kg: 0, 
-              fullfort: false 
-            })),
-          }
-        } else {
-          return {
-            navn: o.navn || 'Ukjent øvelse',
-            sett: sett,
-            reps: reps,
-            hvile: '75s',
-            utstyr: '–',
-            emoji: '⚡',
-            muskler: '–',
-            beskrivelse: '',
-            tips: '–',
-            expanded: true,
-            sett_logg: Array.from({length: sett}, () => ({ 
-              reps: parseInt(reps.split('-')[0]) || 10, 
-              kg: 0, 
-              fullfort: false 
-            })),
+        if (ovelserParam) {
+          try {
+            ovelserData = JSON.parse(ovelserParam)
+            console.log('Bruker øvelser fra URL:', ovelserData)
+          } catch (e) {
+            console.error('Kunne ikke parse øvelser fra URL', e)
           }
         }
-      })
-      
-      // 🔥 Hent siste data for hver øvelse - CUSTOM MODUS
-      const { data: { user: customUser } } = await supabase.auth.getUser()
-      if (customUser) {
-        for (let i = 0; i < oveler.length; i++) {
-          const siste = await hentSisteData(customUser.id, oveler[i].navn)
-          if (siste) {
-            oveler[i].sett = siste.sett
-            oveler[i].reps = siste.reps
-            oveler[i].sett_logg = Array.from({length: siste.sett}, () => ({
-              reps: parseInt(siste.reps.split('-')[0]) || 10,
-              kg: siste.kg,
-              fullfort: false
-            }))
-          }
-        }
-      }
-      
-      console.log('✅ Custom økt med siste data:', oveler)
-      setOkter(oveler)
-      setTittel('Egendefinert økt')
-      setLaster(false)
-      return
-    } catch (e) {
-      console.error('❌ FEIL:', e)
-    }
-  }
-  
-  if (oktId) {
-    // Fra kalender
-    const { data } = await createClient().from('okter').select('*').eq('id', oktId).single()
-    if (data) {
-      console.log('Hentet økt:', data)
-      console.log('Øvelser fra DB:', data.ovelser)
-      
-      // Bruk øvelser fra URL hvis de finnes
-      let ovelserData = data.ovelser ?? []
-      
-      if (ovelserParam) {
-        try {
-          ovelserData = JSON.parse(ovelserParam)
-          console.log('Bruker øvelser fra URL:', ovelserData)
-        } catch (e) {
-          console.error('Kunne ikke parse øvelser fra URL', e)
-        }
-      }
-      
-      const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
-      
-      const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
-      
-      let oveler = ovelserData.map((o: any) => {
-        const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
         
-        const sett = o.sett || 3
-        const reps = o.reps || '10'
+        const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
         
-        if (match) {
-          return {
-            ...match,
-            sett: sett,
-            reps: reps,
-            expanded: true,
-            sett_logg: Array.from({length: sett}, () => ({ 
-              reps: parseInt(reps.split('-')[0]) || 10, 
-              kg: o.kg || 0, 
-              fullfort: false 
-            })),
+        const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+        
+        let oveler = ovelserData.map((o: any) => {
+          const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+          
+          const sett = o.sett || 3
+          const reps = o.reps || '10'
+          
+          if (match) {
+            return {
+              ...match,
+              sett: sett,
+              reps: reps,
+              expanded: true,
+              sett_logg: Array.from({length: sett}, () => ({ 
+                reps: parseInt(reps.split('-')[0]) || 10, 
+                kg: o.kg || 0, 
+                fullfort: false 
+              })),
+            }
+          } else {
+            return {
+              navn: o.navn || 'Ukjent øvelse',
+              sett: sett,
+              reps: reps,
+              hvile: '75s',
+              utstyr: '–',
+              emoji: '⚡',
+              muskler: '–',
+              beskrivelse: '',
+              tips: '–',
+              expanded: true,
+              sett_logg: Array.from({length: sett}, () => ({ 
+                reps: parseInt(reps.split('-')[0]) || 10, 
+                kg: o.kg || 0, 
+                fullfort: false 
+              })),
+            }
           }
-        } else {
-          return {
-            navn: o.navn || 'Ukjent øvelse',
-            sett: sett,
-            reps: reps,
-            hvile: '75s',
-            utstyr: '–',
-            emoji: '⚡',
-            muskler: '–',
-            beskrivelse: '',
-            tips: '–',
-            expanded: true,
-            sett_logg: Array.from({length: sett}, () => ({ 
-              reps: parseInt(reps.split('-')[0]) || 10, 
-              kg: o.kg || 0, 
-              fullfort: false 
-            })),
+        })
+        
+        // Hent siste treningsdata for hver øvelse - KALENDER MODUS
+        const { data: { user: kalenderUser } } = await supabase.auth.getUser()
+        if (kalenderUser) {
+          for (let i = 0; i < oveler.length; i++) {
+            const sisteData = await hentSisteTreningsData(kalenderUser.id, oveler[i].navn)
+            if (sisteData) {
+              oveler[i].sett = sisteData.sett_logg.length
+              oveler[i].sett_logg = sisteData.sett_logg.map((sett: { reps: number; kg: number }) => ({
+                reps: sett.reps,
+                kg: sett.kg,
+                fullfort: false
+              }))
+              if (sisteData.sett_logg[0]) {
+                oveler[i].reps = sisteData.sett_logg[0].reps.toString()
+              }
+            }
           }
         }
-      })
-      
-      // 🔥 Hent siste data for hver øvelse - KALENDER MODUS
-      const { data: { user: kalenderUser } } = await supabase.auth.getUser()
-      if (kalenderUser) {
-        for (let i = 0; i < oveler.length; i++) {
-          const siste = await hentSisteData(kalenderUser.id, oveler[i].navn)
-          if (siste) {
-            oveler[i].sett = siste.sett
-            oveler[i].reps = siste.reps
-            oveler[i].sett_logg = Array.from({length: siste.sett}, () => ({
-              reps: parseInt(siste.reps.split('-')[0]) || 10,
-              kg: siste.kg,
-              fullfort: false
-            }))
-          }
-        }
-      }
-      
-      console.log('Setter okter, lengde:', oveler.length)
-      setOkter(oveler)
-      console.log('Prosesserte øvelser:', oveler)
-      setTittel(data.tittel)
-      setLaster(false)
-      return
-    }
-  }
-
-  // Fra generator
-  const grupperStr = searchParams.get('grupper') ?? ''
-  const sted       = (searchParams.get('sted') ?? 'gym') as Sted
-  const intensitet = searchParams.get('intensitet') ?? 'Moderat'
-  const dag        = parseInt(searchParams.get('dag') ?? '0')
-  const oppvIds    = (searchParams.get('oppvarming') ?? '').split(',').filter(Boolean)
-
-  const grupper = grupperStr.split(',').filter(Boolean) as Gruppe[]
-  const antall  = intensitet === 'Lett' ? 2 : intensitet === 'Hard' ? 4 : 3
-
-  let alle: OvelseDB[] = []
-  grupper.forEach(g => {
-    const pool = DB[g]?.[sted] ?? []
-    alle = alle.concat(shuffle(pool).slice(0, antall).map(o => ({
-      ...o, sett: intensitet === 'Hard' ? o.sett+1 : intensitet === 'Lett' ? Math.max(2,o.sett-1) : o.sett,
-    })))
-  })
-
-  let logg: OvelseLogg[] = alle.map(o => ({
-    ...o,
-    expanded: true,
-    sett_logg: Array.from({length: o.sett}, () => ({ reps: parseInt(o.reps.split('-')[0])||10, kg: 0, fullfort: false })),
-  }))
-
-  // 🔥 Hent siste data for hver øvelse - GENERATOR MODUS
-  const { data: { user: generatorUser } } = await supabase.auth.getUser()
-  if (generatorUser) {
-    for (let i = 0; i < logg.length; i++) {
-      const siste = await hentSisteData(generatorUser.id, logg[i].navn)
-      if (siste) {
-        logg[i].sett = siste.sett
-        logg[i].reps = siste.reps
-        logg[i].sett_logg = Array.from({length: siste.sett}, () => ({
-          reps: parseInt(siste.reps.split('-')[0]) || 10,
-          kg: siste.kg,
-          fullfort: false
-        }))
+        
+        console.log('Setter okter, lengde:', oveler.length)
+        setOkter(oveler)
+        console.log('Prosesserte øvelser:', oveler)
+        setTittel(data.tittel)
+        setLaster(false)
+        return
       }
     }
+
+    // Fra generator
+    const grupperStr = searchParams.get('grupper') ?? ''
+    const sted       = (searchParams.get('sted') ?? 'gym') as Sted
+    const intensitet = searchParams.get('intensitet') ?? 'Moderat'
+    const dag        = parseInt(searchParams.get('dag') ?? '0')
+    const oppvIds    = (searchParams.get('oppvarming') ?? '').split(',').filter(Boolean)
+
+    const grupper = grupperStr.split(',').filter(Boolean) as Gruppe[]
+    const antall  = intensitet === 'Lett' ? 2 : intensitet === 'Hard' ? 4 : 3
+
+    let alle: OvelseDB[] = []
+    grupper.forEach(g => {
+      const pool = DB[g]?.[sted] ?? []
+      alle = alle.concat(shuffle(pool).slice(0, antall).map(o => ({
+        ...o, sett: intensitet === 'Hard' ? o.sett+1 : intensitet === 'Lett' ? Math.max(2,o.sett-1) : o.sett,
+      })))
+    })
+
+    let logg: OvelseLogg[] = alle.map(o => ({
+      ...o,
+      expanded: true,
+      sett_logg: Array.from({length: o.sett}, () => ({ reps: parseInt(o.reps.split('-')[0])||10, kg: 0, fullfort: false })),
+    }))
+
+    // Hent siste treningsdata for hver øvelse - GENERATOR MODUS
+    const { data: { user: generatorUser } } = await supabase.auth.getUser()
+    if (generatorUser) {
+      for (let i = 0; i < logg.length; i++) {
+        const sisteData = await hentSisteTreningsData(generatorUser.id, logg[i].navn)
+        if (sisteData) {
+          logg[i].sett = sisteData.sett_logg.length
+          logg[i].sett_logg = sisteData.sett_logg.map((sett: { reps: number; kg: number }) => ({
+            reps: sett.reps,
+            kg: sett.kg,
+            fullfort: false
+          }))
+          if (sisteData.sett_logg[0]) {
+            logg[i].reps = sisteData.sett_logg[0].reps.toString()
+          }
+        }
+      }
+    }
+
+    const opp = OPPVARMING.filter(o => oppvIds.includes(o.id))
+    const dagsNavn = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'][dag]
+    const t = grupper.length > 0
+      ? grupper.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & ') + ' — ' + dagsNavn
+      : 'Treningsøkt'
+
+    setOkter(logg)
+    setOppvar(opp)
+    setTittel(t)
+    setLaster(false)
   }
-
-  const opp = OPPVARMING.filter(o => oppvIds.includes(o.id))
-  const dagsNavn = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'][dag]
-  const t = grupper.length > 0
-    ? grupper.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & ') + ' — ' + dagsNavn
-    : 'Treningsøkt'
-
-  setOkter(logg)
-  setOppvar(opp)
-  setTittel(t)
-  setLaster(false)
-}
 
   const oppdaterSett = (oIdx: number, sIdx: number, felt: string, val: any) =>
     setOkter(prev => prev.map((o,i) => i!==oIdx ? o : {
       ...o, sett_logg: o.sett_logg.map((s,j) => j!==sIdx ? s : {...s,[felt]:val})
     }))
 
-const lagreOkt = async () => {
-  setLagrer(true)
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) { setLagrer(false); return }
-  
-  const dato = new Date().toISOString().split('T')[0]
-  
-  // 1. Lagre økten i okter-tabellen (din eksisterende kode)
-  await supabase.from('okter').insert([{
-    bruker_id: user.id, 
-    dato, 
-    tittel, 
-    type: 'styrke', 
-    varighet_min: 60,
-    ovelser: okter.map(o => ({
-      navn: o.navn, 
-      sett: o.sett,
-      reps: o.sett_logg.map(s=>s.reps).join('/'),
-      kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0,
-    })),
-  }])
-  
-  // 2. NYTT: Lagre i treningslogger for statistikk
-  for (const o of okter) {
-    // Hopp over øvelser uten kg (kroppsvektøvelser)
-    const harKg = o.sett_logg.some(s => s.kg > 0)
-    if (!harKg) continue
+  const lagreOkt = async () => {
+    setLagrer(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLagrer(false); return }
     
-    await supabase.from('treningslogger').insert({
-      bruker_id: user.id,
-      dato,
-      ovelse_navn: o.navn,
-      muskelgruppe: o.muskler,
-      sett: o.sett_logg.map(s => ({
-        reps: s.reps,
-        vekt: s.kg,
-        fullfort: s.fullfort
-      }))
-    })
+    const dato = new Date().toISOString().split('T')[0]
+    
+    // 1. Lagre økten i okter-tabellen
+    await supabase.from('okter').insert([{
+      bruker_id: user.id, 
+      dato, 
+      tittel, 
+      type: 'styrke', 
+      varighet_min: 60,
+      fullfort: false,
+      ovelser: okter.map(o => ({
+        navn: o.navn, 
+        sett: o.sett,
+        reps: o.sett_logg.map(s=>s.reps).join('/'),
+        kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0,
+      })),
+    }])
+    
+    // 2. Lagre i treningslogger for statistikk (med ALLE sett)
+    for (const o of okter) {
+      const harKg = o.sett_logg.some(s => s.kg > 0)
+      if (!harKg) continue
+      
+      await supabase.from('treningslogger').insert({
+        bruker_id: user.id,
+        dato,
+        ovelse_navn: o.navn,
+        muskelgruppe: o.muskler,
+        sett: o.sett_logg.map(s => ({
+          reps: s.reps,
+          vekt: s.kg,
+          fullfort: s.fullfort
+        }))
+      })
+    }
+    
+    setLagretMsg('Økt lagret! ✓')
+    setTimeout(() => setLagretMsg(''), 3000)
+    setLagrer(false)
   }
-  
-  setLagretMsg('Økt lagret! ✓')
-  setTimeout(() => setLagretMsg(''), 3000)
-  setLagrer(false)
-}
 
   if (laster) return (
     <div style={{display:'flex',justifyContent:'center',padding:'4rem'}}><div className="spinner-lg"/></div>
@@ -548,7 +555,6 @@ const lagreOkt = async () => {
 
       {/* ── Stoppeklokke ── */}
       <div className={`okt-klokke glass-card${alarm ? ' okt-alarm' : ''}`}>
-        {/* Øverste rad: tid + start/pause knapp */}
         <div className="okt-klokke-rad1">
           <div className="okt-klokke-venstre">
             <div className="okt-tid" style={{color: alarm ? '#ff4444' : kjoerer ? 'var(--cyan)' : 'rgba(255,255,255,0.4)'}}>
@@ -564,7 +570,6 @@ const lagreOkt = async () => {
             <button className="okt-reset" onClick={nullstillKlokke} title="Nullstill">↺</button>
           </div>
         </div>
-        {/* Nederste rad: modus-velger */}
         <div className="okt-klokke-rad2">
           <div className="okt-modus-rad">
             <button className={`okt-modus${klokkeMode==='stopp'?' on':''}`} onClick={() => { setKlokkeMode('stopp'); nullstillKlokke() }}>⏱ Stopp</button>
@@ -584,7 +589,6 @@ const lagreOkt = async () => {
           )}
         </div>
       </div>
-
 
       {/* Oppvarming */}
       {oppvar.length > 0 && (
@@ -608,7 +612,6 @@ const lagreOkt = async () => {
           const done = o.sett_logg.every(s => s.fullfort)
           return (
             <div key={oIdx} className={`okt-kort glass-card${done ? ' okt-kort-done' : ''}`}>
-              {/* Øvelse-header */}
               <div className="okt-ov-header"
                 onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{...x,expanded:!x.expanded}))}>
                 <div className="okt-ov-num">{oIdx+1}</div>
@@ -628,7 +631,6 @@ const lagreOkt = async () => {
 
               {o.expanded && (
                 <div className="okt-ov-body">
-                  {/* Beskrivelse */}
                   {o.beskrivelse && (
                     <div className="okt-besk">
                       <div className="okt-besk-lbl">📖 Hva er dette?</div>
@@ -637,7 +639,6 @@ const lagreOkt = async () => {
                   )}
                   {o.tips && <div className="okt-tips">💡 {o.tips}</div>}
 
-                  {/* Sett-logger */}
                   <div className="okt-sett-header">
                     <span>Sett</span><span>Reps</span><span>Kg</span><span>✓</span><span></span>
                   </div>
@@ -679,6 +680,91 @@ const lagreOkt = async () => {
       <button className="okt-lagre-bunn btn btn-primary" onClick={lagreOkt} disabled={lagrer}>
         {lagrer ? <span className="spinner" style={{width:16,height:16}}/> : '💾 Lagre økt i kalender'}
       </button>
+
+      {/* FULLFØR TRENING knapp */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginTop: '1rem', 
+        marginBottom: '2rem' 
+      }}>
+        <button
+          className="btn btn-primary"
+          style={{ 
+            padding: '1rem 3rem', 
+            fontSize: '1.2rem',
+            background: 'linear-gradient(135deg, var(--cyan), var(--purple))',
+            border: 'none',
+            width: '100%',
+            maxWidth: '400px'
+          }}
+          onClick={async () => {
+            const alleFullfort = okter.every(o => o.sett_logg.every(s => s.fullfort))
+            
+            if (!alleFullfort) {
+              alert('❌ Du må fullføre ALLE sett først!')
+              return
+            }
+            
+            if (!confirm('Er du klar for å fullføre treningen? Dette vil markere økten som fullført!')) {
+              return
+            }
+            
+            setLagrer(true)
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) { setLagrer(false); return }
+            
+            const dato = new Date().toISOString().split('T')[0]
+            
+            const { error } = await supabase.from('okter').insert([{
+              bruker_id: user.id, 
+              dato, 
+              tittel, 
+              type: 'styrke', 
+              varighet_min: 60,
+              fullfort: true,
+              ovelser: okter.map(o => ({
+                navn: o.navn, 
+                sett: o.sett,
+                reps: o.sett_logg.map(s=>s.reps).join('/'),
+                kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0,
+              })),
+            }])
+            
+            if (error) {
+              console.error('Feil ved lagring:', error)
+              alert('❌ Noe gikk galt ved lagring')
+            } else {
+              for (const o of okter) {
+                const harKg = o.sett_logg.some(s => s.kg > 0)
+                if (!harKg) continue
+                
+                await supabase.from('treningslogger').insert({
+                  bruker_id: user.id,
+                  dato,
+                  ovelse_navn: o.navn,
+                  muskelgruppe: o.muskler,
+                  sett: o.sett_logg.map(s => ({
+                    reps: s.reps,
+                    vekt: s.kg,
+                    fullfort: s.fullfort
+                  }))
+                })
+              }
+              
+              alert('🎉 GRATULERER! Trening fullført!')
+            }
+            
+            setLagrer(false)
+          }}
+        >
+          {lagrer ? (
+            <span className="spinner" style={{width:20, height:20}}/>
+          ) : (
+            '✅ FULLFØR TRENING'
+          )}
+        </button>
+      </div>
 
       <style>{`
         .okt-page { max-width: 860px; width: 100%; }
@@ -801,7 +887,6 @@ const lagreOkt = async () => {
 
         .okt-lagre-bunn { width: 100%; margin-top: 1.5rem; padding: 0.875rem !important; font-size: 0.95rem !important; }
 
-        /* ── Stoppeklokke på økt-siden ── */
         .okt-klokke {
           display: flex; flex-direction: column; gap: 0.75rem;
           padding: 1rem 1.25rem; margin-bottom: 1rem;
@@ -809,7 +894,6 @@ const lagreOkt = async () => {
         @keyframes alarmP { from{box-shadow:0 0 0 rgba(255,68,68,0);} to{box-shadow:0 0 18px rgba(255,68,68,0.3);} }
         .okt-alarm { border-color: rgba(255,68,68,0.4) !important; animation: alarmP 0.5s ease-in-out infinite alternate; }
 
-        /* Rad 1: tid + start/pause (alltid på én linje) */
         .okt-klokke-rad1 {
           display: flex; align-items: center; justify-content: space-between; gap: 1rem;
         }
@@ -819,7 +903,6 @@ const lagreOkt = async () => {
         .okt-klokke-hoeyre { display:flex; gap:6px; align-items:center; flex-shrink:0; }
         .okt-k-btn { font-size:0.82rem !important; padding:0.5rem 1.25rem !important; min-width: 90px; }
 
-        /* Rad 2: modus-velger */
         .okt-klokke-rad2 { display:flex; flex-direction: column; gap: 6px; }
         .okt-modus-rad { display:flex; gap:5px; }
         .okt-modus { padding:3px 10px; border-radius:999px; font-size:0.68rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.38); cursor:pointer; font-family:var(--font-body,sans-serif); transition:all 0.12s; }
@@ -832,7 +915,6 @@ const lagreOkt = async () => {
         .okt-quick.on { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.25); color:var(--cyan); }
         .okt-reset { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.35); width:32px; height:32px; border-radius:7px; cursor:pointer; font-size:0.9rem; transition:all 0.12s; display:flex; align-items:center; justify-content:center; }
         .okt-reset:hover { background:rgba(255,255,255,0.1); color:#fff; }
-
       `}</style>
     </div>
   )
@@ -840,7 +922,7 @@ const lagreOkt = async () => {
 
 export default function OktPage() {
   return (
-    <Suspense fallback={<div style={{display:'flex',justifyContent:'center',padding:'4rem'}}><div className="spinner-lg"/></div>}>
+    <Suspense fallback={<div style={{display:'flex', justifyContent:'center', padding:'4rem'}}><div className="spinner-lg"/></div>}>
       <OktInner />
     </Suspense>
   )
