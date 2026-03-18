@@ -437,23 +437,51 @@ if (modus === 'custom' && ovelserParam) {
       ...o, sett_logg: o.sett_logg.map((s,j) => j!==sIdx ? s : {...s,[felt]:val})
     }))
 
-  const lagreOkt = async () => {
-    setLagrer(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLagrer(false); return }
-    const dato = new Date().toISOString().split('T')[0]
-    await supabase.from('okter').insert([{
-      bruker_id: user.id, dato, tittel, type: 'styrke', varighet_min: 60,
-      ovelser: okter.map(o => ({
-        navn: o.navn, sett: o.sett,
-        reps: o.sett_logg.map(s=>s.reps).join('/'),
-        kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0,
-      })),
-    }])
-    setLagretMsg('Økt lagret! ✓')
-    setTimeout(() => setLagretMsg(''), 3000)
-    setLagrer(false)
+const lagreOkt = async () => {
+  setLagrer(true)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) { setLagrer(false); return }
+  
+  const dato = new Date().toISOString().split('T')[0]
+  
+  // 1. Lagre økten i okter-tabellen (din eksisterende kode)
+  await supabase.from('okter').insert([{
+    bruker_id: user.id, 
+    dato, 
+    tittel, 
+    type: 'styrke', 
+    varighet_min: 60,
+    ovelser: okter.map(o => ({
+      navn: o.navn, 
+      sett: o.sett,
+      reps: o.sett_logg.map(s=>s.reps).join('/'),
+      kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0,
+    })),
+  }])
+  
+  // 2. NYTT: Lagre i treningslogger for statistikk
+  for (const o of okter) {
+    // Hopp over øvelser uten kg (kroppsvektøvelser)
+    const harKg = o.sett_logg.some(s => s.kg > 0)
+    if (!harKg) continue
+    
+    await supabase.from('treningslogger').insert({
+      bruker_id: user.id,
+      dato,
+      ovelse_navn: o.navn,
+      muskelgruppe: o.muskler,
+      sett: o.sett_logg.map(s => ({
+        reps: s.reps,
+        vekt: s.kg,
+        fullfort: s.fullfort
+      }))
+    })
   }
+  
+  setLagretMsg('Økt lagret! ✓')
+  setTimeout(() => setLagretMsg(''), 3000)
+  setLagrer(false)
+}
 
   if (laster) return (
     <div style={{display:'flex',justifyContent:'center',padding:'4rem'}}><div className="spinner-lg"/></div>

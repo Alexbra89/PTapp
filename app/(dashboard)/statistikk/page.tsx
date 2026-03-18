@@ -536,7 +536,7 @@ export default function StatistikkPage() {
             <div className="glass-card st-vekt-liste">
               <div className="st-chart-title">📋 Vekthistorikk</div>
               <div className="st-vekt-rows">
-                {[...vektLogger].reverse().slice(0, 20).map((v, i) => {
+                {[...vektLogger].reverse().map((v, i) => {
                   const forrige = vektLogger[vektLogger.length - 2 - i]
                   const diff    = forrige ? v.vekt - forrige.vekt : null
                   return (

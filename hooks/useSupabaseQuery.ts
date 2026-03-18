@@ -98,10 +98,13 @@ export function useOkterManed(userId?: string, maned?: Date) {
   return useQuery({
     queryKey: QK.okterManed(userId ?? '', manadKey),
     enabled:  !!userId && !!maned && userId !== '',
-    staleTime: 3 * 60 * 1000,
+    staleTime: 0, // 🔥 ENDRE HER: 0 = alltid hent ferske data når komponenten mountes
+    // gcTime: 5 * 60 * 1000, // (dette kan du beholde, det er cache-tid)
     queryFn:  async () => {
       const fra = format(startOfMonth(maned!), 'yyyy-MM-dd')
       const til = format(endOfMonth(maned!),   'yyyy-MM-dd')
+      console.log(`Henter økter for ${manadKey}...`) // 🔥 Legg til logging
+      
       const { data } = await supabase
         .from('okter')
         .select('id, dato, tittel, type, varighet_min, notater, ovelser')
@@ -109,6 +112,14 @@ export function useOkterManed(userId?: string, maned?: Date) {
         .gte('dato', fra)
         .lte('dato', til)
         .order('dato')
+      
+      console.log(`Hentet ${data?.length || 0} økter`) // 🔥 Legg til logging
+      console.log('Økter med øvelser:', data?.filter(o => o.ovelser?.length > 0).map(o => ({
+        id: o.id,
+        tittel: o.tittel,
+        antallOvelser: o.ovelser?.length
+      })))
+      
       return data ?? []
     },
   })
@@ -160,7 +171,7 @@ export function useStats(userId?: string) {
       // Total kg løftet
       const totalKg = (logger ?? []).reduce((s: number, l: any) =>
         s + (l.sett ?? []).reduce((ss: number, set: any) =>
-          ss + (set.vekt ?? 0) * (set.reps ?? 0), 0), 0)
+          ss + (set.kg ?? 0) * (set.reps ?? 0), 0), 0)
 
       // Muskelfokus
       const mMap: Record<string, number> = {}
