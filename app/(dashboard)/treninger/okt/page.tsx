@@ -231,101 +231,102 @@ const bygg = async () => {
   
   console.log('Starter bygg med:', { oktId, modus, harOvelserParam: !!ovelserParam })
   
-  // Hvis custom-modus (valgte øvelser)
-if (modus === 'custom' && ovelserParam) {
-  try {
-    const customOvelser = JSON.parse(decodeURIComponent(ovelserParam)) 
-    console.log('1️⃣ Custom øvelser fra URL:', customOvelser)
+  // Hjelpefunksjon for å hente siste brukte verdier
+  const hentSisteData = async (userId: string, ovelseNavn: string) => {
+    const { data } = await supabase
+      .from('treningslogger')
+      .select('sett')
+      .eq('bruker_id', userId)
+      .eq('ovelse_navn', ovelseNavn)
+      .order('dato', { ascending: false })
+      .limit(1)
+      .maybeSingle()
     
-    // Hent fra DB
-    const dbOvelser = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
-    console.log('2️⃣ DB øvelser (antall):', dbOvelser.length)
-    console.log('3️⃣ Første DB øvelse:', dbOvelser[0])
-    
-    // Konverter JSON-øvelser
-    const jsonOvelser: any[] = []
-    Object.keys(ovelserData).forEach(kategori => {
-      const ovelser = (ovelserData as any)[kategori]
-      console.log(`4️⃣ Kategori ${kategori}:`, ovelser.length, 'øvelser')
-      ovelser.forEach((o: any) => {
-        jsonOvelser.push({
-          navn: o.navn,
-          sett: 3,
-          reps: '10',
-          hvile: '60s',
-          utstyr: o.utstyr,
-          emoji: '💪',
-          tips: 'Følg beskrivelsen',
-          muskler: o.muskelgruppe,
-          beskrivelse: o.beskrivelse,
-          kategori: kategori
-        })
-      })
-    })
-    console.log('5️⃣ JSON øvelser (antall):', jsonOvelser.length)
-    console.log('6️⃣ Første JSON øvelse:', jsonOvelser[0])
-    
-    const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
-    
-    const oveler = customOvelser.map((o: any, index: number) => {
-      console.log(`7️⃣ Prosesserer øvelse ${index + 1}:`, o.navn)
-      
-      // Prøv å finne match i DB først
-      let match = dbOvelser.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
-      console.log(`8️⃣ Match i DB:`, match ? 'FUNNET' : 'IKKE FUNNET')
-      
-      // Hvis ikke funnet i DB, prøv i jsonOvelser
-      if (!match) {
-        match = jsonOvelser.find((e: any) => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
-        console.log(`9️⃣ Match i JSON:`, match ? 'FUNNET' : 'IKKE FUNNET')
+    if (data?.sett && data.sett.length > 0) {
+      const forsteSett = data.sett[0]
+      return {
+        sett: data.sett.length,
+        reps: forsteSett.reps?.toString() || '10',
+        kg: forsteSett.vekt || forsteSett.kg || 0
       }
-      
-      const sett = o.sett || 3
-      const reps = o.reps || '10'
-      
-      if (match) {
-        console.log(`🔟 MATCH FUNNET! Data:`, match)
-        return {
-          ...match,
-          sett: sett,
-          expanded: true,
-          sett_logg: Array.from({length: sett}, () => ({ 
-            reps: parseInt(reps.split('-')[0]) || 10, 
-            kg: 0, 
-            fullfort: false 
-          })),
-        }
-      } else {
-        console.log(`❌ INGEN MATCH for:`, o.navn)
-        return {
-          navn: o.navn || 'Ukjent øvelse',
-          sett: sett,
-          reps: reps,
-          hvile: '75s',
-          utstyr: '–',
-          emoji: '⚡',
-          muskler: '–',
-          beskrivelse: '',
-          tips: '–',
-          expanded: true,
-          sett_logg: Array.from({length: sett}, () => ({ 
-            reps: parseInt(reps.split('-')[0]) || 10, 
-            kg: 0, 
-            fullfort: false 
-          })),
-        }
-      }
-    })
-    
-    console.log('🎯 Ferdige øvelser:', oveler)
-    setOkter(oveler)
-    setTittel('Egendefinert økt')
-    setLaster(false)
-    return
-  } catch (e) {
-    console.error('❌ FEIL:', e)
+    }
+    return null
   }
-}
+
+  // Hvis custom-modus (valgte øvelser)
+  if (modus === 'custom' && ovelserParam) {
+    try {
+      const customOvelser = JSON.parse(decodeURIComponent(ovelserParam))
+      console.log('1️⃣ Custom øvelser fra URL:', customOvelser)
+      
+      const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+      const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+      
+      let oveler = customOvelser.map((o: any) => {
+        const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
+        
+        const sett = o.sett || 3
+        const reps = o.reps || '10'
+        
+        if (match) {
+          return {
+            ...match,
+            sett: sett,
+            reps: reps,
+            expanded: true,
+            sett_logg: Array.from({length: sett}, () => ({ 
+              reps: parseInt(reps.split('-')[0]) || 10, 
+              kg: 0, 
+              fullfort: false 
+            })),
+          }
+        } else {
+          return {
+            navn: o.navn || 'Ukjent øvelse',
+            sett: sett,
+            reps: reps,
+            hvile: '75s',
+            utstyr: '–',
+            emoji: '⚡',
+            muskler: '–',
+            beskrivelse: '',
+            tips: '–',
+            expanded: true,
+            sett_logg: Array.from({length: sett}, () => ({ 
+              reps: parseInt(reps.split('-')[0]) || 10, 
+              kg: 0, 
+              fullfort: false 
+            })),
+          }
+        }
+      })
+      
+      // 🔥 Hent siste data for hver øvelse - CUSTOM MODUS
+      const { data: { user: customUser } } = await supabase.auth.getUser()
+      if (customUser) {
+        for (let i = 0; i < oveler.length; i++) {
+          const siste = await hentSisteData(customUser.id, oveler[i].navn)
+          if (siste) {
+            oveler[i].sett = siste.sett
+            oveler[i].reps = siste.reps
+            oveler[i].sett_logg = Array.from({length: siste.sett}, () => ({
+              reps: parseInt(siste.reps.split('-')[0]) || 10,
+              kg: siste.kg,
+              fullfort: false
+            }))
+          }
+        }
+      }
+      
+      console.log('✅ Custom økt med siste data:', oveler)
+      setOkter(oveler)
+      setTittel('Egendefinert økt')
+      setLaster(false)
+      return
+    } catch (e) {
+      console.error('❌ FEIL:', e)
+    }
+  }
   
   if (oktId) {
     // Fra kalender
@@ -350,7 +351,7 @@ if (modus === 'custom' && ovelserParam) {
       
       const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
       
-      const oveler = ovelserData.map((o: any) => {
+      let oveler = ovelserData.map((o: any) => {
         const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
         
         const sett = o.sett || 3
@@ -360,6 +361,7 @@ if (modus === 'custom' && ovelserParam) {
           return {
             ...match,
             sett: sett,
+            reps: reps,
             expanded: true,
             sett_logg: Array.from({length: sett}, () => ({ 
               reps: parseInt(reps.split('-')[0]) || 10, 
@@ -388,6 +390,23 @@ if (modus === 'custom' && ovelserParam) {
         }
       })
       
+      // 🔥 Hent siste data for hver øvelse - KALENDER MODUS
+      const { data: { user: kalenderUser } } = await supabase.auth.getUser()
+      if (kalenderUser) {
+        for (let i = 0; i < oveler.length; i++) {
+          const siste = await hentSisteData(kalenderUser.id, oveler[i].navn)
+          if (siste) {
+            oveler[i].sett = siste.sett
+            oveler[i].reps = siste.reps
+            oveler[i].sett_logg = Array.from({length: siste.sett}, () => ({
+              reps: parseInt(siste.reps.split('-')[0]) || 10,
+              kg: siste.kg,
+              fullfort: false
+            }))
+          }
+        }
+      }
+      
       console.log('Setter okter, lengde:', oveler.length)
       setOkter(oveler)
       console.log('Prosesserte øvelser:', oveler)
@@ -415,10 +434,28 @@ if (modus === 'custom' && ovelserParam) {
     })))
   })
 
-  const logg: OvelseLogg[] = alle.map(o => ({
-    ...o, expanded: true,
+  let logg: OvelseLogg[] = alle.map(o => ({
+    ...o,
+    expanded: true,
     sett_logg: Array.from({length: o.sett}, () => ({ reps: parseInt(o.reps.split('-')[0])||10, kg: 0, fullfort: false })),
   }))
+
+  // 🔥 Hent siste data for hver øvelse - GENERATOR MODUS
+  const { data: { user: generatorUser } } = await supabase.auth.getUser()
+  if (generatorUser) {
+    for (let i = 0; i < logg.length; i++) {
+      const siste = await hentSisteData(generatorUser.id, logg[i].navn)
+      if (siste) {
+        logg[i].sett = siste.sett
+        logg[i].reps = siste.reps
+        logg[i].sett_logg = Array.from({length: siste.sett}, () => ({
+          reps: parseInt(siste.reps.split('-')[0]) || 10,
+          kg: siste.kg,
+          fullfort: false
+        }))
+      }
+    }
+  }
 
   const opp = OPPVARMING.filter(o => oppvIds.includes(o.id))
   const dagsNavn = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'][dag]
