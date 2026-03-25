@@ -132,9 +132,12 @@ export function useStats(userId?: string) {
     enabled:  !!userId,
     staleTime: 5 * 60 * 1000,
     queryFn:  async () => {
+      const startOfThisWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      
       const [
         { count: totalOkter },
-        { data: logger },
+        { data: allLogger },
+        { data: ukeLogger },
         { data: dAll },
         { count: ukeMaal },
       ] = await Promise.all([
@@ -146,6 +149,11 @@ export function useStats(userId?: string) {
           .select('sett, muskelgruppe')
           .eq('bruker_id', userId!),
 
+        supabase.from('treningslogger')
+          .select('sett')
+          .eq('bruker_id', userId!)
+          .gte('dato', startOfThisWeek),
+
         supabase.from('okter')
           .select('dato')
           .eq('bruker_id', userId!)
@@ -155,7 +163,7 @@ export function useStats(userId?: string) {
         supabase.from('okter')
           .select('*', { count: 'exact', head: true })
           .eq('bruker_id', userId!)
-          .gte('dato', format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')),
+          .gte('dato', startOfThisWeek),
       ])
 
       // Streak
@@ -168,14 +176,19 @@ export function useStats(userId?: string) {
         else if (i > 0) break
       }
 
-      // Total kg løftet
-      const totalKg = (logger ?? []).reduce((s: number, l: any) =>
+      // 🔥 TOTAL kg (alle tider)
+      const totalKg = (allLogger ?? []).reduce((s: number, l: any) =>
+        s + (l.sett ?? []).reduce((ss: number, set: any) =>
+          ss + (set.vekt ?? set.kg ?? 0) * (set.reps ?? 0), 0), 0)
+
+      // 🔥 NY: UKENTLIG kg (denne uken)
+      const ukeKg = (ukeLogger ?? []).reduce((s: number, l: any) =>
         s + (l.sett ?? []).reduce((ss: number, set: any) =>
           ss + (set.vekt ?? set.kg ?? 0) * (set.reps ?? 0), 0), 0)
 
       // Muskelfokus
       const mMap: Record<string, number> = {}
-      ;(logger ?? []).forEach((l: any) => {
+      ;(allLogger ?? []).forEach((l: any) => {
         const g = l.muskelgruppe ?? 'annet'
         mMap[g] = (mMap[g] ?? 0) + 1
       })
@@ -187,6 +200,7 @@ export function useStats(userId?: string) {
       return {
         totalOkter: totalOkter ?? 0,
         totalKg:    Math.round(totalKg),
+        ukeKg:      Math.round(ukeKg),      // 🆕 Ukentlig kg
         streak,
         ukeMaal:    ukeMaal ?? 0,
         muskelfokus,

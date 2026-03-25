@@ -333,9 +333,9 @@ export default function StatistikkPage() {
           <div className="st-stats-grid">
             {[
               { label:'Treningsøkter', val: stats?.totalOkter ?? 0,                            color:'var(--cyan)',   emoji:'📅' },
-              { label:'Kg løftet',     val:`${(stats?.totalKg ?? 0).toLocaleString('no')} kg`, color:'var(--green)',  emoji:'🏋️' },
-              { label:'Dag-streak',    val: stats?.streak     ?? 0,                            color:'var(--orange)', emoji:'🔥' },
-              { label:'Denne uken',    val: stats?.ukeMaal    ?? 0,                            color:'var(--purple)', emoji:'📆' },
+              { label:'Totalt',         val: `${(stats?.totalKg ?? 0).toLocaleString('no')} kg`, color:'var(--green)',  emoji:'🏋️' },
+              { label:'Dag-streak',     val: stats?.streak ?? 0,                               color:'var(--orange)', emoji:'🔥' },
+              { label:'Denne uken',     val: `${(stats?.ukeKg ?? 0).toLocaleString('no')} kg`, color:'var(--purple)', emoji:'📈' },
             ].map(s => (
               <div key={s.label} className="st-stat glass-card">
                 <div className="st-stat-em">{s.emoji}</div>
