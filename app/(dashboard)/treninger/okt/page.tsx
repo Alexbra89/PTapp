@@ -178,7 +178,12 @@ const DB: Record<Gruppe, Record<Sted, OvelseDB[]>> = {
 }
 
 function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}; return a
+  const a = [...arr]
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]]
+  }
+  return a
 }
 
 function OktInner() {
@@ -186,14 +191,17 @@ function OktInner() {
   const router       = useRouter()
   const searchParams = useSearchParams()
 
-  const [okter,    setOkter]    = useState<OvelseLogg[]>([])
-  const [oppvar,   setOppvar]   = useState<typeof OPPVARMING>([])
-  const [tittel,   setTittel]   = useState('')
-  const [lagrer,   setLagrer]   = useState(false)
-  const [lagretMsg,setLagretMsg]= useState('')
-  const [laster,   setLaster]   = useState(true)
+  const [okter,      setOkter]      = useState<OvelseLogg[]>([])
+  const [oppvar,     setOppvar]     = useState<typeof OPPVARMING>([])
+  const [tittel,     setTittel]     = useState('')
+  const [lagrer,     setLagrer]     = useState(false)
+  const [lagretMsg,  setLagretMsg]  = useState('')
+  const [laster,     setLaster]     = useState(true)
+  // ── NY: Notat ──────────────────────────────────────────────────────────────
+  const [oktNotat,   setOktNotat]   = useState('')
+  const [dagensDato, setDagensDato] = useState('')
 
-  // ── Stoppeklokke ──────────────────────────────────────────────────
+  // ── Stoppeklokke ───────────────────────────────────────────────────────────
   const [klokkeMode, setKlokkeMode] = useState<'stopp'|'ned'>('stopp')
   const [sekunder,   setSekunder]   = useState(0)
   const [kjoerer,    setKjoerer]    = useState(false)
@@ -218,20 +226,25 @@ function OktInner() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [kjoerer, klokkeMode])
 
-  const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setAlarm(false) }
-  const startKlokke = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
-  const formatTid = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
-
   useEffect(() => { bygg() }, [])
 
+  // ── NY: Last notat fra localStorage ───────────────────────────────────────
+  useEffect(() => {
+    const dato = new Date().toISOString().split('T')[0]
+    setDagensDato(dato)
+    const lagret = localStorage.getItem(`notat_${dato}`)
+    if (lagret) setOktNotat(lagret)
+  }, [])
+
+  const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setAlarm(false) }
+  const startKlokke     = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
+  const formatTid       = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
+
   const bygg = async () => {
-    const oktId = searchParams.get('okt')
+    const oktId       = searchParams.get('okt')
     const ovelserParam = searchParams.get('ovelser')
-    const modus = searchParams.get('modus')
-    
-    console.log('Starter bygg med:', { oktId, modus, harOvelserParam: !!ovelserParam })
-    
-    // Hjelpefunksjon for å hente siste treningsdata (husker ALLE sett)
+    const modus       = searchParams.get('modus')
+
     const hentSisteTreningsData = async (userId: string, ovelseNavn: string) => {
       const { data } = await supabase
         .from('treningslogger')
@@ -241,195 +254,65 @@ function OktInner() {
         .order('dato', { ascending: false })
         .limit(1)
         .maybeSingle()
-      
       if (data?.sett && data.sett.length > 0) {
-        // Returner ALLE sett med reps OG kg
-        return {
-          sett_logg: data.sett.map((s: any) => ({
-            reps: s.reps,
-            kg: s.vekt || s.kg || 0
-          }))
-        }
+        return { sett_logg: data.sett.map((s: any) => ({ reps: s.reps, kg: s.vekt || s.kg || 0 })) }
       }
       return null
     }
 
-    // Hvis custom-modus (valgte øvelser)
     if (modus === 'custom' && ovelserParam) {
       try {
         const customOvelser = JSON.parse(decodeURIComponent(ovelserParam))
-        console.log('1️⃣ Custom øvelser fra URL:', customOvelser)
-        
         const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
-        const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
-        
+        const norm = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
         let oveler = customOvelser.map((o: any) => {
-          const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
-          
-          const sett = o.sett || 3
-          const reps = o.reps || '10'
-          
-          if (match) {
-            return {
-              ...match,
-              sett: sett,
-              reps: reps,
-              expanded: true,
-              sett_logg: Array.from({length: sett}, () => ({ 
-                reps: parseInt(reps.split('-')[0]) || 10, 
-                kg: 0, 
-                fullfort: false 
-              })),
-            }
-          } else {
-            return {
-              navn: o.navn || 'Ukjent øvelse',
-              sett: sett,
-              reps: reps,
-              hvile: '75s',
-              utstyr: '–',
-              emoji: '⚡',
-              muskler: '–',
-              beskrivelse: '',
-              tips: '–',
-              expanded: true,
-              sett_logg: Array.from({length: sett}, () => ({ 
-                reps: parseInt(reps.split('-')[0]) || 10, 
-                kg: 0, 
-                fullfort: false 
-              })),
-            }
-          }
+          const match = alle.find(e => norm(e.navn) === norm(o.navn || ''))
+          const sett = o.sett || 3; const reps = o.reps || '10'
+          if (match) return { ...match, sett, reps, expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: 0, fullfort: false })) }
+          return { navn: o.navn||'Ukjent', sett, reps, hvile:'75s', utstyr:'–', emoji:'⚡', muskler:'–', beskrivelse:'', tips:'–', expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: 0, fullfort: false })) }
         })
-        
-        // Hent siste treningsdata for hver øvelse - CUSTOM MODUS
-        const { data: { user: customUser } } = await supabase.auth.getUser()
-        if (customUser) {
+        const { data: { user: u } } = await supabase.auth.getUser()
+        if (u) {
           for (let i = 0; i < oveler.length; i++) {
-            const sisteData = await hentSisteTreningsData(customUser.id, oveler[i].navn)
-            if (sisteData) {
-              oveler[i].sett = sisteData.sett_logg.length
-              oveler[i].sett_logg = sisteData.sett_logg.map((sett: { reps: number; kg: number }) => ({
-                reps: sett.reps,
-                kg: sett.kg,
-                fullfort: false
-              }))
-              if (sisteData.sett_logg[0]) {
-                oveler[i].reps = sisteData.sett_logg[0].reps.toString()
-              }
-            }
+            const s = await hentSisteTreningsData(u.id, oveler[i].navn)
+            if (s) { oveler[i].sett = s.sett_logg.length; oveler[i].sett_logg = s.sett_logg.map((x: any) => ({ ...x, fullfort: false })); if (s.sett_logg[0]) oveler[i].reps = s.sett_logg[0].reps.toString() }
           }
         }
-        
-        console.log('✅ Custom økt med historiske data:', oveler)
-        setOkter(oveler)
-        setTittel('Egendefinert økt')
-        setLaster(false)
-        return
-      } catch (e) {
-        console.error('❌ FEIL:', e)
-      }
+        setOkter(oveler); setTittel('Egendefinert økt'); setLaster(false); return
+      } catch (e) { console.error('❌ FEIL:', e) }
     }
-    
+
     if (oktId) {
-      // Fra kalender
       const { data } = await createClient().from('okter').select('*').eq('id', oktId).single()
       if (data) {
-        console.log('Hentet økt:', data)
-        console.log('Øvelser fra DB:', data.ovelser)
-        
-        // Bruk øvelser fra URL hvis de finnes
         let ovelserData = data.ovelser ?? []
-        
-        if (ovelserParam) {
-          try {
-            ovelserData = JSON.parse(ovelserParam)
-            console.log('Bruker øvelser fra URL:', ovelserData)
-          } catch (e) {
-            console.error('Kunne ikke parse øvelser fra URL', e)
-          }
-        }
-        
+        if (ovelserParam) { try { ovelserData = JSON.parse(ovelserParam) } catch {} }
         const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
-        
-        const normaliserNavn = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
-        
+        const norm = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
         let oveler = ovelserData.map((o: any) => {
-          const match = alle.find(e => normaliserNavn(e.navn) === normaliserNavn(o.navn || ''))
-          
-          const sett = o.sett || 3
-          const reps = o.reps || '10'
-          
-          if (match) {
-            return {
-              ...match,
-              sett: sett,
-              reps: reps,
-              expanded: true,
-              sett_logg: Array.from({length: sett}, () => ({ 
-                reps: parseInt(reps.split('-')[0]) || 10, 
-                kg: o.kg || 0, 
-                fullfort: false 
-              })),
-            }
-          } else {
-            return {
-              navn: o.navn || 'Ukjent øvelse',
-              sett: sett,
-              reps: reps,
-              hvile: '75s',
-              utstyr: '–',
-              emoji: '⚡',
-              muskler: '–',
-              beskrivelse: '',
-              tips: '–',
-              expanded: true,
-              sett_logg: Array.from({length: sett}, () => ({ 
-                reps: parseInt(reps.split('-')[0]) || 10, 
-                kg: o.kg || 0, 
-                fullfort: false 
-              })),
-            }
-          }
+          const match = alle.find(e => norm(e.navn) === norm(o.navn || ''))
+          const sett = o.sett || 3; const reps = o.reps || '10'
+          if (match) return { ...match, sett, reps, expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: o.kg||0, fullfort: false })) }
+          return { navn: o.navn||'Ukjent', sett, reps, hvile:'75s', utstyr:'–', emoji:'⚡', muskler:'–', beskrivelse:'', tips:'–', expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: o.kg||0, fullfort: false })) }
         })
-        
-        // Hent siste treningsdata for hver øvelse - KALENDER MODUS
-        const { data: { user: kalenderUser } } = await supabase.auth.getUser()
-        if (kalenderUser) {
+        const { data: { user: u } } = await supabase.auth.getUser()
+        if (u) {
           for (let i = 0; i < oveler.length; i++) {
-            const sisteData = await hentSisteTreningsData(kalenderUser.id, oveler[i].navn)
-            if (sisteData) {
-              oveler[i].sett = sisteData.sett_logg.length
-              oveler[i].sett_logg = sisteData.sett_logg.map((sett: { reps: number; kg: number }) => ({
-                reps: sett.reps,
-                kg: sett.kg,
-                fullfort: false
-              }))
-              if (sisteData.sett_logg[0]) {
-                oveler[i].reps = sisteData.sett_logg[0].reps.toString()
-              }
-            }
+            const s = await hentSisteTreningsData(u.id, oveler[i].navn)
+            if (s) { oveler[i].sett = s.sett_logg.length; oveler[i].sett_logg = s.sett_logg.map((x: any) => ({ ...x, fullfort: false })); if (s.sett_logg[0]) oveler[i].reps = s.sett_logg[0].reps.toString() }
           }
         }
-        
-        console.log('Setter okter, lengde:', oveler.length)
-        setOkter(oveler)
-        console.log('Prosesserte øvelser:', oveler)
-        setTittel(data.tittel)
-        setLaster(false)
-        return
+        setOkter(oveler); setTittel(data.tittel); setLaster(false); return
       }
     }
 
-    // Fra generator
     const grupperStr = searchParams.get('grupper') ?? ''
     const sted       = (searchParams.get('sted') ?? 'gym') as Sted
     const intensitet = searchParams.get('intensitet') ?? 'Moderat'
     const dag        = parseInt(searchParams.get('dag') ?? '0')
     const oppvIds    = (searchParams.get('oppvarming') ?? '').split(',').filter(Boolean)
-
-    const grupper = grupperStr.split(',').filter(Boolean) as Gruppe[]
-    const antall  = intensitet === 'Lett' ? 2 : intensitet === 'Hard' ? 4 : 3
+    const grupper    = grupperStr.split(',').filter(Boolean) as Gruppe[]
+    const antall     = intensitet === 'Lett' ? 2 : intensitet === 'Hard' ? 4 : 3
 
     let alle: OvelseDB[] = []
     grupper.forEach(g => {
@@ -440,40 +323,22 @@ function OktInner() {
     })
 
     let logg: OvelseLogg[] = alle.map(o => ({
-      ...o,
-      expanded: true,
+      ...o, expanded: true,
       sett_logg: Array.from({length: o.sett}, () => ({ reps: parseInt(o.reps.split('-')[0])||10, kg: 0, fullfort: false })),
     }))
 
-    // Hent siste treningsdata for hver øvelse - GENERATOR MODUS
-    const { data: { user: generatorUser } } = await supabase.auth.getUser()
-    if (generatorUser) {
+    const { data: { user: u } } = await supabase.auth.getUser()
+    if (u) {
       for (let i = 0; i < logg.length; i++) {
-        const sisteData = await hentSisteTreningsData(generatorUser.id, logg[i].navn)
-        if (sisteData) {
-          logg[i].sett = sisteData.sett_logg.length
-          logg[i].sett_logg = sisteData.sett_logg.map((sett: { reps: number; kg: number }) => ({
-            reps: sett.reps,
-            kg: sett.kg,
-            fullfort: false
-          }))
-          if (sisteData.sett_logg[0]) {
-            logg[i].reps = sisteData.sett_logg[0].reps.toString()
-          }
-        }
+        const s = await hentSisteTreningsData(u.id, logg[i].navn)
+        if (s) { logg[i].sett = s.sett_logg.length; logg[i].sett_logg = s.sett_logg.map((x: any) => ({ ...x, fullfort: false })); if (s.sett_logg[0]) logg[i].reps = s.sett_logg[0].reps.toString() }
       }
     }
 
-    const opp = OPPVARMING.filter(o => oppvIds.includes(o.id))
+    const opp      = OPPVARMING.filter(o => oppvIds.includes(o.id))
     const dagsNavn = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'][dag]
-    const t = grupper.length > 0
-      ? grupper.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & ') + ' — ' + dagsNavn
-      : 'Treningsøkt'
-
-    setOkter(logg)
-    setOppvar(opp)
-    setTittel(t)
-    setLaster(false)
+    const t        = grupper.length > 0 ? grupper.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & ') + ' — ' + dagsNavn : 'Treningsøkt'
+    setOkter(logg); setOppvar(opp); setTittel(t); setLaster(false)
   }
 
   const oppdaterSett = (oIdx: number, sIdx: number, felt: string, val: any) =>
@@ -485,43 +350,18 @@ function OktInner() {
     setLagrer(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLagrer(false); return }
-    
     const dato = new Date().toISOString().split('T')[0]
-    
-    // 1. Lagre økten i okter-tabellen
     await supabase.from('okter').insert([{
-      bruker_id: user.id, 
-      dato, 
-      tittel, 
-      type: 'styrke', 
-      varighet_min: 60,
-      fullfort: false,
-      ovelser: okter.map(o => ({
-        navn: o.navn, 
-        sett: o.sett,
-        reps: o.sett_logg.map(s=>s.reps).join('/'),
-        kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0,
-      })),
+      bruker_id: user.id, dato, tittel, type: 'styrke', varighet_min: 60, fullfort: false,
+      ovelser: okter.map(o => ({ navn: o.navn, sett: o.sett, reps: o.sett_logg.map(s=>s.reps).join('/'), kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0 })),
     }])
-    
-    // 2. Lagre i treningslogger for statistikk (med ALLE sett)
     for (const o of okter) {
-      const harKg = o.sett_logg.some(s => s.kg > 0)
-      if (!harKg) continue
-      
+      if (!o.sett_logg.some(s => s.kg > 0)) continue
       await supabase.from('treningslogger').insert({
-        bruker_id: user.id,
-        dato,
-        ovelse_navn: o.navn,
-        muskelgruppe: o.muskler,
-        sett: o.sett_logg.map(s => ({
-          reps: s.reps,
-          vekt: s.kg,
-          fullfort: s.fullfort
-        }))
+        bruker_id: user.id, dato, ovelse_navn: o.navn, muskelgruppe: o.muskler,
+        sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort }))
       })
     }
-    
     setLagretMsg('Økt lagret! ✓')
     setTimeout(() => setLagretMsg(''), 3000)
     setLagrer(false)
@@ -553,7 +393,7 @@ function OktInner() {
 
       {lagretMsg && <div className="okt-lagret-msg">{lagretMsg}</div>}
 
-      {/* ── Stoppeklokke ── */}
+      {/* Stoppeklokke */}
       <div className={`okt-klokke glass-card${alarm ? ' okt-alarm' : ''}`}>
         <div className="okt-klokke-rad1">
           <div className="okt-klokke-venstre">
@@ -628,7 +468,6 @@ function OktInner() {
                 </div>
                 <span className="okt-toggle">{o.expanded?'▲':'▼'}</span>
               </div>
-
               {o.expanded && (
                 <div className="okt-ov-body">
                   {o.beskrivelse && (
@@ -638,7 +477,6 @@ function OktInner() {
                     </div>
                   )}
                   {o.tips && <div className="okt-tips">💡 {o.tips}</div>}
-
                   <div className="okt-sett-header">
                     <span>Sett</span><span>Reps</span><span>Kg</span><span>✓</span><span></span>
                   </div>
@@ -650,15 +488,13 @@ function OktInner() {
                       <input className="input okt-input" type="number" min={0} step={0.5}
                         value={s.kg||''} placeholder="0"
                         onChange={e => oppdaterSett(oIdx,sIdx,'kg',parseFloat(e.target.value)||0)} />
-                      <button
-                        className={`okt-check${s.fullfort?' done':''}`}
+                      <button className={`okt-check${s.fullfort?' done':''}`}
                         onClick={() => oppdaterSett(oIdx,sIdx,'fullfort',!s.fullfort)}>
                         {s.fullfort ? '✓' : '○'}
                       </button>
                       <button className="okt-fjern"
                         onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{
-                          ...x, sett: x.sett-1,
-                          sett_logg: x.sett_logg.filter((_,j) => j!==sIdx)
+                          ...x, sett: x.sett-1, sett_logg: x.sett_logg.filter((_,j) => j!==sIdx)
                         }))}>✕</button>
                     </div>
                   ))}
@@ -681,228 +517,121 @@ function OktInner() {
         {lagrer ? <span className="spinner" style={{width:16,height:16}}/> : '💾 Lagre økt i kalender'}
       </button>
 
-      {/* FULLFØR TRENING knapp */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        marginTop: '1rem', 
-        marginBottom: '2rem' 
-      }}>
+      {/* FULLFØR TRENING */}
+      <div style={{ display:'flex', justifyContent:'center', marginTop:'1rem', marginBottom:'1rem' }}>
         <button
           className="btn btn-primary"
-          style={{ 
-            padding: '1rem 3rem', 
-            fontSize: '1.2rem',
-            background: 'linear-gradient(135deg, var(--cyan), var(--purple))',
-            border: 'none',
-            width: '100%',
-            maxWidth: '400px'
-          }}
+          style={{ padding:'1rem 3rem', fontSize:'1.2rem', background:'linear-gradient(135deg, var(--cyan), var(--purple))', border:'none', width:'100%', maxWidth:'400px' }}
           onClick={async () => {
             const alleFullfort = okter.every(o => o.sett_logg.every(s => s.fullfort))
-            
-            if (!alleFullfort) {
-              alert('❌ Du må fullføre ALLE sett først!')
-              return
-            }
-            
-            if (!confirm('Er du klar for å fullføre treningen? Dette vil markere økten som fullført!')) {
-              return
-            }
-            
+            if (!alleFullfort) { alert('❌ Du må fullføre ALLE sett først!'); return }
+            if (!confirm('Er du klar for å fullføre treningen?')) return
             setLagrer(true)
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) { setLagrer(false); return }
-            
             const dato = new Date().toISOString().split('T')[0]
-            
             const { error } = await supabase.from('okter').insert([{
-              bruker_id: user.id, 
-              dato, 
-              tittel, 
-              type: 'styrke', 
-              varighet_min: 60,
-              fullfort: true,
-              ovelser: okter.map(o => ({
-                navn: o.navn, 
-                sett: o.sett,
-                reps: o.sett_logg.map(s=>s.reps).join('/'),
-                kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0,
-              })),
+              bruker_id: user.id, dato, tittel, type:'styrke', varighet_min:60, fullfort:true,
+              ovelser: okter.map(o => ({ navn:o.navn, sett:o.sett, reps:o.sett_logg.map(s=>s.reps).join('/'), kg:o.sett_logg.find(s=>s.kg>0)?.kg??0 })),
             }])
-            
-            if (error) {
-              console.error('Feil ved lagring:', error)
-              alert('❌ Noe gikk galt ved lagring')
-            } else {
+            if (error) { alert('❌ Noe gikk galt ved lagring') } else {
               for (const o of okter) {
-                const harKg = o.sett_logg.some(s => s.kg > 0)
-                if (!harKg) continue
-                
+                if (!o.sett_logg.some(s => s.kg > 0)) continue
                 await supabase.from('treningslogger').insert({
-                  bruker_id: user.id,
-                  dato,
-                  ovelse_navn: o.navn,
-                  muskelgruppe: o.muskler,
-                  sett: o.sett_logg.map(s => ({
-                    reps: s.reps,
-                    vekt: s.kg,
-                    fullfort: s.fullfort
-                  }))
+                  bruker_id: user.id, dato, ovelse_navn: o.navn, muskelgruppe: o.muskler,
+                  sett: o.sett_logg.map(s => ({ reps:s.reps, vekt:s.kg, fullfort:s.fullfort }))
                 })
               }
-              
               alert('🎉 GRATULERER! Trening fullført!')
             }
-            
             setLagrer(false)
           }}
         >
-          {lagrer ? (
-            <span className="spinner" style={{width:20, height:20}}/>
-          ) : (
-            '✅ FULLFØR TRENING'
-          )}
+          {lagrer ? <span className="spinner" style={{width:20,height:20}}/> : '✅ FULLFØR TRENING'}
+        </button>
+      </div>
+
+      {/* ── NY: Notat om økten ── */}
+      <div className="okt-notat-seksjon glass-card">
+        <div className="okt-notat-tittel">📝 Notat om økten</div>
+        <textarea
+          className="input okt-notat-textarea"
+          placeholder="Hvordan gikk det? Energi? Søvn? Noe å huske til neste gang?"
+          value={oktNotat}
+          onChange={e => setOktNotat(e.target.value)}
+          rows={3}
+        />
+        <button
+          className="btn btn-ghost okt-notat-lagre"
+          onClick={() => {
+            if (!dagensDato || !oktNotat.trim()) return
+            localStorage.setItem(`notat_${dagensDato}`, oktNotat)
+            setLagretMsg('Notat lagret! ✓')
+            setTimeout(() => setLagretMsg(''), 2000)
+          }}
+        >
+          💾 Lagre notat
         </button>
       </div>
 
       <style>{`
         .okt-page { max-width: 860px; width: 100%; }
-
-        .okt-header {
-          display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
-        }
-        .okt-tilbake {
-          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.5); border-radius: 10px; padding: 0.5rem 1rem;
-          font-size: 0.82rem; cursor: pointer; font-family: var(--font-body,sans-serif);
-          transition: all 0.15s; flex-shrink: 0;
-        }
+        .okt-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .okt-tilbake { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.82rem; cursor: pointer; font-family: var(--font-body,sans-serif); transition: all 0.15s; flex-shrink: 0; }
         .okt-tilbake:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .okt-header-info { flex: 1; min-width: 0; }
-        .okt-tittel {
-          font-family: var(--font-display,sans-serif); font-size: 1.4rem; font-weight: 800;
-          color: #fff; margin-bottom: 4px;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
+        .okt-tittel { font-family: var(--font-display,sans-serif); font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .okt-badges { display: flex; gap: 8px; flex-wrap: wrap; }
         .okt-badge-cyan { padding:3px 10px; border-radius:999px; font-size:0.72rem; background:rgba(0,245,255,0.12); border:1px solid rgba(0,245,255,0.25); color:var(--cyan,#00f5ff); }
         .okt-badge-green { padding:3px 10px; border-radius:999px; font-size:0.72rem; background:rgba(0,255,136,0.12); border:1px solid rgba(0,255,136,0.25); color:var(--green,#00ff88); }
         .okt-lagre-btn { flex-shrink: 0; font-size:0.82rem !important; padding:0.5rem 1.1rem !important; }
-
-        .okt-lagret-msg {
-          background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2);
-          color: var(--green,#00ff88); border-radius: 10px; padding: 0.6rem 1rem;
-          font-size: 0.82rem; text-align: center; margin-bottom: 1rem;
-        }
-
-        .okt-opp {
-          padding: 1.125rem 1.25rem; margin-bottom: 1rem;
-          border-color: rgba(255,140,0,0.2) !important;
-        }
-        .okt-opp-title {
-          font-family: var(--font-display,sans-serif); font-size: 0.85rem; font-weight: 700;
-          color: var(--orange,#ff8c00); margin-bottom: 0.75rem;
-        }
+        .okt-lagret-msg { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); color: var(--green,#00ff88); border-radius: 10px; padding: 0.6rem 1rem; font-size: 0.82rem; text-align: center; margin-bottom: 1rem; }
+        .okt-opp { padding: 1.125rem 1.25rem; margin-bottom: 1rem; border-color: rgba(255,140,0,0.2) !important; }
+        .okt-opp-title { font-family: var(--font-display,sans-serif); font-size: 0.85rem; font-weight: 700; color: var(--orange,#ff8c00); margin-bottom: 0.75rem; }
         .okt-opp-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
         .okt-opp-em { font-size: 1.2rem; flex-shrink: 0; }
         .okt-opp-navn { font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 2px; }
         .okt-opp-besk { font-size: 0.75rem; color: rgba(255,255,255,0.4); line-height: 1.4; }
-
         .okt-liste { display: flex; flex-direction: column; gap: 0.75rem; }
-
         .okt-kort { overflow: hidden; transition: border-color 0.3s; }
         .okt-kort-done { border-color: rgba(0,255,136,0.2) !important; }
-
-        .okt-ov-header {
-          display: flex; align-items: center; gap: 10px; padding: 1rem 1.25rem;
-          cursor: pointer; transition: background 0.15s;
-        }
+        .okt-ov-header { display: flex; align-items: center; gap: 10px; padding: 1rem 1.25rem; cursor: pointer; transition: background 0.15s; }
         .okt-ov-header:hover { background: rgba(255,255,255,0.02); }
-        .okt-ov-num {
-          width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
-          background: rgba(0,245,255,0.12); border: 1px solid rgba(0,245,255,0.25);
-          color: var(--cyan,#00f5ff); font-size: 0.7rem; font-weight: 700;
-          display: flex; align-items: center; justify-content: center;
-        }
+        .okt-ov-num { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; background: rgba(0,245,255,0.12); border: 1px solid rgba(0,245,255,0.25); color: var(--cyan,#00f5ff); font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
         .okt-ov-em { font-size: 1.2rem; flex-shrink: 0; }
         .okt-ov-info { flex: 1; min-width: 0; }
-        .okt-ov-navn {
-          font-family: var(--font-display,sans-serif); font-size: 0.92rem; font-weight: 700;
-          color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
+        .okt-ov-navn { font-family: var(--font-display,sans-serif); font-size: 0.92rem; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .okt-ov-musk { font-size: 0.67rem; color: rgba(255,255,255,0.3); margin-top: 2px; }
         .okt-ov-tags { display: flex; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
         .okt-tag { padding:2px 7px; border-radius:999px; font-size:0.62rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.38); white-space:nowrap; }
         .okt-tag-done { padding:2px 8px; border-radius:999px; font-size:0.62rem; background:rgba(0,255,136,0.12); border:1px solid rgba(0,255,136,0.25); color:var(--green,#00ff88); white-space:nowrap; }
         .okt-toggle { color:rgba(255,255,255,0.25); font-size:0.65rem; flex-shrink:0; }
-
-        .okt-ov-body {
-          padding: 0 1.25rem 1.25rem;
-          border-top: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .okt-besk {
-          margin: 0.75rem 0 0; padding: 10px 12px; border-radius: 10px;
-          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-        }
+        .okt-ov-body { padding: 0 1.25rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.05); }
+        .okt-besk { margin: 0.75rem 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
         .okt-besk-lbl { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:rgba(255,255,255,0.28); font-weight:700; margin-bottom:4px; }
         .okt-besk-txt { font-size:0.82rem; color:rgba(255,255,255,0.58); line-height:1.6; margin:0; }
-        .okt-tips {
-          font-size: 0.78rem; color: rgba(255,200,0,0.75); margin: 0.5rem 0 0.75rem;
-          padding: 6px 10px; background: rgba(255,200,0,0.06); border-radius: 8px;
-          border-left: 2px solid rgba(255,200,0,0.3);
-        }
-
-        .okt-sett-header {
-          display: grid; grid-template-columns: 32px 1fr 1fr 36px 26px; gap: 8px;
-          margin: 0.75rem 0 5px; padding: 0 4px;
-          font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em;
-          color: rgba(255,255,255,0.22);
-        }
-        .okt-sett-row {
-          display: grid; grid-template-columns: 32px 1fr 1fr 36px 26px; gap: 8px;
-          align-items: center; margin-bottom: 5px; transition: background 0.15s;
-          border-radius: 8px; padding: 0 4px;
-        }
+        .okt-tips { font-size: 0.78rem; color: rgba(255,200,0,0.75); margin: 0.5rem 0 0.75rem; padding: 6px 10px; background: rgba(255,200,0,0.06); border-radius: 8px; border-left: 2px solid rgba(255,200,0,0.3); }
+        .okt-sett-header { display: grid; grid-template-columns: 32px 1fr 1fr 36px 26px; gap: 8px; margin: 0.75rem 0 5px; padding: 0 4px; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.22); }
+        .okt-sett-row { display: grid; grid-template-columns: 32px 1fr 1fr 36px 26px; gap: 8px; align-items: center; margin-bottom: 5px; transition: background 0.15s; border-radius: 8px; padding: 0 4px; }
         .okt-sett-done { background: rgba(0,255,136,0.04); }
         .okt-sett-nr { font-size:0.7rem; color:rgba(255,255,255,0.28); text-align:center; }
         .okt-input { text-align:center; padding:0.35rem 0.4rem !important; font-size:0.88rem !important; }
-        .okt-check {
-          width: 32px; height: 32px; border-radius: 8px;
-          border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);
-          color: rgba(255,255,255,0.38); cursor: pointer; font-size:0.88rem;
-          transition: all 0.15s; display:flex; align-items:center; justify-content:center;
-        }
+        .okt-check { width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.38); cursor: pointer; font-size:0.88rem; transition: all 0.15s; display:flex; align-items:center; justify-content:center; }
         .okt-check.done { background:rgba(0,255,136,0.14); border-color:rgba(0,255,136,0.4); color:var(--green,#00ff88); }
         .okt-fjern { background:none; border:none; color:rgba(255,255,255,0.18); cursor:pointer; font-size:0.72rem; transition:color 0.15s; }
         .okt-fjern:hover { color:#ff5555; }
-        .okt-add-sett {
-          margin-top: 8px; background: none; border: 1px dashed rgba(255,255,255,0.13);
-          color: rgba(255,255,255,0.3); border-radius: 8px; padding: 5px 12px;
-          font-size: 0.75rem; cursor: pointer; font-family: var(--font-body,sans-serif);
-          width: 100%; transition: all 0.15s;
-        }
+        .okt-add-sett { margin-top: 8px; background: none; border: 1px dashed rgba(255,255,255,0.13); color: rgba(255,255,255,0.3); border-radius: 8px; padding: 5px 12px; font-size: 0.75rem; cursor: pointer; font-family: var(--font-body,sans-serif); width: 100%; transition: all 0.15s; }
         .okt-add-sett:hover { border-color:var(--cyan,#00f5ff); color:var(--cyan,#00f5ff); }
-
         .okt-lagre-bunn { width: 100%; margin-top: 1.5rem; padding: 0.875rem !important; font-size: 0.95rem !important; }
-
-        .okt-klokke {
-          display: flex; flex-direction: column; gap: 0.75rem;
-          padding: 1rem 1.25rem; margin-bottom: 1rem;
-        }
+        .okt-klokke { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 1.25rem; margin-bottom: 1rem; }
         @keyframes alarmP { from{box-shadow:0 0 0 rgba(255,68,68,0);} to{box-shadow:0 0 18px rgba(255,68,68,0.3);} }
         .okt-alarm { border-color: rgba(255,68,68,0.4) !important; animation: alarmP 0.5s ease-in-out infinite alternate; }
-
-        .okt-klokke-rad1 {
-          display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-        }
+        .okt-klokke-rad1 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
         .okt-klokke-venstre { flex-shrink:0; }
         .okt-tid { font-family:var(--font-display,monospace); font-size:2rem; font-weight:800; letter-spacing:0.04em; font-variant-numeric:tabular-nums; line-height:1; }
         .okt-klokke-info { font-size:0.62rem; color:rgba(255,255,255,0.28); margin-top:2px; }
         .okt-klokke-hoeyre { display:flex; gap:6px; align-items:center; flex-shrink:0; }
         .okt-k-btn { font-size:0.82rem !important; padding:0.5rem 1.25rem !important; min-width: 90px; }
-
         .okt-klokke-rad2 { display:flex; flex-direction: column; gap: 6px; }
         .okt-modus-rad { display:flex; gap:5px; }
         .okt-modus { padding:3px 10px; border-radius:999px; font-size:0.68rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.38); cursor:pointer; font-family:var(--font-body,sans-serif); transition:all 0.12s; }
@@ -915,6 +644,11 @@ function OktInner() {
         .okt-quick.on { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.25); color:var(--cyan); }
         .okt-reset { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.35); width:32px; height:32px; border-radius:7px; cursor:pointer; font-size:0.9rem; transition:all 0.12s; display:flex; align-items:center; justify-content:center; }
         .okt-reset:hover { background:rgba(255,255,255,0.1); color:#fff; }
+        /* Notat */
+        .okt-notat-seksjon { padding:1.25rem; margin-top:1rem; display:flex; flex-direction:column; gap:.75rem; }
+        .okt-notat-tittel { font-family:var(--font-display,sans-serif); font-size:.88rem; font-weight:700; color:#fff; }
+        .okt-notat-textarea { width:100%; resize:vertical; min-height:80px; }
+        .okt-notat-lagre { font-size:.82rem !important; align-self:flex-end; }
       `}</style>
     </div>
   )
@@ -922,7 +656,7 @@ function OktInner() {
 
 export default function OktPage() {
   return (
-    <Suspense fallback={<div style={{display:'flex', justifyContent:'center', padding:'4rem'}}><div className="spinner-lg"/></div>}>
+    <Suspense fallback={<div style={{display:'flex',justifyContent:'center',padding:'4rem'}}><div className="spinner-lg"/></div>}>
       <OktInner />
     </Suspense>
   )

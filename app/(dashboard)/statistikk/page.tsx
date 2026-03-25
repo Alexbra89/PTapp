@@ -7,48 +7,21 @@ import { nb } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useUser, useProfil, useStats, useAktivitet, useVektlogg, useLoggVekt } from '@/hooks/useSupabaseQuery'
 import ProgresjonOvelse from './ProgresjonOvelse'
+import OneRMKalkulator from './OneRMKalkulator'
+import Volumgraf from './Volumgraf'
 
-// ── Lazy-load Recharts — hver komponent lastes separat ───────────────────────
-const ResponsiveContainer = dynamic(
-  () => import('recharts').then(mod => mod.ResponsiveContainer),
-  { ssr: false }
-)
-const BarChart = dynamic(
-  () => import('recharts').then(mod => mod.BarChart),
-  { ssr: false }
-)
-const Bar = dynamic(
-  () => import('recharts').then(mod => mod.Bar),
-  { ssr: false }
-)
-const LineChart = dynamic(
-  () => import('recharts').then(mod => mod.LineChart),
-  { ssr: false }
-)
-const Line = dynamic(
-  () => import('recharts').then(mod => mod.Line),
-  { ssr: false }
-)
-const XAxis = dynamic(
-  () => import('recharts').then(mod => mod.XAxis),
-  { ssr: false }
-)
-const YAxis = dynamic(
-  () => import('recharts').then(mod => mod.YAxis),
-  { ssr: false }
-)
-const CartesianGrid = dynamic(
-  () => import('recharts').then(mod => mod.CartesianGrid),
-  { ssr: false }
-)
-const Tooltip = dynamic(
-  () => import('recharts').then(mod => mod.Tooltip),
-  { ssr: false }
-)
+const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
+const BarChart  = dynamic(() => import('recharts').then(mod => mod.BarChart),  { ssr: false })
+const Bar       = dynamic(() => import('recharts').then(mod => mod.Bar),       { ssr: false })
+const LineChart = dynamic(() => import('recharts').then(mod => mod.LineChart), { ssr: false })
+const Line      = dynamic(() => import('recharts').then(mod => mod.Line),      { ssr: false })
+const XAxis     = dynamic(() => import('recharts').then(mod => mod.XAxis),     { ssr: false })
+const YAxis     = dynamic(() => import('recharts').then(mod => mod.YAxis),     { ssr: false })
+const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false })
+const Tooltip   = dynamic(() => import('recharts').then(mod => mod.Tooltip),   { ssr: false })
 
 const supabase = createClient()
 
-// ── PR øvelsesliste ────────────────────────────────────────────────────────────
 const PR_OVELSER = [
   { id:'benkpress',     navn:'Benkpress',            emoji:'🏋️', kategori:'Bryst'    },
   { id:'skraabenkpress',navn:'Skråbenkpress',         emoji:'📐', kategori:'Bryst'    },
@@ -117,18 +90,14 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
 
   return (
     <div className="pr-page">
-      {/* Header */}
       <div className="pr-header glass-card">
         <div>
           <div className="pr-header-t">🏆 Personlige rekorder</div>
           <div className="pr-header-s">Logg dine beste løft — appen markerer hver gang du slår rekorden</div>
         </div>
-        <button className="btn btn-primary pr-ny-btn" onClick={() => setVisSkjema(true)}>
-          ＋ Logg PR
-        </button>
+        <button className="btn btn-primary pr-ny-btn" onClick={() => setVisSkjema(true)}>＋ Logg PR</button>
       </div>
 
-      {/* NY-PR-animasjon */}
       {suksess && (() => {
         const ov = PR_OVELSER.find(o => o.id === suksess)
         return (
@@ -142,7 +111,6 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
         )
       })()}
 
-      {/* Kategori-filter */}
       <div className="pr-kat-rad glass-card">
         {kategorier.map(k => (
           <button key={k} className={`pr-kat-btn${kategori===k?' on':''}`}
@@ -150,7 +118,6 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
         ))}
       </div>
 
-      {/* PR-liste */}
       {laster ? (
         <div className="pr-laster glass-card"><span className="spinner-lg" /></div>
       ) : (
@@ -180,7 +147,6 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
         </div>
       )}
 
-      {/* Modal — logg ny PR */}
       {visSkjema && (
         <div className="pr-modal-bg" onClick={() => { setVisSkjema(false); setValgtOv(null) }}>
           <div className="pr-modal glass-card" onClick={e => e.stopPropagation()}>
@@ -198,7 +164,6 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
                   </button>
                 ))}
               </div>
-
               <div className="pr-tall-rad">
                 <div>
                   <label className="kal-lbl">Vekt (kg)</label>
@@ -213,7 +178,6 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
                     placeholder="5" min="1" max="100" />
                 </div>
               </div>
-
               {valgtOv && prMap[valgtOv] && (
                 <div className="pr-nåvaerende">
                   <span>Nåværende PR:</span>
@@ -253,7 +217,7 @@ const TRENINGS_TIPS: Record<string, string[]> = {
     '📈 Progressive overload: øk vekt, reps eller sett hver 2.–3. uke for kontinuerlig vekst',
     '💧 Drikk 2–3 liter vann daglig — dehydrering reduserer styrken med opptil 20%',
     '🍌 Spis karbohydrater og protein innen 45 min etter trening for optimal restitusjon',
-    '⚖️ Du MÅ spis i kalorioverskudd for å bygge muskler — ca 200–300 kcal over vedlikehold',
+    '⚖️ Du MÅ spise i kalorioverskudd for å bygge muskler — ca 200–300 kcal over vedlikehold',
   ],
   vedlikehold: [
     '⚖️ Vedlikehold krever konsistens — 3–4 treningsøkter per uke er nok',
@@ -286,10 +250,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function StatistikkPage() {
-  const [aktivFane,    setAktivFane]    = useState<'stats'|'pr'|'vekt'>('stats')
-  const [nyVekt,       setNyVekt]       = useState<number|''>('')
+  const [aktivFane, setAktivFane] = useState<'stats'|'pr'|'vekt'>('stats')
+  const [nyVekt,    setNyVekt]    = useState<number|''>('')
 
-  // ── React Query — caches automatisk, ingen re-fetch ved navigasjon ─────────
   const { data: user }            = useUser()
   const { data: profil }          = useProfil(user?.id)
   const { data: stats }           = useStats(user?.id)
@@ -307,8 +270,8 @@ export default function StatistikkPage() {
     setNyVekt('')
   }
 
-  const tipsListe    = TRENINGS_TIPS[brukerMal] ?? TRENINGS_TIPS.bygge_muskler
-  const vektEndring  = vektLogger.length >= 2
+  const tipsListe   = TRENINGS_TIPS[brukerMal] ?? TRENINGS_TIPS.bygge_muskler
+  const vektEndring = vektLogger.length >= 2
     ? (vektLogger[vektLogger.length-1].vekt - vektLogger[0].vekt).toFixed(1) : null
 
   return (
@@ -318,7 +281,6 @@ export default function StatistikkPage() {
         <p className="page-subtitle">Din treningsfremgang</p>
       </div>
 
-      {/* Faner */}
       <div className="st-faner glass-card">
         {([['stats','📊','Oversikt'],['pr','🏆','PR-rekorder'],['vekt','⚖️','Vektlogg']] as const).map(([k,e,l]) => (
           <button key={k} className={`st-fane${aktivFane===k?' active':''}`} onClick={() => setAktivFane(k)}>
@@ -327,15 +289,14 @@ export default function StatistikkPage() {
         ))}
       </div>
 
-      {/* ── OVERSIKT ── */}
       {aktivFane === 'stats' && (
         <>
           <div className="st-stats-grid">
             {[
-              { label:'Treningsøkter', val: stats?.totalOkter ?? 0,                            color:'var(--cyan)',   emoji:'📅' },
+              { label:'Treningsøkter', val: stats?.totalOkter ?? 0,                             color:'var(--cyan)',   emoji:'📅' },
               { label:'Totalt',         val: `${(stats?.totalKg ?? 0).toLocaleString('no')} kg`, color:'var(--green)',  emoji:'🏋️' },
-              { label:'Dag-streak',     val: stats?.streak ?? 0,                               color:'var(--orange)', emoji:'🔥' },
-              { label:'Denne uken',     val: `${(stats?.ukeKg ?? 0).toLocaleString('no')} kg`, color:'var(--purple)', emoji:'📈' },
+              { label:'Dag-streak',     val: stats?.streak ?? 0,                                color:'var(--orange)', emoji:'🔥' },
+              { label:'Denne uken',     val: `${(stats?.ukeKg ?? 0).toLocaleString('no')} kg`,  color:'var(--purple)', emoji:'📈' },
             ].map(s => (
               <div key={s.label} className="st-stat glass-card">
                 <div className="st-stat-em">{s.emoji}</div>
@@ -345,8 +306,11 @@ export default function StatistikkPage() {
             ))}
           </div>
 
-          {/* Progresjonsgraf for alle øvelser */}
+          {/* Progresjonsgraf */}
           {user?.id && <ProgresjonOvelse userId={user.id} />}
+
+          {/* ── NY: 1RM Kalkulator ── */}
+          {user?.id && <OneRMKalkulator userId={user.id} />}
 
           <div className="st-charts">
             <div className="glass-card st-chart-card">
@@ -378,6 +342,9 @@ export default function StatistikkPage() {
             )}
           </div>
 
+          {/* ── NY: Volumgraf ── */}
+          {user?.id && <Volumgraf userId={user.id} />}
+
           <div className="glass-card st-tips-card">
             <div className="st-chart-title">💡 Treningstips for ditt mål
               <span className="st-mal-badge">
@@ -400,10 +367,8 @@ export default function StatistikkPage() {
         </>
       )}
 
-      {/* ── PR-REKORDER ── */}
       {aktivFane === 'pr' && <PRTracker userId={user?.id} supabase={supabase} />}
 
-      {/* ── VEKTLOGG ── */}
       {aktivFane === 'vekt' && (
         <div className="st-vekt-page">
           <div className="glass-card st-vekt-input-card">
@@ -425,16 +390,15 @@ export default function StatistikkPage() {
               </div>
             )}
 
-            {/* Målvekt-fremgang */}
             {onsketVektMaal > 0 && vektLogger.length > 0 && (() => {
-              const sistVekt     = vektLogger[vektLogger.length-1].vekt
-              const foersteVekt  = vektLogger[0].vekt
-              const diff         = sistVekt - onsketVektMaal
-              const erNadd       = diff <= 0
+              const sistVekt    = vektLogger[vektLogger.length-1].vekt
+              const foersteVekt = vektLogger[0].vekt
+              const diff        = sistVekt - onsketVektMaal
+              const erNadd      = diff <= 0
               const nedGangSoFar = foersteVekt - sistVekt
-              const totalMaal    = foersteVekt - onsketVektMaal
-              const pct          = totalMaal > 0 ? Math.max(0, Math.min(100, Math.round((nedGangSoFar/totalMaal)*100))) : (erNadd ? 100 : 0)
-              const farge        = erNadd ? 'var(--green)' : 'var(--cyan)'
+              const totalMaal   = foersteVekt - onsketVektMaal
+              const pct         = totalMaal > 0 ? Math.max(0, Math.min(100, Math.round((nedGangSoFar/totalMaal)*100))) : (erNadd ? 100 : 0)
+              const farge       = erNadd ? 'var(--green)' : 'var(--cyan)'
               return (
                 <div style={{ marginTop:'1rem', padding:'1rem', borderRadius:12, background:`${farge}08`, border:`1px solid ${farge}20` }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
@@ -531,8 +495,6 @@ export default function StatistikkPage() {
         .st-vekt-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px}
         .st-vekt-dato{flex:1;font-size:.82rem;color:rgba(255,255,255,.5)}
         .st-vekt-tall{font-family:var(--font-display);font-size:.9rem;font-weight:700;color:#fff}
-
-        /* ── PR REKORDER ── */
         .pr-page{display:flex;flex-direction:column;gap:.75rem}
         .pr-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;gap:1rem;flex-wrap:wrap}
         .pr-header-t{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#fff;margin-bottom:3px}
@@ -574,6 +536,10 @@ export default function StatistikkPage() {
         .pr-nåvaerende{display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.4);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;flex-wrap:wrap}
         .pr-nåvaerende strong{color:#fff}
         .pr-ny-rekord-badge{padding:2px 8px;border-radius:999px;background:rgba(255,100,0,.15);border:1px solid rgba(255,100,0,.3);color:#ff8c00;font-size:.65rem;font-weight:600}
+        .kal-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);font-weight:700;margin-bottom:-6px}
+        .kal-modal-x{background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:.85rem;padding:4px 8px;border-radius:6px;transition:all .12s}
+        .kal-modal-x:hover{background:rgba(255,255,255,.08);color:#fff}
+        .kal-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid rgba(255,255,255,.07)}
       `}</style>
     </div>
   )
