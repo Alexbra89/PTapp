@@ -171,7 +171,7 @@ export function useStats(userId?: string) {
       // Total kg løftet
       const totalKg = (logger ?? []).reduce((s: number, l: any) =>
         s + (l.sett ?? []).reduce((ss: number, set: any) =>
-          ss + (set.kg ?? 0) * (set.reps ?? 0), 0), 0)
+          ss + (set.vekt ?? set.kg ?? 0) * (set.reps ?? 0), 0), 0)
 
       // Muskelfokus
       const mMap: Record<string, number> = {}
