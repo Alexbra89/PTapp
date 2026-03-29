@@ -10,6 +10,7 @@ import { nb } from 'date-fns/locale'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useUser, useOkterManed, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
+import ProgramMal from './ProgramMal'
 
 type OktType = 'styrke' | 'cardio' | 'hvile' | 'annet'
 interface Okt {
@@ -177,8 +178,8 @@ export default function KalenderPage() {
   const [editOkt,     setEditOkt]     = useState<Okt | null>(null)
   const [form,        setForm]        = useState({ tittel: '', type: 'styrke' as OktType, varighet_min: 60, notater: '' })
   const [visDetalj,   setVisDetalj]   = useState<string | null>(null)
-  // Inline slett-bekreftelse — ingen confirm() dialog
   const [slettId,     setSlettId]     = useState<string | null>(null)
+  const [visProgramMal, setVisProgramMal] = useState(false)
 
   const { data: user }                      = useUser()
   const { data: okterArr = [], isFetching } = useOkterManed(user?.id, maned)
@@ -228,31 +229,52 @@ export default function KalenderPage() {
     setVisModal(true)
   }
 
-const lagreOkt = async () => {
-  if (!user || !form.tittel.trim()) return
-  const dato = format(valgtDag, 'yyyy-MM-dd')
-  const forslag = editOkt ? [] : hentAnbefaltOvelser(form.tittel, dato)
-  const ovelser = forslag.map((o: any) => ({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 }))
+  const lagreOkt = async () => {
+    if (!user || !form.tittel.trim()) return
+    const dato = format(valgtDag, 'yyyy-MM-dd')
+    const forslag = editOkt ? [] : hentAnbefaltOvelser(form.tittel, dato)
+    const ovelser = forslag.map((o: any) => ({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 }))
+    await lagreOktMut.mutateAsync({
+      userId: user.id, dato,
+      tittel: form.tittel, type: form.type,
+      varighet_min: form.varighet_min, notater: form.notater,
+      id: editOkt?.id,
+      ovelser,
+    })
+    setVisModal(false)
+    setEditOkt(null)
+  }
+
+const brukProgram = async (program: any) => {
+  if (!user) return
+  const datoStr = format(valgtDag, 'yyyy-MM-dd')
+  const ovelser = program.ovelser.map((o: any) => ({
+    navn: o.navn,
+    sett: o.sett,
+    reps: o.reps,
+    kg: o.kg || 0
+  }))
+  
   await lagreOktMut.mutateAsync({
-    userId: user.id, dato,
-    tittel: form.tittel, type: form.type,
-    varighet_min: form.varighet_min, notater: form.notater,
-    id: editOkt?.id,
-    ovelser,
+    userId: user.id,
+    dato: datoStr,
+    tittel: program.navn,
+    type: 'styrke',
+    varighet_min: 60,
+    notater: '',
+    ovelser: ovelser
   })
-  setVisModal(false)
-  setEditOkt(null)
+  
+  setVisProgramMal(false)
+  qc.invalidateQueries({ queryKey: QK.okterManed(user.id, format(maned, 'yyyy-MM')) })
 }
 
-  // Direkte slett — ingen confirm(), bruker inline bekreftelse
   const slettOkt = async (okt: Okt, e: React.MouseEvent) => {
     e.stopPropagation()
     if (!user) return
     setSlettId(null)
-    // Optimistisk: fjern fra cache FØR Supabase svarer
     const qKey = QK.okterManed(user.id, format(maned, 'yyyy-MM'))
     qc.setQueryData(qKey, (gammel: Okt[] = []) => gammel.filter(o => o.id !== okt.id))
-    // Kjør Supabase i bakgrunnen
     slettOktMut.mutate({
       id: okt.id, userId: user.id,
       maned: format(maned, 'yyyy-MM'), dato: okt.dato,
@@ -269,7 +291,6 @@ const lagreOkt = async () => {
       </div>
 
       <div className="kal-layout">
-        {/* ── VENSTRE ── */}
         <div className="kal-venstre">
           <div className="kal-nav glass-card">
             <button className="kal-nav-btn" onClick={() => bytManed(-1)}>‹</button>
@@ -321,7 +342,6 @@ const lagreOkt = async () => {
           </div>
         </div>
 
-        {/* ── HØYRE ── */}
         <div className="kal-hoeyre">
           <div className="kal-dag-header glass-card">
             <div>
@@ -334,7 +354,12 @@ const lagreOkt = async () => {
                   : `${dagensOkter.length} økt${dagensOkter.length > 1 ? 'er' : ''} planlagt`}
               </div>
             </div>
-            <button className="btn btn-primary kal-legg-btn" onClick={åpnNy}>＋ Ny økt</button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-ghost" onClick={() => setVisProgramMal(true)} style={{ fontSize: '0.8rem' }}>
+                📁 Programmer
+              </button>
+              <button className="btn btn-primary kal-legg-btn" onClick={åpnNy}>＋ Ny økt</button>
+            </div>
           </div>
 
           {dagensOkter.length === 0 ? (
@@ -342,10 +367,10 @@ const lagreOkt = async () => {
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📅</div>
               <div className="kal-ingen-t">Ingen økt planlagt</div>
               <div className="kal-ingen-s">Trykk "Ny økt" for å planlegge</div>
-              <button className="btn btn-primary"
-                style={{ marginTop: '1rem', fontSize: '0.82rem' }} onClick={åpnNy}>
-                ＋ Planlegg treningsøkt
-              </button>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '1rem' }}>
+                <button className="btn btn-primary" onClick={åpnNy}>＋ Planlegg treningsøkt</button>
+                <button className="btn btn-ghost" onClick={() => setVisProgramMal(true)}>📁 Bruk program</button>
+              </div>
             </div>
           ) : (
             <div className="kal-okter-liste">
@@ -468,7 +493,6 @@ const lagreOkt = async () => {
                           )
                         })()}
                         
-                        {/* Enkel start-knapp - bare sender ID */}
                         <button 
                           className="kal-start-btn"
                           onClick={() => {
@@ -487,7 +511,6 @@ const lagreOkt = async () => {
         </div>
       </div>
 
-      {/* ── MODAL ── */}
       {visModal && (
         <div className="kal-modal-bg" onClick={() => setVisModal(false)}>
           <div className="kal-modal glass-card" onClick={e => e.stopPropagation()}>
@@ -538,6 +561,14 @@ const lagreOkt = async () => {
             </div>
           </div>
         </div>
+      )}
+
+      {visProgramMal && user && (
+        <ProgramMal 
+          userId={user.id}
+          onClose={() => setVisProgramMal(false)}
+          onSelectProgram={brukProgram}
+        />
       )}
 
       <style>{`
@@ -626,11 +657,30 @@ const lagreOkt = async () => {
         .kal-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);font-weight:700;margin-bottom:-6px}
         .kal-type-rad{display:flex;gap:6px;flex-wrap:wrap}
         .kal-type-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
+        .kal-type-btn.on{background:rgba(0,245,255,.1);border-color:rgba(0,245,255,.3);color:var(--cyan,#00f5ff)}
         .kal-var-rad{display:flex;gap:6px;flex-wrap:wrap}
         .kal-var-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
         .kal-var-btn.on{background:rgba(0,245,255,.1);border-color:rgba(0,245,255,.3);color:var(--cyan,#00f5ff)}
         .kal-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid rgba(255,255,255,.07)}
         @media(max-width:600px){.kal-dag-header{flex-direction:column;align-items:flex-start}.kal-legg-btn{width:100%;justify-content:center}}
+        .btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);padding:0.5rem 1rem;border-radius:8px;cursor:pointer;transition:all 0.15s;font-size:0.82rem}
+        .btn-ghost:hover{background:rgba(255,255,255,0.1);color:#fff}
+        .pr-kat-btn{padding:4px 12px;border-radius:8px;font-size:.75rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body)}
+        .pr-kat-btn.on{background:rgba(180,78,255,.12);border-color:rgba(180,78,255,.35);color:var(--purple)}
+        .pr-kort{padding:1rem;cursor:pointer;transition:all .15s;border:1px solid rgba(255,255,255,.07)!important;border-radius:12px}
+        .pr-kort:hover{background:rgba(255,255,255,.04)!important;border-color:rgba(180,78,255,.25)!important;transform:translateY(-2px)}
+        .pr-kort-navn{font-family:var(--font-display);font-size:.85rem;font-weight:700;color:#fff;margin-bottom:.25rem}
+        .pr-kort-reps{font-size:.7rem;color:rgba(255,255,255,.4)}
+        .pr-kort-dato{font-size:.6rem;color:rgba(255,255,255,.2);margin-top:4px}
+        .pr-kort-topp{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+        .pr-kort-em{font-size:1.2rem}
+        .pr-modal-bg{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem}
+        .pr-modal{width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:0;background:rgba(10,10,20,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:20px}
+        .pr-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,.07)}
+        .pr-modal-tittel{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#fff}
+        .pr-modal-body{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem}
+        .spinner-lg{width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
     </div>
   )
