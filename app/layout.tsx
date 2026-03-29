@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
-        {/* Hindre hvit flash */}
+        {/* Hindre hvit flash - inline style for umiddelbar bakgrunn */}
         <style dangerouslySetInnerHTML={{ __html: `
           * { margin: 0; padding: 0; box-sizing: border-box; }
           html, body {
@@ -55,52 +55,98 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             left: 0;
             right: 0;
             bottom: 0;
-            background: #030308;
+            background: linear-gradient(135deg, #030308 0%, #0a0a18 100%);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 999999;
             transition: opacity 0.5s ease;
             pointer-events: none;
           }
-          #splash-spinner {
-            width: 48px;
-            height: 48px;
-            border: 3px solid rgba(0,245,255,0.1);
-            border-top: 3px solid #00f5ff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+          .splash-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #00f5ff, #b44eff);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 0 40px rgba(0,245,255,0.3);
+            animation: logoFloat 1.2s ease-in-out infinite alternate;
           }
-          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          .splash-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-top: 1rem;
+            background: linear-gradient(135deg, #fff, #00f5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          }
+          .splash-sub {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+            margin-top: 0.25rem;
+          }
+          .splash-spinner {
+            margin-top: 1.5rem;
+            width: 32px;
+            height: 32px;
+            border: 2px solid rgba(0,245,255,0.1);
+            border-top: 2px solid #00f5ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes logoFloat {
+            from { transform: translateY(0px); }
+            to { transform: translateY(-8px); }
+          }
+          @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+          }
         `}} />
       </head>
       <body>
+        {/* Splash screen med logo og velkomstmelding */}
         <div id="splash-screen">
-          <div id="splash-spinner" />
+          <div className="splash-logo">
+            💪
+          </div>
+          <div className="splash-title">
+            Treningsapp
+          </div>
+          <div className="splash-sub">
+            Din personlige treningspartner
+          </div>
+          <div className="splash-spinner" />
         </div>
         
+        {/* Script for å fjerne splash-screen når React er klar */}
         <script dangerouslySetInnerHTML={{ __html: `
-          // Fjern splash-screen NÅR React er klart (ikke før)
           window.removeSplash = function() {
             const splash = document.getElementById('splash-screen');
             if (splash) {
               splash.style.opacity = '0';
-              setTimeout(() => splash.remove(), 500);
+              setTimeout(function() { 
+                if (splash && splash.parentNode) splash.remove(); 
+              }, 500);
             }
           };
           
-          // Vent til React er ferdig lastet
           if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-              // Gi React litt tid til å starte
-              setTimeout(window.removeSplash, 100);
+            document.addEventListener('DOMContentLoaded', function() {
+              setTimeout(window.removeSplash, 200);
             });
           } else {
-            setTimeout(window.removeSplash, 100);
+            setTimeout(window.removeSplash, 200);
           }
           
-          // Sikkerhetsmargin - fjern uansett etter 3 sekunder
-          setTimeout(window.removeSplash, 3000);
+          setTimeout(window.removeSplash, 3500);
         `}} />
         
         <Providers>
