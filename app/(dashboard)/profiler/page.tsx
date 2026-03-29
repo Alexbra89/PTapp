@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useUser, useProfil, useLagreProfil } from '@/hooks/useSupabaseQuery'
+import { createClient } from '@/lib/supabase/client'
 
 const MAL_OPTIONS = [
   { key: 'ned_i_vekt',    label: 'Ned i vekt',      emoji: '⬇️', color: 'var(--cyan)'   },
@@ -23,6 +24,7 @@ function bmiKategori(bmi: number) {
 }
 
 export default function ProfilPage() {
+  const supabase = createClient()
   const { data: user,   isLoading: userLaster } = useUser()
   const { data: profil, isLoading: profilLaster } = useProfil(user?.id)
   const lagreMut = useLagreProfil()
@@ -39,12 +41,54 @@ export default function ProfilPage() {
   const [mal,        setMal]        = useState('bygge_muskler')
   const [onsketVekt, setOnsketVekt] = useState<number|''>('')
 
-  // Stats (vi henter dette fra profil og okter i en separat query)
+  // Stats – henter fra databasen
   const [stats, setStats] = useState({ okter: 0, kg: 0 })
+  const [lasterStats, setLasterStats] = useState(true)
+
+  // Hent statistikk fra databasen
+  useEffect(() => {
+    if (!user?.id) return
+
+    const hentStats = async () => {
+      setLasterStats(true)
+      
+      // Hent totalt antall økter
+      const { count: totalOkter } = await supabase
+        .from('okter')
+        .select('*', { count: 'exact', head: true })
+        .eq('bruker_id', user.id)
+
+      // Hent total kg fra treningslogger (alle sett)
+      const { data: logger } = await supabase
+        .from('treningslogger')
+        .select('sett')
+        .eq('bruker_id', user.id)
+
+      let totalKg = 0
+      if (logger) {
+        for (const logg of logger) {
+          if (logg.sett && Array.isArray(logg.sett)) {
+            for (const sett of logg.sett) {
+              const vekt = sett.vekt || sett.kg || 0
+              const reps = sett.reps || 0
+              totalKg += vekt * reps
+            }
+          }
+        }
+      }
+
+      setStats({
+        okter: totalOkter || 0,
+        kg: Math.round(totalKg)
+      })
+      setLasterStats(false)
+    }
+
+    hentStats()
+  }, [user?.id, supabase])
 
   // Fyll inn form når profil laster
   const aapneRedigeringsform = () => {
-    // Hent nåverdier fra profil
     setNavn(profil?.navn ?? '')
     setVekt(profil?.vekt || '')
     setHoyde(profil?.hoyde || '')
@@ -130,7 +174,6 @@ export default function ProfilPage() {
               </div>
             )}
           </div>
-          {/* ── Rediger-knapp – alltid synlig ── */}
           <button
             className="btn btn-ghost pr-edit-btn"
             onClick={redigerer ? avbrytRedigering : aapneRedigeringsform}
@@ -143,8 +186,8 @@ export default function ProfilPage() {
       {/* Stats */}
       <div className="pr-stats-grid">
         {[
-          { label: 'Treningsøkter', value: stats.okter,                           color: 'var(--cyan)',   icon: '📅' },
-          { label: 'Kg løftet',     value: `${stats.kg.toLocaleString('no')} kg`, color: 'var(--green)',  icon: '🏋️' },
+          { label: 'Treningsøkter', value: lasterStats ? '...' : stats.okter,                           color: 'var(--cyan)',   icon: '📅' },
+          { label: 'Kg løftet',     value: lasterStats ? '...' : `${stats.kg.toLocaleString('no')} kg`, color: 'var(--green)',  icon: '🏋️' },
           { label: 'Vekt',          value: profil?.vekt ? `${profil.vekt} kg` : '–', color: 'var(--purple)', icon: '⚖️' },
           {
             label: 'BMI',
@@ -170,7 +213,7 @@ export default function ProfilPage() {
         const erNedgang = diff > 0
         const erMaal    = diff <= 0
         const color     = erMaal ? 'var(--green)' : erNedgang ? 'var(--cyan)' : 'var(--orange)'
-        const pct       = erNedgang ? 0 : 100   // uten historisk logg kan vi ikke lage prosent
+        const pct       = erNedgang ? 0 : 100
         return (
           <div className="pr-maal-kort glass-card">
             <div className="pr-maal-top">
