@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ovelserData from '@/data/ovelser.json'
+import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
+import ProgramMal from '../../kalender/ProgramMal'
 
 console.log('🎯 SJEKKER ØVELSER:')
 console.log('Type:', typeof ovelserData)
@@ -197,9 +199,12 @@ function OktInner() {
   const [lagrer,     setLagrer]     = useState(false)
   const [lagretMsg,  setLagretMsg]  = useState('')
   const [laster,     setLaster]     = useState(true)
-  // ── NY: Notat ──────────────────────────────────────────────────────────────
   const [oktNotat,   setOktNotat]   = useState('')
   const [dagensDato, setDagensDato] = useState('')
+  const [visFavorittModal, setVisFavorittModal] = useState(false)
+  const [bytteIndex, setBytteIndex] = useState<number | null>(null)
+
+  const { data: user } = useUser()
 
   // ── Stoppeklokke ───────────────────────────────────────────────────────────
   const [klokkeMode, setKlokkeMode] = useState<'stopp'|'ned'>('stopp')
@@ -228,7 +233,6 @@ function OktInner() {
 
   useEffect(() => { bygg() }, [])
 
-  // ── NY: Last notat fra localStorage ───────────────────────────────────────
   useEffect(() => {
     const dato = new Date().toISOString().split('T')[0]
     setDagensDato(dato)
@@ -239,6 +243,30 @@ function OktInner() {
   const nullstillKlokke = () => { setKjoerer(false); setSekunder(0); setAlarm(false) }
   const startKlokke     = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
   const formatTid       = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
+
+  const byttOvelse = async (index: number, nyOvelse: any) => {
+    const ny = {
+      ...okter[index],
+      navn: nyOvelse.ovelse_navn,
+      emoji: nyOvelse.emoji || '💪',
+      sett: nyOvelse.sett,
+      reps: nyOvelse.reps,
+      hvile: nyOvelse.hvile,
+      muskler: '',
+      beskrivelse: '',
+      tips: '',
+      utstyr: '',
+      expanded: true,
+      sett_logg: Array.from({length: nyOvelse.sett}, () => ({
+        reps: parseInt(nyOvelse.reps.split('-')[0]) || 10,
+        kg: 0,
+        fullfort: false
+      }))
+    }
+    setOkter(prev => prev.map((o, i) => i === index ? ny : o))
+    setVisFavorittModal(false)
+    setBytteIndex(null)
+  }
 
   const bygg = async () => {
     const oktId       = searchParams.get('okt')
@@ -348,17 +376,17 @@ function OktInner() {
 
   const lagreOkt = async () => {
     setLagrer(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLagrer(false); return }
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) { setLagrer(false); return }
     const dato = new Date().toISOString().split('T')[0]
     await supabase.from('okter').insert([{
-      bruker_id: user.id, dato, tittel, type: 'styrke', varighet_min: 60, fullfort: false,
+      bruker_id: currentUser.id, dato, tittel, type: 'styrke', varighet_min: 60, fullfort: false,
       ovelser: okter.map(o => ({ navn: o.navn, sett: o.sett, reps: o.sett_logg.map(s=>s.reps).join('/'), kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0 })),
     }])
     for (const o of okter) {
       if (!o.sett_logg.some(s => s.kg > 0)) continue
       await supabase.from('treningslogger').insert({
-        bruker_id: user.id, dato, ovelse_navn: o.navn, muskelgruppe: o.muskler,
+        bruker_id: currentUser.id, dato, ovelse_navn: o.navn, muskelgruppe: o.muskler,
         sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort }))
       })
     }
@@ -376,7 +404,6 @@ function OktInner() {
 
   return (
     <div className="okt-page anim-fade-up">
-      {/* Header */}
       <div className="okt-header">
         <button className="okt-tilbake" onClick={() => router.back()}>← Tilbake</button>
         <div className="okt-header-info">
@@ -393,7 +420,6 @@ function OktInner() {
 
       {lagretMsg && <div className="okt-lagret-msg">{lagretMsg}</div>}
 
-      {/* Stoppeklokke */}
       <div className={`okt-klokke glass-card${alarm ? ' okt-alarm' : ''}`}>
         <div className="okt-klokke-rad1">
           <div className="okt-klokke-venstre">
@@ -430,7 +456,6 @@ function OktInner() {
         </div>
       </div>
 
-      {/* Oppvarming */}
       {oppvar.length > 0 && (
         <div className="okt-opp glass-card">
           <div className="okt-opp-title">🔥 Oppvarming</div>
@@ -446,7 +471,6 @@ function OktInner() {
         </div>
       )}
 
-      {/* Øvelser */}
       <div className="okt-liste">
         {okter.map((o, oIdx) => {
           const done = o.sett_logg.every(s => s.fullfort)
@@ -459,6 +483,40 @@ function OktInner() {
                 <div className="okt-ov-info">
                   <div className="okt-ov-navn">{o.navn}</div>
                   <div className="okt-ov-musk">{o.muskler}</div>
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                    <button 
+                      className="okt-fav-btn"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        const { data: { user: currentUser } } = await supabase.auth.getUser()
+                        if (!currentUser) return
+                        await supabase.from('favoritt_ovelser').upsert({
+                          bruker_id: currentUser.id,
+                          ovelse_navn: o.navn,
+                          ovelse_id: o.navn.toLowerCase().replace(/\s+/g, '-'),
+                          emoji: o.emoji,
+                          sett: o.sett,
+                          reps: o.reps,
+                          hvile: o.hvile
+                        }, { onConflict: 'bruker_id, ovelse_navn' })
+                        alert(`⭐ ${o.navn} lagt til i favoritter!`)
+                      }}
+                      title="Legg til i favoritter"
+                    >
+                      ⭐
+                    </button>
+                    <button 
+                      className="okt-bytte-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setBytteIndex(oIdx)
+                        setVisFavorittModal(true)
+                      }}
+                      title="Bytt ut øvelse"
+                    >
+                      🔄
+                    </button>
+                  </div>
                 </div>
                 <div className="okt-ov-tags">
                   <span className="okt-tag">{o.sett}×</span>
@@ -512,12 +570,10 @@ function OktInner() {
         })}
       </div>
 
-      {/* Lagre bunn */}
       <button className="okt-lagre-bunn btn btn-primary" onClick={lagreOkt} disabled={lagrer}>
         {lagrer ? <span className="spinner" style={{width:16,height:16}}/> : '💾 Lagre økt i kalender'}
       </button>
 
-      {/* FULLFØR TRENING */}
       <div style={{ display:'flex', justifyContent:'center', marginTop:'1rem', marginBottom:'1rem' }}>
         <button
           className="btn btn-primary"
@@ -527,18 +583,18 @@ function OktInner() {
             if (!alleFullfort) { alert('❌ Du må fullføre ALLE sett først!'); return }
             if (!confirm('Er du klar for å fullføre treningen?')) return
             setLagrer(true)
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) { setLagrer(false); return }
+            const { data: { user: currentUser } } = await supabase.auth.getUser()
+            if (!currentUser) { setLagrer(false); return }
             const dato = new Date().toISOString().split('T')[0]
             const { error } = await supabase.from('okter').insert([{
-              bruker_id: user.id, dato, tittel, type:'styrke', varighet_min:60, fullfort:true,
+              bruker_id: currentUser.id, dato, tittel, type:'styrke', varighet_min:60, fullfort:true,
               ovelser: okter.map(o => ({ navn:o.navn, sett:o.sett, reps:o.sett_logg.map(s=>s.reps).join('/'), kg:o.sett_logg.find(s=>s.kg>0)?.kg??0 })),
             }])
             if (error) { alert('❌ Noe gikk galt ved lagring') } else {
               for (const o of okter) {
                 if (!o.sett_logg.some(s => s.kg > 0)) continue
                 await supabase.from('treningslogger').insert({
-                  bruker_id: user.id, dato, ovelse_navn: o.navn, muskelgruppe: o.muskler,
+                  bruker_id: currentUser.id, dato, ovelse_navn: o.navn, muskelgruppe: o.muskler,
                   sett: o.sett_logg.map(s => ({ reps:s.reps, vekt:s.kg, fullfort:s.fullfort }))
                 })
               }
@@ -551,7 +607,6 @@ function OktInner() {
         </button>
       </div>
 
-      {/* ── NY: Notat om økten ── */}
       <div className="okt-notat-seksjon glass-card">
         <div className="okt-notat-tittel">📝 Notat om økten</div>
         <textarea
@@ -573,6 +628,18 @@ function OktInner() {
           💾 Lagre notat
         </button>
       </div>
+
+      {visFavorittModal && user?.id && bytteIndex !== null && (
+        <ProgramMal 
+          userId={user.id}
+          onClose={() => {
+            setVisFavorittModal(false)
+            setBytteIndex(null)
+          }}
+          onSelectFavoritt={(fav) => byttOvelse(bytteIndex, fav)}
+          mode="bytte"
+        />
+      )}
 
       <style>{`
         .okt-page { max-width: 860px; width: 100%; }
@@ -602,6 +669,8 @@ function OktInner() {
         .okt-ov-info { flex: 1; min-width: 0; }
         .okt-ov-navn { font-family: var(--font-display,sans-serif); font-size: 0.92rem; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .okt-ov-musk { font-size: 0.67rem; color: rgba(255,255,255,0.3); margin-top: 2px; }
+        .okt-fav-btn, .okt-bytte-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 6px; padding: 2px 6px; font-size: 0.7rem; cursor: pointer; transition: all 0.15s; font-family: var(--font-body,sans-serif); }
+        .okt-fav-btn:hover, .okt-bytte-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .okt-ov-tags { display: flex; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
         .okt-tag { padding:2px 7px; border-radius:999px; font-size:0.62rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.38); white-space:nowrap; }
         .okt-tag-done { padding:2px 8px; border-radius:999px; font-size:0.62rem; background:rgba(0,255,136,0.12); border:1px solid rgba(0,255,136,0.25); color:var(--green,#00ff88); white-space:nowrap; }
@@ -644,11 +713,12 @@ function OktInner() {
         .okt-quick.on { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.25); color:var(--cyan); }
         .okt-reset { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.35); width:32px; height:32px; border-radius:7px; cursor:pointer; font-size:0.9rem; transition:all 0.12s; display:flex; align-items:center; justify-content:center; }
         .okt-reset:hover { background:rgba(255,255,255,0.1); color:#fff; }
-        /* Notat */
         .okt-notat-seksjon { padding:1.25rem; margin-top:1rem; display:flex; flex-direction:column; gap:.75rem; }
         .okt-notat-tittel { font-family:var(--font-display,sans-serif); font-size:.88rem; font-weight:700; color:#fff; }
         .okt-notat-textarea { width:100%; resize:vertical; min-height:80px; }
         .okt-notat-lagre { font-size:.82rem !important; align-self:flex-end; }
+        .spinner-lg { width:32px; height:32px; border:3px solid rgba(255,255,255,0.1); border-top-color:var(--cyan); border-radius:50%; animation:spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   )
