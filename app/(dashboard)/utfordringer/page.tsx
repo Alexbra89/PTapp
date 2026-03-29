@@ -32,7 +32,7 @@ const AUTOMATISKE_UTFORDRINGER = [
   { id: 'streak_30', tittel: 'Legendarisk', beskrivelse: '30 dagers treningsstreak', maal: 30, enhet: 'dager', emoji: '👑', kategori: 'konsistens', sjeldenhet: 'episk', krav_type: 'streak' },
   { id: 'volume_5k', tittel: 'Volume Hunter', beskrivelse: 'Løft 5.000 kg på én uke', maal: 5000, enhet: 'kg', emoji: '📈', kategori: 'prestasjon', sjeldenhet: 'sjelden', krav_type: 'volum_uke' },
   { id: 'volume_10k', tittel: 'Volume Monster', beskrivelse: 'Løft 10.000 kg på én uke', maal: 10000, enhet: 'kg', emoji: '🦖', kategori: 'prestasjon', sjeldenhet: 'episk', krav_type: 'volum_uke' },
-  { id: 'full_body', tittel: 'Full kropp', beskrivelse: 'Tren alle muskelgrupper', maal: 1, enhet: 'gang', emoji: '🧬', kategori: 'prestasjon', sjeldenhet: 'sjelden', krav_type: 'alle_muskler' },
+  { id: 'full_body', tittel: 'Full kropp', beskrivelse: 'Tren alle muskelgrupper (bryst, rygg, bein, skuldre, armer, core)', maal: 6, enhet: 'grupper', emoji: '🧬', kategori: 'prestasjon', sjeldenhet: 'sjelden', krav_type: 'alle_muskler' },
   { id: 'leg_day', tittel: 'Leg day lover', beskrivelse: 'Tren bein 3 ganger på én uke', maal: 3, enhet: 'ganger', emoji: '🦵', kategori: 'prestasjon', sjeldenhet: 'sjelden', krav_type: 'bein_uke' },
 ]
 
@@ -51,26 +51,20 @@ interface Utfordring {
   krav_type?: string
 }
 
-const BELONNINGER = [
-  { navn: 'Bronse-mester', ikon: '🥉', farge: '#cd7f32' },
-  { navn: 'Sølv-mester', ikon: '🥈', farge: '#c0c0c0' },
-  { navn: 'Gull-mester', ikon: '🥇', farge: '#ffd700' },
-  { navn: 'Vann-mester', ikon: '💧', farge: '#00f5ff' },
-  { navn: 'Skritt-mester', ikon: '👣', farge: '#8B4513' },
-  { navn: 'Stål-mester', ikon: '⚡', farge: '#b44eff' },
-  { navn: 'Utholdenhet', ikon: '🔥', farge: '#ff8c00' },
-  { navn: 'Muskel-mester', ikon: '💪', farge: '#ff4488' },
-]
-
 export default function UtfordringerPage() {
   const supabase = createClient()
-  const { data: user } = useUser()
-  const [isClient, setIsClient] = useState(false)
+  const { data: user, isLoading: userLaster } = useUser()
   const [utfordringer, setUtfordringer] = useState<Utfordring[]>([])
   const [poeng, setPoeng] = useState<number>(0)
   const [nivaa, setNivaa] = useState<number>(1)
   const [laster, setLaster] = useState(true)
   const [aktivKategori, setAktivKategori] = useState('alle')
+  const [isClient, setIsClient] = useState(false)
+
+  // Sett isClient til true når komponenten mountes
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Hent automatiske data fra databasen
   useEffect(() => {
@@ -145,8 +139,11 @@ export default function UtfordringerPage() {
       if (logger) {
         for (const logg of logger) {
           if (logg.muskelgruppe) {
-            logg.muskelgruppe.split(',').forEach((m: string) => muskelgrupper.add(m.trim().toLowerCase()))
-            if (logg.muskelgruppe.toLowerCase().includes('bein')) legCount++
+            const muskelListe = logg.muskelgruppe.split(',').map((m: string) => m.trim().toLowerCase())
+            muskelListe.forEach((m: string) => muskelgrupper.add(m))
+            if (muskelListe.some((m: string) => m.includes('bein') || m.includes('leg') || m.includes('quad') || m.includes('hamstring'))) {
+              legCount++
+            }
           }
         }
       }
@@ -159,7 +156,7 @@ export default function UtfordringerPage() {
           case 'kg': fremgang = totalKg; break
           case 'streak': fremgang = streak; break
           case 'volum_uke': fremgang = ukeKg; break
-          case 'alle_muskler': fremgang = muskelgrupper.size >= 6 ? 1 : 0; break
+          case 'alle_muskler': fremgang = muskelgrupper.size; break
           case 'bein_uke': fremgang = legCount; break
           default: fremgang = 0
         }
@@ -177,7 +174,15 @@ export default function UtfordringerPage() {
 
       // Hent lagrede manuelle utfordringer fra localStorage
       const ukeNr = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
-      const lagretManuelle = JSON.parse(localStorage.getItem(`manuelle_utfordringer_${ukeNr}`) ?? '{}')
+      let lagretManuelle: any = {}
+      try {
+        const lagret = localStorage.getItem(`manuelle_utfordringer_${ukeNr}`)
+        if (lagret) {
+          lagretManuelle = JSON.parse(lagret)
+        }
+      } catch (e) {
+        console.error('Kunne ikke hente fra localStorage', e)
+      }
       
       const manuelleMedStatus = MANUELLE_UTFORDRINGER.map((uf, i) => ({
         ...uf,
@@ -198,11 +203,13 @@ export default function UtfordringerPage() {
 
       // Beregn poeng
       let totalPoeng = 0
-      for (let i = 0; i <= 10; i++) {
-        const ukeData = JSON.parse(localStorage.getItem(`manuelle_utfordringer_${ukeNr - i}`) ?? '{}')
-        Object.values(ukeData).forEach((u: any) => {
-          if (u.fullfort) totalPoeng += 10
-        })
+      for (let i = 0; i <= 4; i++) {
+        try {
+          const ukeData = JSON.parse(localStorage.getItem(`manuelle_utfordringer_${ukeNr - i}`) ?? '{}')
+          Object.values(ukeData).forEach((u: any) => {
+            if (u.fullfort) totalPoeng += 10
+          })
+        } catch (e) {}
       }
       // Legg til poeng for automatiske fullførte
       totalPoeng += automatiskeMedFremgang.filter(u => u.fullfort).length * 20
@@ -264,9 +271,10 @@ export default function UtfordringerPage() {
 
   const prosentTilNesteNivaa = (poeng % 50) / 50 * 100
 
-  if (laster || !isClient) {
+  // Vis spinner mens vi laster
+  if (userLaster || laster || !isClient) {
     return (
-      <div className="utf-page anim-fade-up" style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
+      <div className="utf-page anim-fade-up" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <div className="spinner-lg" />
       </div>
     )
@@ -307,109 +315,109 @@ export default function UtfordringerPage() {
 
       {/* Utfordringsliste */}
       <div className="utf-liste">
-        {filtrerte.map((u, idx) => {
-          const prosent = Math.min(100, Math.round((u.fremgang / u.maal) * 100))
-          const sjeldenhetFarge = getSjeldenhetFarge(u.sjeldenhet)
-          const erAutomatisk = u.automatisk
+        {filtrerte.length === 0 ? (
+          <div className="utf-empty" style={{ textAlign: 'center', padding: '3rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎯</div>
+            <div>Ingen utfordringer i denne kategorien</div>
+          </div>
+        ) : (
+          filtrerte.map((u, idx) => {
+            const prosent = Math.min(100, Math.round((u.fremgang / u.maal) * 100))
+            const sjeldenhetFarge = getSjeldenhetFarge(u.sjeldenhet)
+            const erAutomatisk = u.automatisk
 
-          return (
-            <div key={u.id} className={`utf-kort glass-card ${u.fullfort ? 'utf-done' : ''}`}>
-              <div className="utf-kort-header">
-                <div className="utf-kort-em" style={{ background: `${sjeldenhetFarge}20` }}>
-                  {u.emoji}
-                </div>
-                <div className="utf-kort-info">
-                  <div className="utf-kort-tittel">
-                    {u.tittel}
-                    {erAutomatisk && <span className="utf-auto-badge">🤖 Auto</span>}
+            return (
+              <div key={u.id} className={`utf-kort glass-card ${u.fullfort ? 'utf-done' : ''}`}>
+                <div className="utf-kort-header">
+                  <div className="utf-kort-em" style={{ background: `${sjeldenhetFarge}20` }}>
+                    {u.emoji}
                   </div>
-                  <div className="utf-kort-besk">{u.beskrivelse}</div>
-                </div>
-                {u.sjeldenhet && (
-                  <div className="utf-kort-sjeldenhet" style={{ color: sjeldenhetFarge }}>
-                    {u.sjeldenhet === 'episk' ? '🌟' : u.sjeldenhet === 'sjelden' ? '✨' : '·'}
-                  </div>
-                )}
-              </div>
-
-              <div className="utf-kort-fremdrift">
-                <div className="utf-fremdrift-bar-bg">
-                  <div className="utf-fremdrift-bar-fill" style={{ width: `${prosent}%` }} />
-                </div>
-                <span className="utf-fremdrift-tekst">
-                  {u.fremgang.toLocaleString('no')} / {u.maal.toLocaleString('no')} {u.enhet}
-                </span>
-              </div>
-
-              {!erAutomatisk && (
-                <div className="utf-kontroller">
-                  {u.maal > 1000 ? (
-                    <div className="utf-slider-wrapper">
-                      <input
-                        type="range"
-                        min="0"
-                        max={u.maal}
-                        value={u.fremgang}
-                        onChange={(e) => toggleManuellUtfordring(idx, parseInt(e.target.value))}
-                        className="utf-slider"
-                        disabled={u.fullfort}
-                      />
-                      <button
-                        className="utf-fullfor-knapp"
-                        onClick={() => toggleManuellUtfordring(idx, u.maal)}
-                        disabled={u.fullfort}
-                      >
-                        Fullfør
-                      </button>
+                  <div className="utf-kort-info">
+                    <div className="utf-kort-tittel">
+                      {u.tittel}
+                      {erAutomatisk && <span className="utf-auto-badge">🤖 Auto</span>}
                     </div>
-                  ) : (
-                    <div className="utf-knapper">
-                      <button
-                        className="utf-minus-knapp"
-                        onClick={() => toggleManuellUtfordring(idx, Math.max(0, u.fremgang - 1))}
-                        disabled={u.fullfort}
-                      >
-                        −
-                      </button>
-                      <button
-                        className="utf-plus-knapp"
-                        onClick={() => toggleManuellUtfordring(idx, u.fremgang + 1)}
-                        disabled={u.fullfort}
-                      >
-                        +
-                      </button>
-                      <button
-                        className="utf-fullfor-knapp"
-                        onClick={() => toggleManuellUtfordring(idx, u.maal)}
-                        disabled={u.fullfort}
-                      >
-                        Fullfør 🎉
-                      </button>
+                    <div className="utf-kort-besk">{u.beskrivelse}</div>
+                  </div>
+                  {u.sjeldenhet && (
+                    <div className="utf-kort-sjeldenhet" style={{ color: sjeldenhetFarge }}>
+                      {u.sjeldenhet === 'episk' ? '🌟' : u.sjeldenhet === 'sjelden' ? '✨' : '·'}
                     </div>
                   )}
                 </div>
-              )}
 
-              {u.fullfort && (
-                <div className="utf-belonning">
-                  <span className="utf-belonning-ikon">🏆</span>
-                  <span className="utf-belonning-tekst">
-                    {erAutomatisk ? `+20 poeng for å fullføre "${u.tittel}"!` : `+10 poeng for å fullføre "${u.tittel}"!`}
+                <div className="utf-kort-fremdrift">
+                  <div className="utf-fremdrift-bar-bg">
+                    <div className="utf-fremdrift-bar-fill" style={{ width: `${prosent}%` }} />
+                  </div>
+                  <span className="utf-fremdrift-tekst">
+                    {u.fremgang.toLocaleString('no')} / {u.maal.toLocaleString('no')} {u.enhet}
                   </span>
-                  <span className="utf-belonning-poeng">{erAutomatisk ? '+20' : '+10'} poeng</span>
                 </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
 
-      {filtrerte.length === 0 && (
-        <div className="utf-empty" style={{ textAlign: 'center', padding: '3rem' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎯</div>
-          <div>Ingen utfordringer i denne kategorien</div>
-        </div>
-      )}
+                {!erAutomatisk && (
+                  <div className="utf-kontroller">
+                    {u.maal > 1000 ? (
+                      <div className="utf-slider-wrapper">
+                        <input
+                          type="range"
+                          min="0"
+                          max={u.maal}
+                          value={u.fremgang}
+                          onChange={(e) => toggleManuellUtfordring(idx, parseInt(e.target.value))}
+                          className="utf-slider"
+                          disabled={u.fullfort}
+                        />
+                        <button
+                          className="utf-fullfor-knapp"
+                          onClick={() => toggleManuellUtfordring(idx, u.maal)}
+                          disabled={u.fullfort}
+                        >
+                          Fullfør
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="utf-knapper">
+                        <button
+                          className="utf-minus-knapp"
+                          onClick={() => toggleManuellUtfordring(idx, Math.max(0, u.fremgang - 1))}
+                          disabled={u.fullfort}
+                        >
+                          −
+                        </button>
+                        <button
+                          className="utf-plus-knapp"
+                          onClick={() => toggleManuellUtfordring(idx, u.fremgang + 1)}
+                          disabled={u.fullfort}
+                        >
+                          +
+                        </button>
+                        <button
+                          className="utf-fullfor-knapp"
+                          onClick={() => toggleManuellUtfordring(idx, u.maal)}
+                          disabled={u.fullfort}
+                        >
+                          Fullfør 🎉
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {u.fullfort && (
+                  <div className="utf-belonning">
+                    <span className="utf-belonning-ikon">🏆</span>
+                    <span className="utf-belonning-tekst">
+                      {erAutomatisk ? `+20 poeng for å fullføre "${u.tittel}"!` : `+10 poeng for å fullføre "${u.tittel}"!`}
+                    </span>
+                    <span className="utf-belonning-poeng">{erAutomatisk ? '+20' : '+10'} poeng</span>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
 
       <style>{`
         .utf-page { max-width: 900px; margin: 0 auto; }
