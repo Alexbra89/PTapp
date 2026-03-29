@@ -274,6 +274,58 @@ export default function StatistikkPage() {
   const vektEndring = vektLogger.length >= 2
     ? (vektLogger[vektLogger.length-1].vekt - vektLogger[0].vekt).toFixed(1) : null
 
+  // ─── EKSPORT FUNKSJON ───────────────────────────────────────────────────────
+  const eksporterTilCSV = async () => {
+    if (!user?.id) return
+    
+    const { data: logger } = await supabase
+      .from('treningslogger')
+      .select('*')
+      .eq('bruker_id', user.id)
+      .order('dato', { ascending: false })
+    
+    if (!logger || logger.length === 0) {
+      alert('Ingen treningsdata å eksportere')
+      return
+    }
+    
+    const headers = ['Dato', 'Øvelse', 'Muskelgruppe', 'Sett nr', 'Reps', 'Vekt (kg)', 'Fullført']
+    const rows: string[][] = []
+    
+    for (const logg of logger) {
+      if (logg.sett && Array.isArray(logg.sett)) {
+        logg.sett.forEach((sett: any, idx: number) => {
+          rows.push([
+            logg.dato,
+            logg.ovelse_navn,
+            logg.muskelgruppe || '',
+            (idx + 1).toString(),
+            sett.reps?.toString() || '0',
+            (sett.vekt || sett.kg || 0).toString(),
+            sett.fullfort ? 'Ja' : 'Nei'
+          ])
+        })
+      }
+    }
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `treningsdata_${format(new Date(), 'yyyy-MM-dd')}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    alert(`✅ Eksportert ${rows.length} sett med data!`)
+  }
+
   return (
     <div className="st-page anim-fade-up">
       <div className="page-header">
@@ -309,7 +361,7 @@ export default function StatistikkPage() {
           {/* Progresjonsgraf */}
           {user?.id && <ProgresjonOvelse userId={user.id} />}
 
-          {/* ── NY: 1RM Kalkulator ── */}
+          {/* 1RM Kalkulator */}
           {user?.id && <OneRMKalkulator userId={user.id} />}
 
           <div className="st-charts">
@@ -342,7 +394,7 @@ export default function StatistikkPage() {
             )}
           </div>
 
-          {/* ── NY: Volumgraf ── */}
+          {/* Volumgraf */}
           {user?.id && <Volumgraf userId={user.id} />}
 
           <div className="glass-card st-tips-card">
@@ -362,6 +414,21 @@ export default function StatistikkPage() {
                 <div className="st-vann-tittel">Vann & kosthold er avgjørende</div>
                 <div className="st-vann-tekst">Trening er bare én del av ligningen. Uten tilstrekkelig vann (2–3 liter/dag) og et godt kosthold vil du ikke nå resultatene dine uansett hvor hardt du trener. Protein, søvn og hydrering er like viktig som selve treningsøktene.</div>
               </div>
+            </div>
+          </div>
+
+          {/* Eksport-seksjon */}
+          <div className="glass-card" style={{ padding: '1rem', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, marginBottom: '2px' }}>📊 Eksporter data</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                  Last ned alle treningsdata som CSV-fil (kan åpnes i Excel)
+                </div>
+              </div>
+              <button className="btn btn-ghost" onClick={eksporterTilCSV} style={{ fontSize: '0.8rem' }}>
+                ⬇️ Last ned CSV
+              </button>
             </div>
           </div>
         </>
