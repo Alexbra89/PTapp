@@ -23,6 +23,38 @@ interface FavorittOvelse {
   hvile: string
 }
 
+// Alle øvelser – importeres fra DB-strukturen eller hardkodes her
+// Hvis du har en egen øvelsesliste, kan du importere den. Her bruker vi en grunnleggende liste.
+const ALLE_OVELSER = [
+  { navn: 'Benkpress', emoji: '🏋️', kategori: 'bryst', sett: 4, reps: '8-10', hvile: '90s' },
+  { navn: 'Push-up', emoji: '💪', kategori: 'bryst', sett: 4, reps: '12-15', hvile: '60s' },
+  { navn: 'Skråbenkpress', emoji: '📐', kategori: 'bryst', sett: 3, reps: '10-12', hvile: '75s' },
+  { navn: 'Dips', emoji: '⬇️', kategori: 'bryst', sett: 3, reps: '10-12', hvile: '75s' },
+  { navn: 'Pull-ups', emoji: '🤸', kategori: 'rygg', sett: 4, reps: '6-10', hvile: '2min' },
+  { navn: 'Markløft', emoji: '⚡', kategori: 'rygg', sett: 4, reps: '5-6', hvile: '3min' },
+  { navn: 'Lat pulldown', emoji: '⬇️', kategori: 'rygg', sett: 3, reps: '10-12', hvile: '75s' },
+  { navn: 'Hantelroing', emoji: '💪', kategori: 'rygg', sett: 4, reps: '10×2', hvile: '60s' },
+  { navn: 'Knebøy', emoji: '🦵', kategori: 'bein', sett: 4, reps: '8-10', hvile: '2min' },
+  { navn: 'Legpress', emoji: '🔧', kategori: 'bein', sett: 4, reps: '10-12', hvile: '90s' },
+  { navn: 'Rumensk markløft', emoji: '🍑', kategori: 'bein', sett: 3, reps: '10-12', hvile: '90s' },
+  { navn: 'Utfall', emoji: '🚶', kategori: 'bein', sett: 3, reps: '12×2', hvile: '60s' },
+  { navn: 'Military press', emoji: '⬆️', kategori: 'skuldre', sett: 4, reps: '8-10', hvile: '2min' },
+  { navn: 'Sidehev', emoji: '🔼', kategori: 'skuldre', sett: 3, reps: '12-15', hvile: '60s' },
+  { navn: 'Face pull', emoji: '🎯', kategori: 'skuldre', sett: 3, reps: '15-20', hvile: '45s' },
+  { navn: 'Biceps curl', emoji: '💪', kategori: 'bicep', sett: 3, reps: '10-12', hvile: '60s' },
+  { navn: 'Hammer curl', emoji: '🔨', kategori: 'bicep', sett: 3, reps: '10-12', hvile: '60s' },
+  { navn: 'Preacher curl', emoji: '🙏', kategori: 'bicep', sett: 3, reps: '10-12', hvile: '60s' },
+  { navn: 'Triceps pushdown', emoji: '📉', kategori: 'tricep', sett: 3, reps: '12-15', hvile: '60s' },
+  { navn: 'Skull crushers', emoji: '💀', kategori: 'tricep', sett: 3, reps: '10-12', hvile: '75s' },
+  { navn: 'Overhead triceps ext.', emoji: '⬆️', kategori: 'tricep', sett: 3, reps: '10-12', hvile: '75s' },
+  { navn: 'Planke', emoji: '🧘', kategori: 'core', sett: 3, reps: '45-60 sek', hvile: '45s' },
+  { navn: 'Crunches', emoji: '🔄', kategori: 'core', sett: 3, reps: '20', hvile: '45s' },
+  { navn: 'Russian twist', emoji: '🔃', kategori: 'core', sett: 3, reps: '20', hvile: '45s' },
+  { navn: 'Burpees', emoji: '🔥', kategori: 'fullkropp', sett: 4, reps: '10', hvile: '60s' },
+  { navn: 'Thrusters', emoji: '🚀', kategori: 'fullkropp', sett: 3, reps: '10', hvile: '90s' },
+  { navn: 'Kettlebell swing', emoji: '🔔', kategori: 'fullkropp', sett: 4, reps: '15', hvile: '60s' },
+]
+
 export default function ProgramMal({ 
   userId, 
   onClose, 
@@ -42,13 +74,18 @@ export default function ProgramMal({
   const [programmer, setProgrammer] = useState<Program[]>([])
   const [favoritter, setFavoritter] = useState<FavorittOvelse[]>([])
   const [laster, setLaster] = useState(true)
-  // ✅ FIX: I bytte-modus starter vi alltid på favoritter-fanen
-  const [aktivFane, setAktivFane] = useState<'program'|'favoritter'|'lagre'>(
+  const [alleLaster, setAlleLaster] = useState(false)
+  const [aktivFane, setAktivFane] = useState<'program'|'favoritter'|'alle'|'lagre'>(
     mode === 'bytte' ? 'favoritter' : 'program'
   )
   const [nyttProgramNavn, setNyttProgramNavn] = useState('')
   const [nyttProgramBeskrivelse, setNyttProgramBeskrivelse] = useState('')
   const [lagrer, setLagrer] = useState(false)
+  const [sokeord, setSokeord] = useState('')
+  const [valgtKategori, setValgtKategori] = useState('alle')
+
+  // Hent kategorier fra alle øvelser
+  const kategorier = ['alle', ...new Set(ALLE_OVELSER.map(o => o.kategori))]
 
   useEffect(() => {
     hentData()
@@ -112,6 +149,13 @@ export default function ProgramMal({
     hentData()
   }
 
+  // Filtrer alle øvelser basert på søk og kategori
+  const filtrerteOvelser = ALLE_OVELSER.filter(o => {
+    const matchKategori = valgtKategori === 'alle' || o.kategori === valgtKategori
+    const matchSok = sokeord === '' || o.navn.toLowerCase().includes(sokeord.toLowerCase())
+    return matchKategori && matchSok
+  })
+
   return (
     <div className="pr-modal-bg" onClick={onClose}>
       <div className="pr-modal glass-card" onClick={e => e.stopPropagation()}>
@@ -119,9 +163,10 @@ export default function ProgramMal({
         {/* Header */}
         <div className="pr-modal-header">
           <span className="pr-modal-tittel">
-            {mode === 'bytte' && '🔄 Velg øvelse å bytte til'}
+            {mode === 'bytte' && '🔄 Bytt øvelse'}
             {mode !== 'bytte' && aktivFane === 'program' && '📁 Mine programmer'}
             {mode !== 'bytte' && aktivFane === 'favoritter' && '⭐ Favorittøvelser'}
+            {mode !== 'bytte' && aktivFane === 'alle' && '📚 Alle øvelser'}
             {mode !== 'bytte' && aktivFane === 'lagre' && '💾 Lagre som program'}
           </span>
           <button className="pr-lukk-btn" onClick={onClose}>✕</button>
@@ -143,6 +188,14 @@ export default function ProgramMal({
           >
             ⭐ Favoritter ({laster ? '…' : favoritter.length})
           </button>
+          {mode === 'bytte' && (
+            <button 
+              onClick={() => setAktivFane('alle')}
+              className={`pr-fane-btn${aktivFane === 'alle' ? ' on' : ''}`}
+            >
+              📚 Alle øvelser
+            </button>
+          )}
           {currentOvelser && currentOvelser.length > 0 && mode !== 'bytte' && (
             <button 
               onClick={() => setAktivFane('lagre')}
@@ -238,6 +291,64 @@ export default function ProgramMal({
                 </>
               )}
 
+              {/* Alle øvelser-fane (kun i bytte-modus) */}
+              {aktivFane === 'alle' && (
+                <>
+                  {/* Søkefelt */}
+                  <div className="pr-sok-felt">
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="🔍 Søk etter øvelse..."
+                      value={sokeord}
+                      onChange={(e) => setSokeord(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Kategorifilter */}
+                  <div className="pr-kat-filter">
+                    {kategorier.map(kat => (
+                      <button
+                        key={kat}
+                        className={`pr-kat-btn${valgtKategori === kat ? ' on' : ''}`}
+                        onClick={() => setValgtKategori(kat)}
+                      >
+                        {kat === 'alle' ? '📋 Alle' : kat.charAt(0).toUpperCase() + kat.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Øvelsesliste */}
+                  <div className="pr-alle-grid">
+                    {filtrerteOvelser.map((ov, idx) => (
+                      <div
+                        key={idx}
+                        className="pr-alle-kort"
+                        onClick={() => onSelectFavoritt?.({
+                          id: `temp_${idx}`,
+                          ovelse_navn: ov.navn,
+                          ovelse_id: ov.navn.toLowerCase().replace(/\s+/g, '-'),
+                          emoji: ov.emoji,
+                          sett: ov.sett,
+                          reps: ov.reps,
+                          hvile: ov.hvile
+                        })}
+                      >
+                        <div className="pr-alle-em">{ov.emoji}</div>
+                        <div className="pr-alle-navn">{ov.navn}</div>
+                        <div className="pr-alle-detalj">{ov.sett} × {ov.reps}</div>
+                        <div className="pr-alle-kat" style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.3)' }}>{ov.kategori}</div>
+                      </div>
+                    ))}
+                    {filtrerteOvelser.length === 0 && (
+                      <div className="pr-tom-melding" style={{ gridColumn: '1/-1' }}>
+                        Ingen øvelser funnet
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               {/* Lagre-fane */}
               {aktivFane === 'lagre' && currentOvelser && currentOvelser.length > 0 && (
                 <div className="pr-lagre-form">
@@ -289,7 +400,7 @@ export default function ProgramMal({
         }
         .pr-modal {
           width: 100%;
-          max-width: 560px;
+          max-width: 680px;
           max-height: 85vh;
           display: flex;
           flex-direction: column;
@@ -459,6 +570,74 @@ export default function ProgramMal({
         .pr-fav-hvile {
           font-size: 0.62rem;
           color: rgba(255,255,255,0.28);
+        }
+        .pr-sok-felt {
+          margin-bottom: 0.75rem;
+        }
+        .pr-kat-filter {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+        .pr-kat-btn {
+          padding: 3px 10px;
+          border-radius: 8px;
+          font-size: 0.7rem;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.45);
+          cursor: pointer;
+          transition: all 0.12s;
+          font-family: var(--font-body, sans-serif);
+        }
+        .pr-kat-btn:hover {
+          background: rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.8);
+        }
+        .pr-kat-btn.on {
+          background: rgba(0,245,255,0.12);
+          border-color: rgba(0,245,255,0.35);
+          color: var(--cyan, #00f5ff);
+        }
+        .pr-alle-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 8px;
+          max-height: 400px;
+          overflow-y: auto;
+          padding-right: 4px;
+        }
+        .pr-alle-kort {
+          padding: 10px;
+          border-radius: 8px;
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.06);
+          cursor: pointer;
+          transition: all 0.12s;
+          text-align: center;
+        }
+        .pr-alle-kort:hover {
+          background: rgba(0,245,255,0.07);
+          border-color: rgba(0,245,255,0.25);
+          transform: translateY(-1px);
+        }
+        .pr-alle-em {
+          font-size: 1.4rem;
+          margin-bottom: 4px;
+        }
+        .pr-alle-navn {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #fff;
+          margin-bottom: 3px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .pr-alle-detalj {
+          font-size: 0.65rem;
+          color: var(--cyan, #00f5ff);
         }
         .pr-lagre-form {
           display: flex;
