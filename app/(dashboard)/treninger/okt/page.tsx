@@ -49,7 +49,6 @@ const OPPVARMING = [
   { id:'tredemill',    navn:'Tredemølle',        emoji:'👟', varighet:'10 min', beskrivelse:'5 min gange + 5 min rolig jogg.' },
 ]
 
-// DB-objektet er forkortet for plass – behold din eksisterende DB her
 const DB: Record<Gruppe, Record<Sted, OvelseDB[]>> = {
   bryst: {
     hjemme: [
@@ -138,7 +137,9 @@ function OktInner() {
   const [visFavorittModal, setVisFavorittModal] = useState(false)
   const [bytteIndex, setBytteIndex] = useState<number | null>(null)
 
-  const { data: user } = useUser()
+  // ✅ FIX 1: Hent userId direkte fra Supabase, ikke useUser()
+  // useUser() kan returnere et objekt der .id ikke er direkte tilgjengelig
+  const [userId, setUserId] = useState<string | null>(null)
 
   // ── Stoppeklokke ───────────────────────────────────────────────────────────
   const [klokkeMode, setKlokkeMode] = useState<'stopp'|'ned'>('stopp')
@@ -147,6 +148,13 @@ function OktInner() {
   const [nedMal,     setNedMal]     = useState(3)
   const [alarm,      setAlarm]      = useState(false)
   const intervalRef = useRef<NodeJS.Timeout|null>(null)
+
+  // ✅ FIX 2: Hent userId ved mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) setUserId(data.user.id)
+    })
+  }, [])
 
   useEffect(() => {
     if (kjoerer) {
@@ -178,10 +186,8 @@ function OktInner() {
   const startKlokke     = () => { setAlarm(false); if (klokkeMode === 'ned') setSekunder(nedMal * 60); setKjoerer(true) }
   const formatTid       = (s: number) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
 
-  const byttOvelse = async (index: number, nyOvelse: any) => {
-    console.log('🔄 Bytter øvelse:', index, nyOvelse)
-    
-    const ny = {
+  const byttOvelse = (index: number, nyOvelse: any) => {
+    const ny: OvelseLogg = {
       ...okter[index],
       navn: nyOvelse.ovelse_navn,
       emoji: nyOvelse.emoji || '💪',
@@ -193,14 +199,14 @@ function OktInner() {
       tips: '',
       utstyr: '',
       expanded: true,
-      sett_logg: Array.from({length: nyOvelse.sett}, () => ({
-        reps: parseInt(nyOvelse.reps.split('-')[0]) || 10,
+      sett_logg: Array.from({ length: nyOvelse.sett }, () => ({
+        reps: parseInt(String(nyOvelse.reps).split('-')[0]) || 10,
         kg: 0,
         fullfort: false
       }))
     }
-    
     setOkter(prev => prev.map((o, i) => i === index ? ny : o))
+    // ✅ FIX 3: Lukk modal ETTER state-oppdatering, ingen alert()
     setVisFavorittModal(false)
     setBytteIndex(null)
   }
@@ -214,7 +220,6 @@ function OktInner() {
     }
     
     try {
-      // Sjekk om favoritten allerede finnes
       const { data: eksisterende } = await supabase
         .from('favoritt_ovelser')
         .select('id')
@@ -227,7 +232,6 @@ function OktInner() {
         return
       }
       
-      // Legg til ny favoritt
       const { error } = await supabase
         .from('favoritt_ovelser')
         .insert({
@@ -482,13 +486,13 @@ function OktInner() {
                       className="okt-bytte-btn"
                       onClick={(e) => {
                         e.stopPropagation()
-                        console.log('🔘 Klikket bytte-knapp for øvelse', oIdx)
+                        // ✅ FIX 4: Sett begge states, INGEN alert() som blokkerer rendering
                         setBytteIndex(oIdx)
                         setVisFavorittModal(true)
                       }}
                       title="Bytt ut øvelse"
                     >
-                      🔄
+                      🔄 Bytt
                     </button>
                   </div>
                 </div>
@@ -626,20 +630,29 @@ function OktInner() {
         </button>
       </div>
 
-      {visFavorittModal && user?.id && bytteIndex !== null && (
+      {/* ✅ FIX 5: Modal rendres alltid i treet, kun synlig når visFavorittModal=true og userId finnes */}
+      {visFavorittModal && userId && bytteIndex !== null && (
         <ProgramMal 
-          userId={user.id}
+          userId={userId}
           onClose={() => {
-            console.log('🔘 Lukker modal')
             setVisFavorittModal(false)
             setBytteIndex(null)
           }}
           onSelectFavoritt={(fav) => {
-            console.log('🔘 Valgt favoritt for bytte:', fav)
             byttOvelse(bytteIndex, fav)
           }}
           mode="bytte"
         />
+      )}
+
+      {/* ✅ FIX 6: Fallback hvis userId ikke er lastet ennå når modal åpnes */}
+      {visFavorittModal && !userId && (
+        <div className="pr-modal-bg" onClick={() => setVisFavorittModal(false)}>
+          <div className="pr-modal glass-card" style={{ maxWidth: '400px', padding: '2rem', textAlign: 'center' }}>
+            <p style={{ color: 'rgba(255,255,255,0.6)' }}>Laster brukerdata...</p>
+            <button className="btn btn-ghost" style={{ marginTop: '1rem' }} onClick={() => setVisFavorittModal(false)}>Lukk</button>
+          </div>
+        </div>
       )}
 
       <style>{`
@@ -670,8 +683,9 @@ function OktInner() {
         .okt-ov-info { flex: 1; min-width: 0; }
         .okt-ov-navn { font-family: var(--font-display,sans-serif); font-size: 0.92rem; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .okt-ov-musk { font-size: 0.67rem; color: rgba(255,255,255,0.3); margin-top: 2px; }
-        .okt-fav-btn, .okt-bytte-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 6px; padding: 2px 6px; font-size: 0.7rem; cursor: pointer; transition: all 0.15s; font-family: var(--font-body,sans-serif); }
-        .okt-fav-btn:hover, .okt-bytte-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .okt-fav-btn, .okt-bytte-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 6px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer; transition: all 0.15s; font-family: var(--font-body,sans-serif); }
+        .okt-fav-btn:hover { background: rgba(255,200,0,0.1); border-color: rgba(255,200,0,0.3); color: #ffc800; }
+        .okt-bytte-btn:hover { background: rgba(0,245,255,0.1); border-color: rgba(0,245,255,0.3); color: var(--cyan,#00f5ff); }
         .okt-ov-tags { display: flex; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
         .okt-tag { padding:2px 7px; border-radius:999px; font-size:0.62rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.38); white-space:nowrap; }
         .okt-tag-done { padding:2px 8px; border-radius:999px; font-size:0.62rem; background:rgba(0,255,136,0.12); border:1px solid rgba(0,255,136,0.25); color:var(--green,#00ff88); white-space:nowrap; }
@@ -720,6 +734,11 @@ function OktInner() {
         .okt-notat-lagre { font-size:.82rem !important; align-self:flex-end; }
         .spinner-lg { width:32px; height:32px; border:3px solid rgba(255,255,255,0.1); border-top-color:var(--cyan); border-radius:50%; animation:spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .pr-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .pr-modal { width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+        .pr-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
+        .pr-modal-tittel { font-family: var(--font-display,sans-serif); font-size: 1rem; font-weight: 700; color: #fff; }
+        .pr-modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1; }
       `}</style>
     </div>
   )
