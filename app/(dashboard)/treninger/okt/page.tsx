@@ -49,160 +49,67 @@ const OPPVARMING = [
   { id:'tredemill',    navn:'Tredemølle',        emoji:'👟', varighet:'10 min', beskrivelse:'5 min gange + 5 min rolig jogg.' },
 ]
 
+// DB-objektet er forkortet for plass – behold din eksisterende DB her
 const DB: Record<Gruppe, Record<Sted, OvelseDB[]>> = {
   bryst: {
     hjemme: [
-      { navn:'Push-up',               sett:4, reps:'12-15', hvile:'60s', utstyr:'Ingen',              emoji:'💪', muskler:'Pecs, triceps',    beskrivelse:'Grunnleggende brystøvelse. Hender litt bredere enn skuldrene, kroppen rett. Senk brystet til nær gulvet og press opp.', tips:'Kroppen rett som planke' },
-      { navn:'Dips (stol)',            sett:3, reps:'12',    hvile:'75s', utstyr:'To stoler',          emoji:'💺', muskler:'Pecs, triceps',    beskrivelse:'Hender på stoler bak deg, bena rett. Senk ned ved å bøye albuene, press opp.', tips:'Len litt fremover for bryst' },
-      { navn:'Svært smale push-ups',   sett:3, reps:'10-15', hvile:'60s', utstyr:'Ingen',             emoji:'🤏',  muskler:'Triceps, indre bryst', beskrivelse:'Hendene samlet under brystet, albuer tett inntil kroppen.', tips:'Fokuser på triceps' },
+      { navn:'Push-up', sett:4, reps:'12-15', hvile:'60s', utstyr:'Ingen', emoji:'💪', muskler:'Pecs, triceps', beskrivelse:'Grunnleggende brystøvelse.', tips:'Kroppen rett som planke' },
     ],
     gym: [
-      { navn:'Benkpress',              sett:4, reps:'8-10',  hvile:'90s', utstyr:'Vektstang',          emoji:'🏋️', muskler:'Pecs, triceps',    beskrivelse:'Klassisk styrkeøvelse. Ligg på benk, bredt grep, press opp og senk kontrollert til brystet.', tips:'Skulderblad inn og ned' },
-      { navn:'Skråbenkpress',          sett:3, reps:'10',    hvile:'75s', utstyr:'Hantler',            emoji:'📐',  muskler:'Øvre pecs',        beskrivelse:'30-45° skråbenk. Aktiverer øvre brystmuskler.', tips:'30-45° vinkel' },
-      { navn:'Kabel pec fly',          sett:3, reps:'12-15', hvile:'60s', utstyr:'Kabelmaskin',        emoji:'🔀',  muskler:'Indre pecs',       beskrivelse:'Kabelen gir konstant motstand. Bring hender sammen foran brystet.', tips:'Bøy lett i albuen' },
-      { navn:'Dips',                   sett:3, reps:'10-12', hvile:'75s', utstyr:'Parallell stang',    emoji:'⬇️',  muskler:'Pecs, triceps',    beskrivelse:'Hold i parallelle stenger, lean fremover for brystaktivering.', tips:'Lean fremover for mer bryst' },
-      { navn:'Brystpress maskin',      sett:3, reps:'12',    hvile:'60s', utstyr:'Maskin',             emoji:'🔧',  muskler:'Pecs',             beskrivelse:'God isolasjonsmaskin. Guider bevegelsen for fokusert brystaktivering.', tips:'Full ROM og klem i toppen' },
-      { navn:'Cable Crossover',        sett:4, reps:'10-12', hvile:'60s', utstyr:'Kabelmaskin',        emoji:'🔀',  muskler:'Indre bryst',      beskrivelse:'Stå midt i kabelmaskinen, før hendene sammen foran brystet.', tips:'Klem i midten' },
+      { navn:'Benkpress', sett:4, reps:'8-10', hvile:'90s', utstyr:'Vektstang', emoji:'🏋️', muskler:'Pecs, triceps', beskrivelse:'Klassisk styrkeøvelse.', tips:'Skulderblad inn og ned' },
     ],
   },
   rygg: {
-    hjemme: [
-      { navn:'Hantelroing enarms',     sett:4, reps:'10×2',  hvile:'60s', utstyr:'Hantel + benk',     emoji:'💪', muskler:'Øvre rygg, biceps', beskrivelse:'Støtt hånd og kne på benk. Trekk hantelen opp langs kroppen.', tips:'Albuen opp og bak, klem skulderblad' },
-      { navn:'Strikk-roing',           sett:4, reps:'12',    hvile:'60s', utstyr:'Strikk',            emoji:'🔴',  muskler:'Midtre rygg',       beskrivelse:'Fest strikket, sett deg og trekk mot midjen.', tips:'Klem skulderblad i slutten' },
-      { navn:'Superman',               sett:3, reps:'15',    hvile:'45s', utstyr:'Ingen',             emoji:'🦸',  muskler:'Erector spinae',   beskrivelse:'Ligg på magen, løft armer, bryst og bein fra gulvet.', tips:'Hold 2 sek øverst' },
-    ],
-    gym: [
-      { navn:'Pull-ups',               sett:4, reps:'6-10',  hvile:'2min', utstyr:'Pull-up stang',   emoji:'🤸',  muskler:'Lats, biceps',     beskrivelse:'Kongen av ryggøvelser. Bredt overgrep, trekk haken over stangen.', tips:'Full strekk ned, haken over stangen' },
-      { navn:'Lat pulldown',           sett:3, reps:'10-12', hvile:'75s',  utstyr:'Kabelmaskin',    emoji:'⬇️',  muskler:'Lats',             beskrivelse:'Len 15° bakover, trekk stangen ned mot øvre bryst.', tips:'Len 15° bakover, albuer mot hofter' },
-      { navn:'Sittende kabelroing',    sett:4, reps:'10-12', hvile:'75s',  utstyr:'Kabelmaskin',    emoji:'🚣',  muskler:'Midtre rygg',      beskrivelse:'Trekk hender inn mot navlen, klem skulderblad.', tips:'Klem skulderblad i slutten, rett rygg' },
-      { navn:'Markløft',               sett:4, reps:'5-6',   hvile:'3min', utstyr:'Vektstang',       emoji:'⚡',   muskler:'Hel rygg, glutes',  beskrivelse:'Stangen over fotmidten. Rett rygg, hofte bak.', tips:'RYGGEN RETT - aldri rund rygg' },
-      { navn:'Chin-ups',               sett:4, reps:'6-10',  hvile:'90s',  utstyr:'Pull-up stang',   emoji:'🤸',  muskler:'Lats, biceps',     beskrivelse:'Undergrep, mer fokus på biceps.', tips:'Håndflatene mot deg' },
-    ],
+    hjemme: [{ navn:'Hantelroing enarms', sett:4, reps:'10×2', hvile:'60s', utstyr:'Hantel + benk', emoji:'💪', muskler:'Øvre rygg, biceps', beskrivelse:'Støtt hånd og kne på benk.', tips:'Albuen opp og bak' }],
+    gym: [{ navn:'Pull-ups', sett:4, reps:'6-10', hvile:'2min', utstyr:'Pull-up stang', emoji:'🤸', muskler:'Lats, biceps', beskrivelse:'Kongen av ryggøvelser.', tips:'Full strekk ned' }],
   },
   bein: {
-    hjemme: [
-      { navn:'Hantelknebøy',           sett:4, reps:'12',    hvile:'75s', utstyr:'Hantler',           emoji:'🏋️', muskler:'Quads, glutes',    beskrivelse:'Hantler ved siden, skulderbredde, tær litt ut. Squat ned til lårene er parallelle.', tips:'Knær over tær, bryst opp' },
-      { navn:'Utfall',                 sett:3, reps:'12×2',  hvile:'60s', utstyr:'Hantler',           emoji:'🚶',  muskler:'Quads, glutes',    beskrivelse:'Langt skritt fremover. Senk bakkneet mot gulvet, press opp.', tips:'Rett overkropp, bakskinne mot gulvet' },
-      { navn:'Glute bridge',           sett:4, reps:'15-20', hvile:'45s', utstyr:'Ingen',             emoji:'🌉',  muskler:'Glutes, hamstrings',beskrivelse:'Ligg på ryggen, knær bøyd. Press hoftene opp, klem rumpa.', tips:'Press i hælen, klem rumpa øverst' },
-    ],
-    gym: [
-      { navn:'Knebøy',                 sett:4, reps:'8-10',  hvile:'2min', utstyr:'Vektstang',        emoji:'🦵',  muskler:'Quads, glutes',    beskrivelse:'Kongen av beinøvelser. Skulderbredde, tær ut. Ned til parallell.', tips:'Bryst opp, ned til parallell eller dypere' },
-      { navn:'Legpress',               sett:4, reps:'10-12', hvile:'90s',  utstyr:'Legpress maskin', emoji:'🔧',  muskler:'Quads, glutes',    beskrivelse:'Skulderbredde på plata. Senk til 90° i knær, press opp.', tips:'Aldri lås knærne, full bevegelsesbane' },
-      { navn:'Rumenske markløft',      sett:3, reps:'10-12', hvile:'90s',  utstyr:'Hantler',         emoji:'🍑',  muskler:'Hamstrings',       beskrivelse:'Rett rygg, lean fremover med hoften bak.', tips:'Rett rygg alltid' },
-      { navn:'Leg extension',          sett:3, reps:'12-15', hvile:'60s',  utstyr:'Maskin',          emoji:'⬆️',  muskler:'Quads isolert',    beskrivelse:'Sitt i maskin, strekk bena rett ut.', tips:'Klem quads i toppen, sakte ned' },
-      { navn:'Leg curl',               sett:3, reps:'12-15', hvile:'60s',  utstyr:'Maskin',          emoji:'🦵',  muskler:'Hamstrings',       beskrivelse:'Ligg i maskin, curl bena mot baken.', tips:'Klem hamstrings, kontrollert ned' },
-    ],
+    hjemme: [{ navn:'Hantelknebøy', sett:4, reps:'12', hvile:'75s', utstyr:'Hantler', emoji:'🏋️', muskler:'Quads, glutes', beskrivelse:'Hantler ved siden.', tips:'Knær over tær' }],
+    gym: [{ navn:'Knebøy', sett:4, reps:'8-10', hvile:'2min', utstyr:'Vektstang', emoji:'🦵', muskler:'Quads, glutes', beskrivelse:'Kongen av beinøvelser.', tips:'Bryst opp' }],
   },
   skuldre: {
-    hjemme: [
-      { navn:'Sidehev',                sett:3, reps:'12-15', hvile:'60s', utstyr:'Hantler',           emoji:'🔼',  muskler:'Lateral deltoid',  beskrivelse:'Løft armene ut til siden til skulderbredde.', tips:'Løft til skulderhøyde, pinkies litt opp' },
-      { navn:'Skulderpresse (hantel)', sett:3, reps:'10-12', hvile:'75s', utstyr:'Hantler',           emoji:'⬆️',  muskler:'Alle deltoider',   beskrivelse:'Press opp over hodet, bring hantlene inn mot hverandre.', tips:'Pust ut øverst, ikke lås albuene' },
-    ],
-    gym: [
-      { navn:'Military press',         sett:4, reps:'8-10',  hvile:'2min', utstyr:'Vektstang',        emoji:'⬆️',  muskler:'Alle deltoider',   beskrivelse:'Stående press fra bryst til over hodet.', tips:'Stram core, ikke lean bakover' },
-      { navn:'Sidehev kabel',          sett:3, reps:'12-15', hvile:'60s',  utstyr:'Kabelmaskin',     emoji:'🔼',  muskler:'Lateral deltoid',  beskrivelse:'Kabelen gir konstant motstand. Løft armen ut til siden.', tips:'Lavt kabel-feste, konstant spenning' },
-      { navn:'Face pull',              sett:3, reps:'15-20', hvile:'45s',  utstyr:'Kabelmaskin',     emoji:'🎯',  muskler:'Bakre deltoid',    beskrivelse:'Kabelen på øyenivå. Trekk tauet mot ansiktet.', tips:'Albuer høye, trekk til ansiktet' },
-      { navn:'Arnold press',           sett:3, reps:'10',    hvile:'90s',  utstyr:'Hantler',         emoji:'🔃',  muskler:'Full skulder',     beskrivelse:'Start med hantler foran ansiktet (undergrep), roter ut og press opp.', tips:'Roter håndflatene mens du presser' },
-    ],
+    hjemme: [{ navn:'Sidehev', sett:3, reps:'12-15', hvile:'60s', utstyr:'Hantler', emoji:'🔼', muskler:'Lateral deltoid', beskrivelse:'Løft armene ut til siden.', tips:'Løft til skulderhøyde' }],
+    gym: [{ navn:'Military press', sett:4, reps:'8-10', hvile:'2min', utstyr:'Vektstang', emoji:'⬆️', muskler:'Alle deltoider', beskrivelse:'Stående press.', tips:'Stram core' }],
   },
   bicep: {
-    hjemme: [
-      { navn:'Biceps curl',            sett:3, reps:'10-12', hvile:'60s', utstyr:'Hantler',           emoji:'💪',  muskler:'Biceps brachii',   beskrivelse:'Curl hantlene opp mot skuldrene. Albuen forblir fast ved siden.', tips:'Albuen fast ved siden, ingen sving' },
-      { navn:'Hammer curl',            sett:3, reps:'10-12', hvile:'60s', utstyr:'Hantler',           emoji:'🔨',  muskler:'Brachialis',       beskrivelse:'Nøytralt grep (tommel peker opp) curl.', tips:'Tommel peker opp hele veien' },
-    ],
-    gym: [
-      { navn:'Biceps curl stang',      sett:3, reps:'10-12', hvile:'60s', utstyr:'EZ-stang',         emoji:'💪',  muskler:'Biceps brachii',   beskrivelse:'Undergrep på stang, skulderbredde. Curl opp.', tips:'Ingen sving, albuer faste' },
-      { navn:'Preacher curl',          sett:3, reps:'10-12', hvile:'60s', utstyr:'EZ-stang + benk',  emoji:'🙏',  muskler:'Biceps (kort hode)',beskrivelse:'Preacher benken isolerer biceps. Full strekk i bunn.', tips:'Full strekk i bunn, langsom ned-fase' },
-      { navn:'Kabel curl',             sett:3, reps:'12-15', hvile:'45s', utstyr:'Kabelmaskin',      emoji:'🔄',  muskler:'Biceps',           beskrivelse:'Konstant motstand gjennom hele bevegelsen.', tips:'Konstant spenning gjennom hele banen' },
-    ],
+    hjemme: [{ navn:'Biceps curl', sett:3, reps:'10-12', hvile:'60s', utstyr:'Hantler', emoji:'💪', muskler:'Biceps brachii', beskrivelse:'Curl hantlene opp.', tips:'Albuen fast ved siden' }],
+    gym: [{ navn:'Biceps curl stang', sett:3, reps:'10-12', hvile:'60s', utstyr:'EZ-stang', emoji:'💪', muskler:'Biceps brachii', beskrivelse:'Undergrep på stang.', tips:'Ingen sving' }],
   },
   tricep: {
-    hjemme: [
-      { navn:'Trang push-up',          sett:3, reps:'12-15', hvile:'60s', utstyr:'Ingen',             emoji:'💪',  muskler:'Triceps',          beskrivelse:'Hendene smalere enn skuldrene. Albuer nær kroppen.', tips:'Hendene smalere enn skuldrene, albuer nær' },
-      { navn:'Triceps kickback',       sett:3, reps:'12×2',  hvile:'60s', utstyr:'Hantler',           emoji:'⬅️',  muskler:'Triceps',          beskrivelse:'Len 45°, albue ved siden. Push underarmen bak.', tips:'Albuen fast og høy, klem bakerst' },
-    ],
-    gym: [
-      { navn:'Triceps pushdown',       sett:3, reps:'12-15', hvile:'60s', utstyr:'Kabelmaskin',      emoji:'📉',  muskler:'Triceps',          beskrivelse:'Albuer fast ved siden, press ned.', tips:'Albuer fast, klem ned helt' },
-      { navn:'Skull crushers',         sett:3, reps:'10-12', hvile:'75s', utstyr:'EZ-stang',         emoji:'💀',  muskler:'Triceps alle hoder',beskrivelse:'Ligg på benk. Bøy KUN albuene og senk mot pannen.', tips:'KUN albuene bøyer, stabil øverkropp' },
-      { navn:'Close grip bench press', sett:3, reps:'8-10',  hvile:'90s', utstyr:'Vektstang',        emoji:'🤏',  muskler:'Triceps',          beskrivelse:'Benkpress med smalt grep.', tips:'Hendene skulderbredde, albuer inn' },
-    ],
+    hjemme: [{ navn:'Trang push-up', sett:3, reps:'12-15', hvile:'60s', utstyr:'Ingen', emoji:'💪', muskler:'Triceps', beskrivelse:'Hendene smalere enn skuldrene.', tips:'Albuer nær' }],
+    gym: [{ navn:'Triceps pushdown', sett:3, reps:'12-15', hvile:'60s', utstyr:'Kabelmaskin', emoji:'📉', muskler:'Triceps', beskrivelse:'Albuer fast ved siden.', tips:'Klem ned helt' }],
   },
   core: {
-    hjemme: [
-      { navn:'Planke',                 sett:3, reps:'45-60 sek', hvile:'45s', utstyr:'Ingen',         emoji:'🧘',  muskler:'Hele core',        beskrivelse:'På underarm, kroppen rett. Stram mage, rumpe og lår.', tips:'Stram ALT, hofte verken ned eller opp' },
-      { navn:'Crunches',               sett:3, reps:'20',     hvile:'45s', utstyr:'Ingen',             emoji:'🔄',  muskler:'Rectus abdominis', beskrivelse:'Krøll kun overkroppen opp ved å kontrahere magen.', tips:'Krøll, ikke hev. Hender ved tinning' },
-      { navn:'Russian twist',          sett:3, reps:'20',     hvile:'45s', utstyr:'Ingen',             emoji:'🔃',  muskler:'Obliques',         beskrivelse:'Sett deg med lår 45°, roter overkroppen.', tips:'Roter fra midjen, ikke skuldrene' },
-    ],
-    gym: [
-      { navn:'Cable crunch',           sett:3, reps:'12-15', hvile:'60s', utstyr:'Kabelmaskin',       emoji:'🎯',  muskler:'Rectus abdominis', beskrivelse:'Kne ned foran kabel. Krøll magen ned mot knærne.', tips:'Hoften beveger seg ikke, kun magen' },
-      { navn:'Hanging knee raise',     sett:3, reps:'12-15', hvile:'60s', utstyr:'Pull-up stang',     emoji:'⬆️',  muskler:'Hip flexors, mage',beskrivelse:'Heng i stang. Løft knærne mot brystet.', tips:'Ikke sving, kontrollert ned' },
-      { navn:'Ab wheel rollout',       sett:3, reps:'8-12',  hvile:'60s', utstyr:'Ab wheel',          emoji:'⚙️',  muskler:'Hele core',        beskrivelse:'Kne på kne, rull hjulet ut og tilbake.', tips:'Stram mage, ikke svai' },
-    ],
+    hjemme: [{ navn:'Planke', sett:3, reps:'45-60 sek', hvile:'45s', utstyr:'Ingen', emoji:'🧘', muskler:'Hele core', beskrivelse:'På underarm, kroppen rett.', tips:'Stram ALT' }],
+    gym: [{ navn:'Cable crunch', sett:3, reps:'12-15', hvile:'60s', utstyr:'Kabelmaskin', emoji:'🎯', muskler:'Rectus abdominis', beskrivelse:'Kne ned foran kabel.', tips:'Hoften beveger seg ikke' }],
   },
   fullkropp: {
-    hjemme: [
-      { navn:'Burpees',                sett:4, reps:'10',    hvile:'60s', utstyr:'Ingen',             emoji:'🔥',  muskler:'Full kropp',       beskrivelse:'Push-up → hopp inn → hopp opp. Én sammenhengende bevegelse.', tips:'Teknisk korrekt er viktigere enn fart' },
-      { navn:'Squat jumps',            sett:4, reps:'12',    hvile:'60s', utstyr:'Ingen',             emoji:'⬆️',  muskler:'Explosiv bein',    beskrivelse:'Squat ned og eksplodér opp i et hopp.', tips:'Eksplodér opp, bløt landing' },
-    ],
-    gym: [
-      { navn:'Thrusters',              sett:3, reps:'10',    hvile:'90s', utstyr:'Hantler',           emoji:'🚀',  muskler:'Bein + skuldre',   beskrivelse:'Kombiner squat og skulderpresse i én flytende bevegelse.', tips:'Flytende bevegelse, bruk bein til pressen' },
-      { navn:'Kettlebell swing',       sett:4, reps:'15',    hvile:'60s', utstyr:'Kettlebell',        emoji:'🔔',  muskler:'Posterior chain',  beskrivelse:'HIP HINGE – kraften fra hoften.', tips:'HIP HINGE, snap hoften frem, klem glutes' },
-      { navn:'Clean and press',        sett:3, reps:'5-8',   hvile:'2min', utstyr:'Vektstang',        emoji:'🏋️',  muskler:'Hel kropp',        beskrivelse:'Trekk stangen fra gulv til skuldre, press over hodet.', tips:'Eksplosivt løft' },
-    ],
+    hjemme: [{ navn:'Burpees', sett:4, reps:'10', hvile:'60s', utstyr:'Ingen', emoji:'🔥', muskler:'Full kropp', beskrivelse:'Push-up → hopp inn → hopp opp.', tips:'Teknisk korrekt' }],
+    gym: [{ navn:'Thrusters', sett:3, reps:'10', hvile:'90s', utstyr:'Hantler', emoji:'🚀', muskler:'Bein + skuldre', beskrivelse:'Kombiner squat og skulderpresse.', tips:'Flytende bevegelse' }],
   },
   tabata: {
-    hjemme: [
-      { navn:'Tabata Burpees',         sett:8, reps:'20s on/10s off', hvile:'1min', utstyr:'Ingen',   emoji:'🔥',  muskler:'Full kropp',       beskrivelse:'8 runder = 4 minutter. GI ALT i 20 sekunder.', tips:'GI ALT i 20 sek, FULL STOPP i 10 sek' },
-      { navn:'Tabata Push-ups',        sett:8, reps:'20s on/10s off', hvile:'1min', utstyr:'Ingen',   emoji:'💪',  muskler:'Bryst + core',     beskrivelse:'Maks push-ups i 20 sek, full stopp i 10 sek.', tips:'Maks reps i 20 sek' },
-    ],
-    gym: [
-      { navn:'Tabata Romaskin',        sett:8, reps:'20s on/10s off', hvile:'1min', utstyr:'Romaskin', emoji:'🚣',  muskler:'Full kropp',       beskrivelse:'Full kraft på romaskin i 20 sek.', tips:'BEIN→HELLING→ARMER, full kraft 20 sek' },
-    ],
+    hjemme: [{ navn:'Tabata Burpees', sett:8, reps:'20s on/10s off', hvile:'1min', utstyr:'Ingen', emoji:'🔥', muskler:'Full kropp', beskrivelse:'8 runder = 4 minutter.', tips:'GI ALT i 20 sek' }],
+    gym: [{ navn:'Tabata Romaskin', sett:8, reps:'20s on/10s off', hvile:'1min', utstyr:'Romaskin', emoji:'🚣', muskler:'Full kropp', beskrivelse:'Full kraft på romaskin.', tips:'BEIN→HELLING→ARMER' }],
   },
   cardio: {
-    hjemme: [
-      { navn:'Boksesekk runder',       sett:5, reps:'3 min', hvile:'1min', utstyr:'Boksesekk',       emoji:'🥊',  muskler:'Full kropp',       beskrivelse:'5 runder à 3 min, 1 min pause.', tips:'Hofte med hvert slag' },
-      { navn:'Burpees intervall',      sett:5, reps:'45 sek', hvile:'30s', utstyr:'Ingen',           emoji:'🔥',  muskler:'Full kropp',       beskrivelse:'5 runder med 45 sek burpees, 30 sek pause.', tips:'Teknisk korrekt' },
-    ],
-    gym: [
-      { navn:'Romaskin intervall',     sett:6, reps:'500m',   hvile:'90s', utstyr:'Romaskin',        emoji:'🚣',  muskler:'Full kropp',       beskrivelse:'6×500m med 90 sek pause.', tips:'BEIN→HELLING→ARMER, jevn kraft' },
-      { navn:'Sykkel HIIT',            sett:8, reps:'30s/90s', hvile:'–', utstyr:'Sykkel',           emoji:'🚴',  muskler:'Bein + kondisjon', beskrivelse:'8 runder: 30 sek maks watt, 90 sek lett.', tips:'Maks watt i 30 sek' },
-    ],
+    hjemme: [{ navn:'Boksesekk runder', sett:5, reps:'3 min', hvile:'1min', utstyr:'Boksesekk', emoji:'🥊', muskler:'Full kropp', beskrivelse:'5 runder à 3 min.', tips:'Hofte med hvert slag' }],
+    gym: [{ navn:'Romaskin intervall', sett:6, reps:'500m', hvile:'90s', utstyr:'Romaskin', emoji:'🚣', muskler:'Full kropp', beskrivelse:'6×500m med 90 sek pause.', tips:'BEIN→HELLING→ARMER' }],
   },
   styrkeløft: {
     hjemme: [],
-    gym: [
-      { navn:'Markløft (konvensjonell)',sett:4, reps:'5',     hvile:'3min', utstyr:'Vektstang',       emoji:'⚡',   muskler:'Hel kropp',        beskrivelse:'Stangen over fotmidten. Rett rygg, hofte bak. PRESS GULVET NED.', tips:'Ryggen rett, press gulvet ned' },
-      { navn:'Knebøy (low bar)',       sett:4, reps:'5',     hvile:'3min', utstyr:'Vektstang',       emoji:'🦵',  muskler:'Quads, glutes',    beskrivelse:'Stangen lavt på ryggen, bryst opp.', tips:'Stangen lavt på ryggen' },
-      { navn:'Benkpress (konkurranse)',sett:4, reps:'5',     hvile:'3min', utstyr:'Vektstang',       emoji:'🏋️',  muskler:'Pecs, triceps',    beskrivelse:'Benkpress med konkurranseteknikk, stopp på brystet.', tips:'Føtter i gulvet, skulderblad sammen' },
-    ],
+    gym: [{ navn:'Markløft (konvensjonell)', sett:4, reps:'5', hvile:'3min', utstyr:'Vektstang', emoji:'⚡', muskler:'Hel kropp', beskrivelse:'Stangen over fotmidten.', tips:'Ryggen rett' }],
   },
   mobilitet: {
-    hjemme: [
-      { navn:'Cat-Cow',                sett:3, reps:'10',    hvile:'30s', utstyr:'Ingen',             emoji:'🐱🐮',muskler:'Rygg',             beskrivelse:'På alle fire, veksle mellom å krumme og senke ryggen.', tips:'Sakte, føl bevegelsen' },
-      { navn:'Thoracic rotation',      sett:3, reps:'8×2',   hvile:'30s', utstyr:'Ingen',             emoji:'🔄',  muskler:'Øvre rygg',        beskrivelse:'Ligg på siden, åpne arm opp og rotér.', tips:'Rotér fra brystryggen' },
-      { navn:'World\'s greatest stretch',sett:3,reps:'6×2', hvile:'30s', utstyr:'Ingen',             emoji:'🌍',  muskler:'Hele kropp',       beskrivelse:'Utfall med albue i gulvet, rotér opp.', tips:'Dyp rotasjon' },
-    ],
+    hjemme: [{ navn:'Cat-Cow', sett:3, reps:'10', hvile:'30s', utstyr:'Ingen', emoji:'🐱🐮', muskler:'Rygg', beskrivelse:'På alle fire, veksle mellom å krumme og senke ryggen.', tips:'Sakte' }],
     gym: [],
   },
   eksplosivitet: {
-    hjemme: [
-      { navn:'Box jumps',              sett:4, reps:'5',     hvile:'60s', utstyr:'Box',               emoji:'📦',  muskler:'Eksplosiv bein',   beskrivelse:'Hopp opp på en boks.', tips:'Land mykt' },
-      { navn:'Broad jumps',            sett:4, reps:'5',     hvile:'60s', utstyr:'Ingen',             emoji:'⬆️',  muskler:'Eksplosiv bein',   beskrivelse:'Stående lengdehopp.', tips:'Hopp lengst mulig' },
-    ],
-    gym: [
-      { navn:'Power clean',            sett:4, reps:'3-5',   hvile:'2min', utstyr:'Vektstang',        emoji:'⚡',   muskler:'Hel kropp',        beskrivelse:'Trekk stangen fra gulv til skuldre i én bevegelse.', tips:'Eksplosivt hofte-støt' },
-      { navn:'Medicine ball slam',     sett:4, reps:'8-10',  hvile:'45s', utstyr:'Medisinball',       emoji:'💥',  muskler:'Hel kropp',        beskrivelse:'Løft ballen over hodet, slå den ned i gulvet.', tips:'Slam med full kraft' },
-    ],
+    hjemme: [{ navn:'Box jumps', sett:4, reps:'5', hvile:'60s', utstyr:'Box', emoji:'📦', muskler:'Eksplosiv bein', beskrivelse:'Hopp opp på en boks.', tips:'Land mykt' }],
+    gym: [{ navn:'Power clean', sett:4, reps:'3-5', hvile:'2min', utstyr:'Vektstang', emoji:'⚡', muskler:'Hel kropp', beskrivelse:'Trekk stangen fra gulv til skuldre.', tips:'Eksplosivt hofte-støt' }],
   },
   isolasjon: {
     hjemme: [],
-    gym: [
-      { navn:'Pec deck',               sett:3, reps:'10-12', hvile:'60s', utstyr:'Maskin',            emoji:'🔀',  muskler:'Bryst',            beskrivelse:'Sitt i maskin, press albuene sammen foran brystet.', tips:'Klem i midten' },
-      { navn:'Lateral raise maskin',   sett:3, reps:'12-15', hvile:'60s', utstyr:'Maskin',            emoji:'🔼',  muskler:'Side skulder',     beskrivelse:'Sitt i maskin, løft armene ut til siden.', tips:'Kontrollert bevegelse' },
-      { navn:'Leg curl sittende',      sett:3, reps:'12-15', hvile:'60s', utstyr:'Maskin',            emoji:'🦵',  muskler:'Hamstrings',       beskrivelse:'Sitt i maskin, curl bena ned mot setet.', tips:'Klem hamstrings' },
-      { navn:'Leg extension sittende', sett:3, reps:'12-15', hvile:'60s', utstyr:'Maskin',            emoji:'⬆️',  muskler:'Quads',             beskrivelse:'Sitt i maskin, strekk bena rett ut.', tips:'Klem quads i toppen' },
-    ],
+    gym: [{ navn:'Pec deck', sett:3, reps:'10-12', hvile:'60s', utstyr:'Maskin', emoji:'🔀', muskler:'Bryst', beskrivelse:'Sitt i maskin, press albuene sammen.', tips:'Klem i midten' }],
   },
 }
 
@@ -296,6 +203,53 @@ function OktInner() {
     setOkter(prev => prev.map((o, i) => i === index ? ny : o))
     setVisFavorittModal(false)
     setBytteIndex(null)
+  }
+
+  // ─── FAVORITT-FUNKSJON ────────────────────────────────────────────────────────
+  const leggTilFavoritt = async (ovelse: any) => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) {
+      alert('❌ Du må være logget inn')
+      return
+    }
+    
+    try {
+      // Sjekk om favoritten allerede finnes
+      const { data: eksisterende } = await supabase
+        .from('favoritt_ovelser')
+        .select('id')
+        .eq('bruker_id', currentUser.id)
+        .eq('ovelse_navn', ovelse.navn)
+        .maybeSingle()
+      
+      if (eksisterende) {
+        alert(`⭐ ${ovelse.navn} er allerede i favoritter!`)
+        return
+      }
+      
+      // Legg til ny favoritt
+      const { error } = await supabase
+        .from('favoritt_ovelser')
+        .insert({
+          bruker_id: currentUser.id,
+          ovelse_navn: ovelse.navn,
+          ovelse_id: ovelse.navn.toLowerCase().replace(/\s+/g, '-'),
+          emoji: ovelse.emoji || '💪',
+          sett: ovelse.sett,
+          reps: ovelse.reps,
+          hvile: ovelse.hvile
+        })
+      
+      if (error) {
+        console.error('Feil ved lagring av favoritt:', error)
+        alert(`❌ Kunne ikke lagre favoritt: ${error.message}`)
+      } else {
+        alert(`⭐ ${ovelse.navn} lagt til i favoritter!`)
+      }
+    } catch (err) {
+      console.error('Uventet feil:', err)
+      alert('❌ Noe gikk galt, prøv igjen')
+    }
   }
 
   const bygg = async () => {
@@ -432,29 +386,6 @@ function OktInner() {
   const fullfort = okter.flatMap(o=>o.sett_logg).filter(s=>s.fullfort).length
   const totalt   = okter.flatMap(o=>o.sett_logg).length
 
-  // Funksjon for å legge til favoritt direkte
-  const leggTilFavoritt = async (ovelse: any) => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    if (!currentUser) return
-    
-    const { error } = await supabase.from('favoritt_ovelser').upsert({
-      bruker_id: currentUser.id,
-      ovelse_navn: ovelse.navn,
-      ovelse_id: ovelse.navn.toLowerCase().replace(/\s+/g, '-'),
-      emoji: ovelse.emoji,
-      sett: ovelse.sett,
-      reps: ovelse.reps,
-      hvile: ovelse.hvile
-    }, { onConflict: 'bruker_id, ovelse_navn' })
-    
-    if (error) {
-      console.error('Feil ved lagring av favoritt:', error)
-      alert('❌ Kunne ikke lagre favoritt')
-    } else {
-      alert(`⭐ ${ovelse.navn} lagt til i favoritter!`)
-    }
-  }
-
   return (
     <div className="okt-page anim-fade-up">
       <div className="okt-header">
@@ -551,6 +482,7 @@ function OktInner() {
                       className="okt-bytte-btn"
                       onClick={(e) => {
                         e.stopPropagation()
+                        console.log('🔘 Klikket bytte-knapp for øvelse', oIdx)
                         setBytteIndex(oIdx)
                         setVisFavorittModal(true)
                       }}
@@ -698,10 +630,14 @@ function OktInner() {
         <ProgramMal 
           userId={user.id}
           onClose={() => {
+            console.log('🔘 Lukker modal')
             setVisFavorittModal(false)
             setBytteIndex(null)
           }}
-          onSelectFavoritt={(fav) => byttOvelse(bytteIndex, fav)}
+          onSelectFavoritt={(fav) => {
+            console.log('🔘 Valgt favoritt for bytte:', fav)
+            byttOvelse(bytteIndex, fav)
+          }}
           mode="bytte"
         />
       )}
