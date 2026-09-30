@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Minus, Plus } from 'lucide-react'
 import { lyd } from '@/lib/lyd'
+import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 
 type Fase = 'klar' | 'arbeid' | 'hvile' | 'ferdig'
 
@@ -23,6 +24,7 @@ export default function Tabata() {
   const [aktiv, setAktiv]   = useState(false)
   const [igjen, setIgjen]   = useState(20_000)
   const [medLyd, setMedLyd] = useState(true)
+  useSkjermVaaken(aktiv)
   const slutt = useRef(0)
   const sistTikk = useRef(-1)
 

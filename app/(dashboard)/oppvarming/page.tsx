@@ -6,6 +6,7 @@ import { Play, Pause, Check, X, HeartPulse, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { lokalDato } from '@/lib/dato'
 import { lyd } from '@/lib/lyd'
+import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 import { OppvarmingIkon } from '@/components/atelier/Glyph'
 
 type OppvarmingType = 'boksesekk' | 'romaskin' | 'elipsemaskin' | 'tredemølle' | 'dynamisk'
@@ -40,6 +41,7 @@ export default function OppvarmingSide() {
   const [pulsApen, setPulsApen] = useState(false)
   const [puls, setPuls] = useState('')
   const [pulsSvar, setPulsSvar] = useState<{ tekst: string; ok: boolean } | null>(null)
+  useSkjermVaaken(aktive.some(a => a.kjorer))
   const sluttider = useRef<Record<number, number>>({})
 
   // Ekte nedtelling (tidligere en fast stolpe med «1:30 igjen» som aldri endret seg)

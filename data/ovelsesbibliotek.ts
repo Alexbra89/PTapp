@@ -244,3 +244,36 @@ export function utstyrType(o: Pick<Ovelse, 'utstyr' | 'kategori'>): UtstyrType {
   if (/stang/.test(u) && !/pull-up|parallell/.test(u)) return 'stang'
   return o.kategori === 'cardio' ? 'kondisjon' : 'kroppsvekt'
 }
+
+// ─── Utvalg ─────────────────────────────────────────────────────────────────
+// Felles for treningsgenerator, treningsøkt og kalenderforslag.
+// Med frø blir utvalget likt hver gang (samme dato → samme forslag), uten frø tilfeldig.
+function tilfeldig(fro: number) {
+  let t = fro >>> 0
+  return () => {
+    t += 0x6d2b79f5
+    let r = Math.imul(t ^ (t >>> 15), 1 | t)
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r)
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+export function utvalg(kategori: string, sted: Sted | 'alle', antall: number, fro?: number): Ovelse[] {
+  const pool = OVELSER.filter(o =>
+    o.kategori === kategori && (sted === 'alle' || o.sted === sted || o.sted === 'begge'))
+  const rng = fro === undefined ? Math.random : tilfeldig(fro)
+  const a = [...pool]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a.slice(0, antall)
+}
+
+export const finnOvelseNavn = (navn: string) => {
+  const n = navn.toLowerCase().trim().replace(/\s+/g, ' ')
+  return OVELSER.find(o => o.navn.toLowerCase() === n)
+}
+
+// Frø fra en datostreng, f.eks. '2026-09-30'
+export const froFraDato = (dato: string) => dato.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)

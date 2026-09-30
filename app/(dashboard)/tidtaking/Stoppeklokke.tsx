@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, RotateCcw, Flag, Minus, Plus } from 'lucide-react'
 import { lyd } from '@/lib/lyd'
+import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 
 type Modus = 'opp' | 'ned'
 
@@ -25,6 +26,7 @@ export default function Stoppeklokke({ synlig = true }: { synlig?: boolean }) {
   const [nedMin, setNedMin] = useState(3)
   const [alarm, setAlarm]   = useState(false)
   // Tidsstempler i stedet for teller: presis og uten drift i bakgrunnen
+  useSkjermVaaken(aktiv)
   const start = useRef(0)       // når klokka sist ble startet
   const lagret = useRef(0)      // akkumulert tid før siste start (opp) / gjenstående ved pause (ned)
 

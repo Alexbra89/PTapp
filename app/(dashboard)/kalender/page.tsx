@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser, useOkterManed, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from './ProgramMal'
 import { ChevronLeft, ChevronRight, Plus, FolderOpen, Dumbbell, Activity, Moon, Sparkles, Pencil, Trash2, ChevronDown, ArrowRight, Check, CalendarPlus, X } from 'lucide-react'
-import { OVELSER as BIBLIOTEK, muskler as musklerFor, visesBakfra, MUSKELNAVN } from '@/data/ovelsesbibliotek'
+import { OVELSER as BIBLIOTEK, muskler as musklerFor, visesBakfra, MUSKELNAVN, utvalg, froFraDato } from '@/data/ovelsesbibliotek'
 import { MuskelkartMini } from '@/components/atelier/Muskelkart'
 
 type OktType = 'styrke' | 'cardio' | 'hvile' | 'annet'
@@ -33,92 +33,6 @@ function OvelseMerke({ navn }: { navn: string }) {
 const musklerTekst = (navn: string) => {
   const b = BIBLIOTEK.find(o => normNavn(o.navn) === normNavn(navn))
   return b ? musklerFor(b).primaer.slice(0, 2).map(x => MUSKELNAVN[x]).join(' · ') : ''
-}
-
-const PREV_DB: Record<string, { navn: string; emoji: string; muskler: string; sett: number; reps: string }[]> = {
-  bryst: [
-    { navn:'Benkpress',            emoji:'🏋️', muskler:'Pecs, triceps',    sett:4, reps:'8-10'  },
-    { navn:'Skråbenkpress',        emoji:'📐', muskler:'Øvre pecs',        sett:3, reps:'10-12' },
-    { navn:'Kabel pec fly',        emoji:'🔀', muskler:'Indre pecs',       sett:3, reps:'12-15' },
-    { navn:'Dips',                 emoji:'⬇️', muskler:'Pecs, triceps',    sett:3, reps:'10-12' },
-    { navn:'Brystpress maskin',    emoji:'🔧', muskler:'Pecs',             sett:3, reps:'12'    },
-    { navn:'Push-up',              emoji:'💪', muskler:'Pecs, core',       sett:4, reps:'12-15' },
-    { navn:'Hantelflyes',          emoji:'🦅', muskler:'Indre pecs',       sett:3, reps:'12'    },
-  ],
-  rygg: [
-    { navn:'Pull-ups',             emoji:'🤸', muskler:'Lats, biceps',     sett:4, reps:'6-10'  },
-    { navn:'Lat pulldown',         emoji:'⬇️', muskler:'Lats',             sett:3, reps:'10-12' },
-    { navn:'Sittende kabelroing',  emoji:'🚣', muskler:'Midtre rygg',      sett:4, reps:'10-12' },
-    { navn:'Markløft',             emoji:'⚡', muskler:'Hel rygg, glutes', sett:4, reps:'5-6'   },
-    { navn:'Hantelroing enarms',   emoji:'💪', muskler:'Øvre rygg, biceps',sett:4, reps:'10×2'  },
-    { navn:'T-bar roing',          emoji:'🔩', muskler:'Midtre rygg',      sett:4, reps:'8-10'  },
-    { navn:'Face pull',            emoji:'🎯', muskler:'Bakre deltoid',    sett:3, reps:'15'     },
-  ],
-  bein: [
-    { navn:'Knebøy',               emoji:'🦵', muskler:'Quads, glutes',    sett:4, reps:'8-10'  },
-    { navn:'Legpress',             emoji:'🔧', muskler:'Quads, glutes',    sett:4, reps:'10-12' },
-    { navn:'Rumensk markløft',     emoji:'🍑', muskler:'Hamstrings',       sett:3, reps:'10-12' },
-    { navn:'Bulgarian split squat',emoji:'🏋️', muskler:'Quads, glutes',    sett:3, reps:'10×2'  },
-    { navn:'Leg curl',             emoji:'🦵', muskler:'Hamstrings',       sett:3, reps:'12'    },
-    { navn:'Leg extension',        emoji:'⬆️', muskler:'Quads',            sett:3, reps:'12-15' },
-    { navn:'Stående tåhev',        emoji:'👣', muskler:'Leggmuskler',      sett:4, reps:'15-20' },
-  ],
-  skuldre: [
-    { navn:'Military press',       emoji:'⬆️', muskler:'Alle deltoider',   sett:4, reps:'8-10'  },
-    { navn:'Sidehev',              emoji:'🔼', muskler:'Lateral deltoid',  sett:3, reps:'12-15' },
-    { navn:'Hantelpress sittende', emoji:'💺', muskler:'Fremre deltoid',   sett:3, reps:'10-12' },
-    { navn:'Face pull',            emoji:'🎯', muskler:'Bakre deltoid',    sett:3, reps:'15'    },
-    { navn:'Frontløft',            emoji:'⬆️', muskler:'Fremre deltoid',   sett:3, reps:'12'    },
-    { navn:'Arnold press',         emoji:'🌀', muskler:'Alle deltoider',   sett:3, reps:'10'    },
-    { navn:'Bakre flyes',          emoji:'🦅', muskler:'Bakre deltoid',    sett:3, reps:'15'    },
-  ],
-  bicep: [
-    { navn:'Biceps curl',          emoji:'💪', muskler:'Biceps brachii',   sett:4, reps:'10-12' },
-    { navn:'Hammer curl',          emoji:'🔨', muskler:'Brachialis',       sett:3, reps:'12'    },
-    { navn:'Preacher curl',        emoji:'🙏', muskler:'Biceps',           sett:3, reps:'10'    },
-    { navn:'Kabelbiceps curl',     emoji:'🔗', muskler:'Biceps',           sett:3, reps:'12-15' },
-    { navn:'Konsentrasjonskurl',   emoji:'🎯', muskler:'Biceps topp',      sett:3, reps:'12'    },
-    { navn:'Hengende bicepscurl',  emoji:'💪', muskler:'Biceps, brachialis',sett:3, reps:'10'   },
-  ],
-  tricep: [
-    { navn:'Triceps pushdown',     emoji:'📉', muskler:'Triceps',          sett:4, reps:'12-15' },
-    { navn:'Skull crushers',       emoji:'💀', muskler:'Triceps',          sett:3, reps:'10'    },
-    { navn:'Overhead triceps ext.',emoji:'⬆️', muskler:'Langt hode',       sett:3, reps:'12'    },
-    { navn:'Dips (triceps)',        emoji:'⬇️', muskler:'Triceps',          sett:3, reps:'12'    },
-    { navn:'Kabeltriceps ext.',    emoji:'🔗', muskler:'Triceps',          sett:3, reps:'12-15' },
-    { navn:'Nær-grep benkpress',   emoji:'🤏', muskler:'Triceps, pecs',    sett:3, reps:'10'    },
-  ],
-  core: [
-    { navn:'Planke',               emoji:'🧘', muskler:'Hele core',        sett:3, reps:'60s'   },
-    { navn:'Crunches',             emoji:'🔄', muskler:'Rectus abdominis', sett:3, reps:'20'    },
-    { navn:'Russian twist',        emoji:'🔃', muskler:'Obliques',         sett:3, reps:'20×2'  },
-    { navn:'Beinheving',           emoji:'🦵', muskler:'Nedre mage',       sett:3, reps:'15'    },
-    { navn:'Kabelscoops',          emoji:'🔗', muskler:'Obliques',         sett:3, reps:'12×2'  },
-    { navn:'Ab wheel rollout',     emoji:'⚙️', muskler:'Hele core',        sett:3, reps:'10'    },
-    { navn:'Hollow hold',          emoji:'🎯', muskler:'Core stabilitet',  sett:3, reps:'30s'   },
-  ],
-  fullkropp: [
-    { navn:'Knebøy',               emoji:'🦵', muskler:'Quads, glutes',    sett:4, reps:'8-10'  },
-    { navn:'Benkpress',            emoji:'🏋️', muskler:'Pecs, triceps',    sett:4, reps:'8-10'  },
-    { navn:'Pull-ups',             emoji:'🤸', muskler:'Lats, biceps',     sett:3, reps:'6-10'  },
-    { navn:'Military press',       emoji:'⬆️', muskler:'Deltoider',        sett:3, reps:'8-10'  },
-    { navn:'Markløft',             emoji:'⚡', muskler:'Hel rygg',         sett:3, reps:'5-6'   },
-    { navn:'Planke',               emoji:'🧘', muskler:'Core',             sett:3, reps:'60s'   },
-  ],
-  cardio: [
-    { navn:'Løping/tredemølle',    emoji:'🏃', muskler:'Kondisjon',        sett:1, reps:'30 min'},
-    { navn:'Sykkel intervaller',   emoji:'🚴', muskler:'Kondisjon, bein',  sett:5, reps:'3 min' },
-    { navn:'Romaskin',             emoji:'🚣', muskler:'Kondisjon, rygg',  sett:3, reps:'5 min' },
-    { navn:'Burpees',              emoji:'🔥', muskler:'Full kropp',       sett:4, reps:'15'    },
-    { navn:'Kettlebell swing',     emoji:'🔔', muskler:'Posterior chain',  sett:4, reps:'20'    },
-    { navn:'Box jumps',            emoji:'📦', muskler:'Eksplosivitet',    sett:4, reps:'10'    },
-  ],
-  tabata: [
-    { navn:'Burpees',              emoji:'🔥', muskler:'Full kropp',       sett:8, reps:'20s'   },
-    { navn:'Fjellklatrere',        emoji:'⛰️', muskler:'Core, kondisjon',  sett:8, reps:'20s'   },
-    { navn:'Jump squats',          emoji:'💥', muskler:'Bein, kondisjon',  sett:8, reps:'20s'   },
-    { navn:'Push-up rask',         emoji:'💪', muskler:'Bryst, kondisjon', sett:8, reps:'20s'   },
-  ],
 }
 
 function parsGrupper(tittel: string): string[] {
@@ -142,20 +56,18 @@ function parsGrupper(tittel: string): string[] {
   return funnet
 }
 
-function hentAnbefaltOvelser(tittel: string, dato: string): typeof PREV_DB[string] {
+type Forslag = { navn: string; emoji: string; muskler: string; sett: number; reps: string }
+// Forslag fra det felles biblioteket, stabile per dato
+function hentAnbefaltOvelser(tittel: string, dato: string): Forslag[] {
   const grupper = parsGrupper(tittel)
-  if (grupper.length === 0) return []
-  const seed = dato.replace(/-/g, '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  const resultat: typeof PREV_DB[string] = []
-  for (const gruppe of grupper) {
-    const pool   = PREV_DB[gruppe] ?? []
-    const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
-    const start  = seed % Math.max(1, pool.length)
-    for (let i = 0; i < antall && i < pool.length; i++) {
-      resultat.push(pool[(start + i) % pool.length])
+  const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
+  const res: Forslag[] = []
+  grupper.forEach((g, i) => {
+    for (const o of utvalg(g, 'alle', antall, froFraDato(dato) + i)) {
+      if (!res.some(r => r.navn === o.navn)) res.push({ navn: o.navn, emoji: '', muskler: o.muskelgruppe, sett: o.sett, reps: o.reps })
     }
-  }
-  return resultat
+  })
+  return res
 }
 
 const TYPE_META: Record<OktType, { color: string; ikon: typeof Dumbbell; label: string }> = {

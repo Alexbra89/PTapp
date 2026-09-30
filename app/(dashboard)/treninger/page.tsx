@@ -9,6 +9,7 @@ import OvelsesVelger from '@/components/OvelsesVelger'
 import { motion } from 'framer-motion'
 import { Home, Building2, Flame, Dumbbell, Pause, RotateCcw, X, ChevronDown, CalendarPlus, ArrowRight, Sparkles, ListChecks } from 'lucide-react'
 import { MuskelGlyph, OppvarmingIkon } from '@/components/atelier/Glyph'
+import { utvalg, froFraDato } from '@/data/ovelsesbibliotek'
 import { lokalDato } from '@/lib/dato'
 
 type Sted   = 'hjemme' | 'gym'
@@ -66,96 +67,15 @@ const AUTOFYLL: Record<string, Record<string, Gruppe[]>> = {
   '3dager_fullkropp':  { Man:['fullkropp'], Ons:['fullkropp'], Fre:['fullkropp'] },
 }
 
-// ── Øvelsesdatabase for autofyll ─────────────────────────────────────────────
-const OV_DB: Record<string, { navn: string; sett: number; reps: string }[]> = {
-  bryst:    [
-    { navn:'Benkpress', sett:4, reps:'8-10' },
-    { navn:'Skråbenkpress', sett:3, reps:'10-12' },
-    { navn:'Kabel pec fly', sett:3, reps:'12-15' },
-    { navn:'Dips', sett:3, reps:'10-12' },
-    { navn:'Push-up', sett:4, reps:'12-15' },
-    { navn:'Hantelflyes', sett:3, reps:'12' },
-  ],
-  rygg:     [
-    { navn:'Pull-ups', sett:4, reps:'6-10' },
-    { navn:'Lat pulldown', sett:3, reps:'10-12' },
-    { navn:'Sittende kabelroing', sett:4, reps:'10-12' },
-    { navn:'Markløft', sett:4, reps:'5-6' },
-    { navn:'Hantelroing enarms', sett:4, reps:'10×2' },
-    { navn:'Face pull', sett:3, reps:'15' },
-  ],
-  bein:     [
-    { navn:'Knebøy', sett:4, reps:'8-10' },
-    { navn:'Legpress', sett:4, reps:'10-12' },
-    { navn:'Rumensk markløft', sett:3, reps:'10-12' },
-    { navn:'Bulgarian split squat', sett:3, reps:'10×2' },
-    { navn:'Leg curl', sett:3, reps:'12' },
-    { navn:'Leg extension', sett:3, reps:'12-15' },
-    { navn:'Stående tåhev', sett:4, reps:'15-20' },
-  ],
-  skuldre:  [
-    { navn:'Military press', sett:4, reps:'8-10' },
-    { navn:'Sidehev', sett:3, reps:'12-15' },
-    { navn:'Hantelpress sittende', sett:3, reps:'10-12' },
-    { navn:'Face pull', sett:3, reps:'15' },
-    { navn:'Arnold press', sett:3, reps:'10' },
-  ],
-  bicep:    [
-    { navn:'Biceps curl', sett:4, reps:'10-12' },
-    { navn:'Hammer curl', sett:3, reps:'12' },
-    { navn:'Preacher curl', sett:3, reps:'10' },
-    { navn:'Kabel curl', sett:3, reps:'12-15' },
-  ],
-  tricep:   [
-    { navn:'Triceps pushdown', sett:4, reps:'12-15' },
-    { navn:'Skull crushers', sett:3, reps:'10' },
-    { navn:'Overhead triceps ext.', sett:3, reps:'12' },
-    { navn:'Dips (triceps)', sett:3, reps:'12' },
-  ],
-  core:     [
-    { navn:'Planke', sett:3, reps:'60s' },
-    { navn:'Crunches', sett:3, reps:'20' },
-    { navn:'Russian twist', sett:3, reps:'20×2' },
-    { navn:'Beinheving', sett:3, reps:'15' },
-    { navn:'Ab wheel rollout', sett:3, reps:'10' },
-  ],
-  fullkropp:[
-    { navn:'Knebøy', sett:4, reps:'8-10' },
-    { navn:'Benkpress', sett:4, reps:'8-10' },
-    { navn:'Pull-ups', sett:3, reps:'6-10' },
-    { navn:'Military press', sett:3, reps:'8-10' },
-    { navn:'Markløft', sett:3, reps:'5-6' },
-    { navn:'Planke', sett:3, reps:'60s' },
-  ],
-  cardio:   [
-    { navn:'Løping/tredemølle', sett:1, reps:'30 min' },
-    { navn:'Sykkel intervaller', sett:5, reps:'3 min' },
-    { navn:'Romaskin', sett:3, reps:'5 min' },
-    { navn:'Burpees', sett:4, reps:'15' },
-  ],
-  tabata:   [
-    { navn:'Burpees', sett:8, reps:'20s' },
-    { navn:'Fjellklatrere', sett:8, reps:'20s' },
-    { navn:'Jump squats', sett:8, reps:'20s' },
-    { navn:'Push-up rask', sett:8, reps:'20s' },
-  ],
-}
-
-// Generer deterministiske øvelser basert på muskelgrupper + dato
-function genererOvelser(grupper: Gruppe[], datoStr: string) {
-  const seed = datoStr.replace(/-/g,'').split('').reduce((a,c) => a + c.charCodeAt(0), 0)
+// Generer deterministiske øvelser for autofyll fra det felles biblioteket (samme dato → samme utvalg)
+function genererOvelser(grupper: Gruppe[], datoStr: string, sted: Sted) {
   const res: { navn: string; sett: number; reps: string; kg: number }[] = []
-  for (const gruppe of grupper) {
-    const pool   = OV_DB[gruppe] ?? []
-    if (!pool.length) continue
-    const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
-    const start  = seed % pool.length
-    for (let i = 0; i < antall && i < pool.length; i++) {
-      const o = pool[(start + i) % pool.length]
-      if (!res.find(r => r.navn === o.navn))
-        res.push({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 })
+  const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
+  grupper.forEach((gruppe, i) => {
+    for (const o of utvalg(gruppe, sted, antall, froFraDato(datoStr) + i)) {
+      if (!res.find(r => r.navn === o.navn)) res.push({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 })
     }
-  }
+  })
   return res
 }
 
@@ -274,7 +194,7 @@ function KonfigInner() {
       const dato    = new Date(monday)
       dato.setDate(monday.getDate() + idx)
       const datoStr = lokalDato(dato)
-      const ovelser = genererOvelser(grp, datoStr)
+      const ovelser = genererOvelser(grp, datoStr, sted)
       if (!maaneder.includes(datoStr.slice(0, 7))) maaneder.push(datoStr.slice(0, 7))
 
       const { error } = await supabase.from('okter').insert([{

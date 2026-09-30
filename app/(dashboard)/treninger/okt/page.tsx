@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import { OVELSER as BIBLIOTEK } from '@/data/ovelsesbibliotek'
+import { OVELSER as BIBLIOTEK, utvalg, type Ovelse } from '@/data/ovelsesbibliotek'
 import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from '../../kalender/ProgramMal'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -14,6 +14,7 @@ import { OppvarmingIkon } from '@/components/atelier/Glyph'
 import { TelleTall } from '@/components/atelier/TelleTall'
 import { lokalDato } from '@/lib/dato'
 import { lyd } from '@/lib/lyd'
+import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 import { finnPrOvelse } from '@/lib/prOvelser'
 
 
@@ -127,6 +128,16 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+const UTKAST_NOKKEL = 'okt_utkast'
+
+// Biblioteksøvelse → formatet økta bruker
+const fraBibliotek = (o: Ovelse): OvelseDB => ({
+  navn: o.navn, sett: o.sett, reps: o.reps, hvile: o.hvile, utstyr: o.utstyr, emoji: '',
+  tips: o.tips[0] ?? '', muskler: o.muskelgruppe, beskrivelse: o.beskrivelse,
+})
+// Biblioteket først; den gamle lokale listen brukes bare for kategorier biblioteket mangler
+const ALLE_KJENTE: OvelseDB[] = [...BIBLIOTEK.map(fraBibliotek), ...Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])]
+
 // «90s», «2min», «3 min», «75s» → sekunder. «–» eller ukjent gir 0 (ingen hvile).
 function hvileSekunder(hvile: string): number {
   const t = (hvile || '').toLowerCase()
@@ -166,6 +177,8 @@ function OktInner() {
   const [hvileIgjen, setHvileIgjen] = useState(0)
   const qc = useQueryClient()
   const [feiring,    setFeiring]    = useState<{ sett: number; ovelser: number; kg: number; tid: number } | null>(null)
+  useSkjermVaaken(!laster && !feiring) // skjermen skal ikke slukke midt i et sett
+  const [gjenopprettet, setGjenopprettet] = useState(false)
   const meldingRef = useRef<NodeJS.Timeout | null>(null)
   const visMelding = (msg: string) => {
     setLagretMsg(msg)
@@ -292,7 +305,19 @@ function OktInner() {
     }
   }
 
-  const bygg = async () => {
+  const bygg = async (brukUtkast = true) => {
+    // Fortsett en uavsluttet økt (samme økt-lenke, siste 12 timer) i stedet for å bygge på nytt
+    if (brukUtkast) {
+      try {
+        const u = JSON.parse(localStorage.getItem(UTKAST_NOKKEL) ?? 'null')
+        if (u && u.nokkel === searchParams.toString() && Date.now() - u.lagret < 12 * 3600_000 && u.okter?.length) {
+          setOkter(u.okter); setTittel(u.tittel ?? ''); setOppvar(u.oppvar ?? [])
+          if (u.lagretOktId) setLagretOktId(u.lagretOktId)
+          setGjenopprettet(true); setLaster(false)
+          return
+        }
+      } catch {}
+    }
     const oktId       = searchParams.get('okt')
     const ovelserParam = searchParams.get('ovelser')
     const modus       = searchParams.get('modus')
@@ -315,7 +340,7 @@ function OktInner() {
     if (modus === 'custom' && ovelserParam) {
       try {
         const customOvelser = JSON.parse(decodeURIComponent(ovelserParam))
-        const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+        const alle = ALLE_KJENTE
         const norm = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
         let oveler = customOvelser.map((o: any) => {
           const match = alle.find(e => norm(e.navn) === norm(o.navn || ''))
@@ -342,7 +367,7 @@ function OktInner() {
       if (data) {
         let ovelserData = data.ovelser ?? []
         if (ovelserParam) { try { ovelserData = JSON.parse(ovelserParam) } catch {} }
-        const alle = Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])
+        const alle = ALLE_KJENTE
         const norm = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
         let oveler = ovelserData.map((o: any) => {
           const match = alle.find(e => norm(e.navn) === norm(o.navn || ''))
@@ -371,8 +396,9 @@ function OktInner() {
 
     let alle: OvelseDB[] = []
     grupper.forEach(g => {
-      const pool = DB[g]?.[sted] ?? []
-      alle = alle.concat(shuffle(pool).slice(0, antall).map(o => ({
+      const fraBib = utvalg(g, sted, antall).map(fraBibliotek)
+      const pool = fraBib.length ? fraBib : shuffle(DB[g]?.[sted] ?? []).slice(0, antall)
+      alle = alle.concat(pool.map(o => ({
         ...o, sett: intensitet === 'Hard' ? o.sett+1 : intensitet === 'Lett' ? Math.max(2,o.sett-1) : o.sett,
       })))
     })
@@ -394,6 +420,22 @@ function OktInner() {
     const dagsNavn = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'][dag]
     const t        = grupper.length > 0 ? grupper.map(g=>g[0].toUpperCase()+g.slice(1)).join(' & ') + ' — ' + dagsNavn : 'Treningsøkt'
     setOkter(logg); setOppvar(opp); setTittel(t); setLaster(false)
+  }
+
+  // Autolagring av pågående økt – overlever at appen lukkes eller telefonen går tom for strøm
+  useEffect(() => {
+    if (laster || feiring || !okter.length) return
+    try {
+      localStorage.setItem(UTKAST_NOKKEL, JSON.stringify({
+        nokkel: searchParams.toString(), lagret: Date.now(), okter, tittel, oppvar, lagretOktId,
+      }))
+    } catch {}
+  }, [okter, tittel, oppvar, lagretOktId, laster, feiring]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startPaNytt = () => {
+    try { localStorage.removeItem(UTKAST_NOKKEL) } catch {}
+    setGjenopprettet(false); setLaster(true); setOkter([])
+    bygg(false)
   }
 
   // Hent historikk for alle øvelsene i én spørring
@@ -553,6 +595,7 @@ function OktInner() {
         else if (kg > eks.kg) await supabase.from('pr_rekorder').update({ kg, reps, dato }).eq('id', eks.id)
       }
       setHvile(null)
+      try { localStorage.removeItem(UTKAST_NOKKEL) } catch {}
       oppdaterCache()
       setFeiring({ sett: fullfort, ovelser: okter.length, kg: tonnasje, tid: sekunder })
     }
@@ -584,6 +627,13 @@ function OktInner() {
           </div>
         </div>
       </motion.header>
+
+      {gjenopprettet && (
+        <div className="okt-gjenopprettet">
+          <span>Du fortsetter der du slapp.</span>
+          <button className="hq-link" onClick={startPaNytt}>Start på nytt</button>
+        </div>
+      )}
 
       <AnimatePresence>
         {hvile && (
@@ -887,6 +937,8 @@ function OktInner() {
         .okt-hvile-tid { font-size: 1.25rem; color: var(--ink); line-height: 1; }
         .okt-hvile-knapp { height: 36px; min-width: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: none; color: var(--ink); font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .okt-hvile-knapp:hover { border-color: var(--gold); color: var(--gold-hi); }
+        .okt-gjenopprettet { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; margin-bottom: 1rem; border-left: 1px solid var(--gold); background: rgba(201,169,110,0.05); font-size: 0.88rem; color: var(--ink); }
+        .okt-gjenopprettet .hq-link { background: none; border: none; cursor: pointer; }
         .okt-forrige { grid-column: 2 / -1; display: flex; align-items: center; gap: 10px; margin-top: -2px; font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.06em; color: var(--text-muted); }
         .okt-pr { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: #17130C; letter-spacing: 0.1em; text-transform: uppercase; }
         .feiring-pr { display: inline-flex; align-items: center; gap: 8px; margin-top: 1rem; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(201,169,110,0.5); color: var(--gold-hi); font-size: 0.84rem; }
