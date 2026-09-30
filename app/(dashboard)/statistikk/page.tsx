@@ -12,6 +12,7 @@ import Volumgraf from './Volumgraf'
 import { BarChart3, Trophy, Scale, Plus, X, Download, Droplet, ArrowUpRight } from 'lucide-react'
 import { MuskelGlyph } from '@/components/atelier/Glyph'
 import { TelleTall } from '@/components/atelier/TelleTall'
+import { PR_OVELSER } from '@/lib/prOvelser'
 import { AtelierTooltip, TikkSoyle, TikkSoyleH, AKSE, RUTENETT, MARKOR, GULL } from '@/components/atelier/chart'
 import { lokalDato } from '@/lib/dato'
 
@@ -27,22 +28,6 @@ const Tooltip   = dynamic(() => import('recharts').then(mod => mod.Tooltip),   {
 
 const supabase = createClient()
 
-const PR_OVELSER = [
-  { id:'benkpress',     navn:'Benkpress',            emoji:'🏋️', kategori:'Bryst'    },
-  { id:'skraabenkpress',navn:'Skråbenkpress',         emoji:'📐', kategori:'Bryst'    },
-  { id:'markloeft',     navn:'Markløft',              emoji:'⚡', kategori:'Rygg'     },
-  { id:'kneboey',       navn:'Knebøy',                emoji:'🦵', kategori:'Bein'     },
-  { id:'pullups',       navn:'Pull-ups',              emoji:'🤸', kategori:'Rygg'     },
-  { id:'militarypress', navn:'Military press',        emoji:'⬆️', kategori:'Skuldre'  },
-  { id:'bicepscurl',    navn:'Biceps curl',           emoji:'💪', kategori:'Bicep'    },
-  { id:'hammercurl',    navn:'Hammer curl',           emoji:'🔨', kategori:'Bicep'    },
-  { id:'triceppushdown',navn:'Triceps pushdown',      emoji:'📉', kategori:'Tricep'   },
-  { id:'sidehev',       navn:'Sidehev',               emoji:'🔼', kategori:'Skuldre'  },
-  { id:'legpress',      navn:'Legpress',              emoji:'🔧', kategori:'Bein'     },
-  { id:'romenmarkloeft',navn:'Rumensk markløft',      emoji:'🍑', kategori:'Bein'     },
-  { id:'kabelsittroign',navn:'Sittende kabelroing',   emoji:'🚣', kategori:'Rygg'     },
-  { id:'latpulldown',   navn:'Lat pulldown',          emoji:'⬇️', kategori:'Rygg'     },
-]
 
 interface PR { id?: string; ovelse_id: string; kg: number; reps: number; dato: string }
 

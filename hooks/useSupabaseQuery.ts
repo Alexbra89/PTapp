@@ -229,21 +229,47 @@ export function useAktivitet(userId?: string) {
 }
 
 // ── Vektlogg — localStorage + profil ──────────────────────────────────────────
+// Vektlogg lagres i Supabase-tabellen `vektlogg` (se docs/migrasjoner/vektlogg.sql).
+// Finnes ikke tabellen ennå, brukes nettleserens lagring som før – ingenting går tapt.
+// Når tabellen er på plass, lastes eksisterende lokale målinger opp automatisk.
+type Maling = { dato: string; vekt: number }
+const lesLokal = (userId: string): Maling[] => {
+  try { return JSON.parse(localStorage.getItem(`vektlogg_${userId}`) ?? '[]') } catch { return [] }
+}
+const skrivLokal = (userId: string, l: Maling[]) => {
+  try { localStorage.setItem(`vektlogg_${userId}`, JSON.stringify(l)) } catch {}
+}
+
 export function useVektlogg(userId?: string, profilVekt?: number) {
   return useQuery({
     queryKey: QK.vektlogg(userId ?? ''),
     enabled:  !!userId,
     staleTime: 2 * 60 * 1000,
-    queryFn:  async () => {
-      const key  = `vektlogg_${userId}`
-      const lokal: { dato: string; vekt: number }[] =
-        JSON.parse(localStorage.getItem(key) ?? '[]')
-      if (lokal.length === 0 && profilVekt) {
-        const start = [{ dato: format(new Date(), 'yyyy-MM-dd'), vekt: profilVekt }]
-        localStorage.setItem(key, JSON.stringify(start))
-        return start
+    queryFn:  async (): Promise<Maling[]> => {
+      const lokal = lesLokal(userId!)
+      const { data, error } = await supabase.from('vektlogg')
+        .select('dato, vekt').eq('bruker_id', userId!).order('dato')
+      if (error) {
+        // Tabellen mangler (eller er utilgjengelig): fall tilbake til lokal lagring
+        if (lokal.length === 0 && profilVekt) {
+          const start = [{ dato: format(new Date(), 'yyyy-MM-dd'), vekt: profilVekt }]
+          skrivLokal(userId!, start)
+          return start
+        }
+        return lokal
       }
-      return lokal
+      const iDb = new Set((data ?? []).map(d => d.dato))
+      const mangler = lokal.filter(m => !iDb.has(m.dato))
+      if (mangler.length) {
+        await supabase.from('vektlogg').upsert(
+          mangler.map(m => ({ bruker_id: userId!, dato: m.dato, vekt: m.vekt })),
+          { onConflict: 'bruker_id,dato' },
+        )
+      }
+      const alle = [...(data ?? []).map(d => ({ dato: d.dato, vekt: Number(d.vekt) })), ...mangler]
+        .sort((x, y) => x.dato.localeCompare(y.dato))
+      if (alle.length === 0 && profilVekt) return [{ dato: format(new Date(), 'yyyy-MM-dd'), vekt: profilVekt }]
+      return alle
     },
   })
 }
@@ -368,11 +394,12 @@ export function useLoggVekt() {
   return useMutation({
     mutationFn: async ({
       userId, vekt, vektLogger,
-    }: { userId: string; vekt: number; vektLogger: { dato: string; vekt: number }[] }) => {
+    }: { userId: string; vekt: number; vektLogger: Maling[] }) => {
       const ny = { dato: format(new Date(), 'yyyy-MM-dd'), vekt }
       const oppdatert = [...vektLogger.filter(v => v.dato !== ny.dato), ny]
         .sort((a, b) => a.dato.localeCompare(b.dato))
-      localStorage.setItem(`vektlogg_${userId}`, JSON.stringify(oppdatert))
+      skrivLokal(userId, oppdatert) // alltid en lokal kopi som reserve
+      await supabase.from('vektlogg').upsert([{ bruker_id: userId, ...ny }], { onConflict: 'bruker_id,dato' })
       await supabase.from('profiler').update({ vekt }).eq('id', userId)
       return oppdatert
     },

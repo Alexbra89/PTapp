@@ -8,11 +8,13 @@ import { OVELSER as BIBLIOTEK } from '@/data/ovelsesbibliotek'
 import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from '../../kalender/ProgramMal'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame } from 'lucide-react'
+import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame, Trophy, SkipForward } from 'lucide-react'
 import { Dial } from '@/components/atelier/Dial'
 import { OppvarmingIkon } from '@/components/atelier/Glyph'
 import { TelleTall } from '@/components/atelier/TelleTall'
 import { lokalDato } from '@/lib/dato'
+import { lyd } from '@/lib/lyd'
+import { finnPrOvelse } from '@/lib/prOvelser'
 
 
 function spillAlarm() {
@@ -125,6 +127,19 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+// «90s», «2min», «3 min», «75s» → sekunder. «–» eller ukjent gir 0 (ingen hvile).
+function hvileSekunder(hvile: string): number {
+  const t = (hvile || '').toLowerCase()
+  const min = t.match(/(\d+(?:[.,]\d+)?)\s*min/)
+  if (min) return Math.round(parseFloat(min[1].replace(',', '.')) * 60)
+  const sek = t.match(/(\d+)\s*s/)
+  if (sek) return parseInt(sek[1])
+  return 0
+}
+const fmtHvile = (ms: number) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+
+type Historikk = Record<string, { forrige: { reps: number; kg: number }[]; beste: number }>
+
 function OktInner() {
   const supabase     = createClient()
   const router       = useRouter()
@@ -142,6 +157,13 @@ function OktInner() {
   const [bytteIndex, setBytteIndex] = useState<number | null>(null)
   const [bekrefter,  setBekrefter]  = useState(false)
   const [lagretOktId, setLagretOktId] = useState<string | null>(searchParams.get('okt'))
+  // Forrige resultat og beste løft per øvelse (fra treningslogger)
+  const [historikk, setHistorikk] = useState<Historikk>({})
+  // Nye rekorder denne økta: øvelsesnavn → tyngste kg
+  const [nyePR, setNyePR] = useState<Record<string, number>>({})
+  // Hviletimer som starter når et sett hukes av
+  const [hvile, setHvile] = useState<{ slutt: number; total: number; ovelse: string } | null>(null)
+  const [hvileIgjen, setHvileIgjen] = useState(0)
   const qc = useQueryClient()
   const [feiring,    setFeiring]    = useState<{ sett: number; ovelser: number; kg: number; tid: number } | null>(null)
   const meldingRef = useRef<NodeJS.Timeout | null>(null)
@@ -374,6 +396,71 @@ function OktInner() {
     setOkter(logg); setOppvar(opp); setTittel(t); setLaster(false)
   }
 
+  // Hent historikk for alle øvelsene i én spørring
+  const ovelsesnavn = okter.map(o => o.navn).join('|')
+  useEffect(() => {
+    if (laster || !ovelsesnavn) return
+    let avbrutt = false
+    ;(async () => {
+      const { data: { user: u } } = await supabase.auth.getUser()
+      if (!u) return
+      const navn = Array.from(new Set(ovelsesnavn.split('|')))
+      const { data } = await supabase.from('treningslogger').select('ovelse_navn, dato, sett')
+        .eq('bruker_id', u.id).in('ovelse_navn', navn).order('dato', { ascending: false }).limit(300)
+      if (avbrutt || !data) return
+      const h: Historikk = {}
+      for (const rad of data as any[]) {
+        const sett = (rad.sett ?? []).map((x: any) => ({ reps: x.reps ?? 0, kg: x.vekt ?? x.kg ?? 0 }))
+        const tyngst = Math.max(0, ...sett.map((x: any) => x.kg))
+        if (!h[rad.ovelse_navn]) h[rad.ovelse_navn] = { forrige: sett, beste: tyngst }
+        else h[rad.ovelse_navn].beste = Math.max(h[rad.ovelse_navn].beste, tyngst)
+      }
+      setHistorikk(h)
+    })()
+    return () => { avbrutt = true }
+  }, [laster, ovelsesnavn]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hviletimer – tidsstempelbasert, så den tåler at skjermen låses
+  useEffect(() => {
+    if (!hvile) return
+    const id = setInterval(() => {
+      const rest = hvile.slutt - Date.now()
+      if (rest <= 0) {
+        lyd.arbeid()
+        try { navigator.vibrate?.(200) } catch {}
+        setHvile(null); setHvileIgjen(0)
+        return
+      }
+      setHvileIgjen(rest)
+    }, 200)
+    return () => clearInterval(id)
+  }, [hvile])
+
+  const startHvile = (o: OvelseLogg) => {
+    const sek = hvileSekunder(o.hvile)
+    if (!sek) return
+    lyd.klargjor()
+    setHvile({ slutt: Date.now() + sek * 1000, total: sek * 1000, ovelse: o.navn })
+    setHvileIgjen(sek * 1000)
+  }
+
+  // Huk av et sett: start hvile og sjekk om det er ny rekord
+  const hukAv = (oIdx: number, sIdx: number) => {
+    const o = okter[oIdx]
+    const s = o.sett_logg[sIdx]
+    const nyStatus = !s.fullfort
+    oppdaterSett(oIdx, sIdx, 'fullfort', nyStatus)
+    if (!nyStatus) return
+    const sisteSett = okter.every((x, i) => x.sett_logg.every((y, j) => (i === oIdx && j === sIdx) || y.fullfort))
+    if (!sisteSett) startHvile(o)
+    const beste = historikk[o.navn]?.beste ?? 0
+    if (beste > 0 && s.kg > beste && s.kg > (nyePR[o.navn] ?? 0)) {
+      setNyePR(p => ({ ...p, [o.navn]: s.kg }))
+      lyd.ferdig()
+      visMelding(`Ny rekord i ${o.navn.toLowerCase()}: ${s.kg} kg`)
+    }
+  }
+
   const oppdaterSett = (oIdx: number, sIdx: number, felt: string, val: any) =>
     setOkter(prev => prev.map((o,i) => i!==oIdx ? o : {
       ...o, sett_logg: o.sett_logg.map((s,j) => j!==sIdx ? s : {...s,[felt]:val})
@@ -456,6 +543,16 @@ function OktInner() {
       // Én samlet insert i stedet for én forespørsel per øvelse
       const { error: loggFeil } = logger.length ? await supabase.from('treningslogger').insert(logger) : { error: null }
       if (loggFeil) visMelding('Økten er lagret, men settene kunne ikke logges: ' + loggFeil.message)
+      // Oppdater personlige rekorder for øvelser som finnes i rekordlisten
+      for (const [navn, kg] of Object.entries(nyePR)) {
+        const pr = finnPrOvelse(navn)
+        if (!pr) continue
+        const reps = okter.find(o => o.navn === navn)?.sett_logg.find(x => x.kg === kg)?.reps ?? 1
+        const { data: eks } = await supabase.from('pr_rekorder').select('id, kg').eq('bruker_id', currentUser.id).eq('ovelse_id', pr.id).maybeSingle()
+        if (!eks) await supabase.from('pr_rekorder').insert([{ bruker_id: currentUser.id, ovelse_id: pr.id, kg, reps, dato }])
+        else if (kg > eks.kg) await supabase.from('pr_rekorder').update({ kg, reps, dato }).eq('id', eks.id)
+      }
+      setHvile(null)
       oppdaterCache()
       setFeiring({ sett: fullfort, ovelser: okter.length, kg: tonnasje, tid: sekunder })
     }
@@ -487,6 +584,24 @@ function OktInner() {
           </div>
         </div>
       </motion.header>
+
+      <AnimatePresence>
+        {hvile && (
+          <motion.div className="okt-hvile" initial={{ opacity: 0, y: 30, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: 30, x: '-50%' }}>
+            <svg viewBox="0 0 36 36" className="okt-hvile-ring" aria-hidden>
+              <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(242,236,225,0.12)" strokeWidth="2" />
+              <circle cx="18" cy="18" r="15" fill="none" stroke="#C9A96E" strokeWidth="2" strokeLinecap="round"
+                strokeDasharray={94.25} strokeDashoffset={94.25 * (1 - hvileIgjen / hvile.total)} transform="rotate(-90 18 18)" />
+            </svg>
+            <div className="okt-hvile-tekst">
+              <span className="eyebrow">Hvile</span>
+              <span className="mono okt-hvile-tid">{fmtHvile(hvileIgjen)}</span>
+            </div>
+            <button className="okt-hvile-knapp" onClick={() => setHvile(h => h && ({ ...h, slutt: h.slutt + 15000, total: h.total + 15000 }))}>+15s</button>
+            <button className="okt-hvile-knapp" onClick={() => { setHvile(null); setHvileIgjen(0) }} aria-label="Hopp over hvile"><SkipForward size={14} /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {lagretMsg && (
@@ -613,7 +728,7 @@ function OktInner() {
                         <motion.button
                           className={`okt-check${s.fullfort?' done':''}`}
                           whileTap={{ scale: 0.85 }}
-                          onClick={() => oppdaterSett(oIdx,sIdx,'fullfort',!s.fullfort)}
+                          onClick={() => hukAv(oIdx, sIdx)}
                           aria-label={s.fullfort ? 'Merk som ikke fullført' : 'Merk som fullført'}
                         >
                           <AnimatePresence mode="wait" initial={false}>
@@ -626,6 +741,18 @@ function OktInner() {
                           onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{
                             ...x, sett: x.sett-1, sett_logg: x.sett_logg.filter((_,j) => j!==sIdx)
                           }))}><X size={13} strokeWidth={1.5} /></button>
+                        {(() => {
+                          const f = historikk[o.navn]?.forrige?.[sIdx]
+                          const beste = historikk[o.navn]?.beste ?? 0
+                          const erPR = beste > 0 && s.kg > beste
+                          if (!f && !erPR) return null
+                          return (
+                            <span className="okt-forrige">
+                              {f && <>Sist {f.kg ? `${f.kg} kg × ` : ''}{f.reps}</>}
+                              {erPR && <span className="okt-pr"><Trophy size={10} strokeWidth={1.8} /> {s.fullfort ? 'Ny rekord' : `Over rekord (${beste} kg)`}</span>}
+                            </span>
+                          )
+                        })()}
                       </motion.div>
                     ))}
                     <button className="okt-add-sett"
@@ -690,6 +817,9 @@ function OktInner() {
               <span className="eyebrow eyebrow-gold">{new Date().toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
               <h2 className="feiring-tittel">Fullført<em>.</em></h2>
               <p className="feiring-sub">{tittel}</p>
+              {Object.keys(nyePR).length > 0 && (
+                <p className="feiring-pr"><Trophy size={13} strokeWidth={1.6} /> {Object.keys(nyePR).length === 1 ? 'Ny rekord' : `${Object.keys(nyePR).length} nye rekorder`}: {Object.entries(nyePR).map(([n, kg]) => `${n} ${kg} kg`).join(' · ')}</p>
+              )}
               <div className="feiring-tall">
                 {[
                   { v: feiring.sett, l: 'Sett' },
@@ -749,6 +879,17 @@ function OktInner() {
 
         .okt-toast { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); z-index: 70; padding: 0.8rem 1.3rem; border-radius: 999px; background: var(--ink); color: #0B0A09; font-size: 0.86rem; font-weight: 500; box-shadow: 0 20px 40px -12px rgba(0,0,0,0.7); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
         @media (min-width: 901px) { .okt-toast { bottom: 2rem; } }
+        .okt-hvile { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 69; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; border-radius: 999px; background: rgba(26,25,22,0.94); border: 1px solid rgba(201,169,110,0.4); backdrop-filter: blur(16px); box-shadow: 0 20px 40px -12px rgba(0,0,0,0.8); }
+        @media (min-width: 901px) { .okt-hvile { bottom: 2rem; } }
+        .okt-hvile ~ * .okt-toast, .okt-hvile + .okt-toast { bottom: calc(170px + env(safe-area-inset-bottom)); }
+        .okt-hvile-ring { width: 40px; height: 40px; }
+        .okt-hvile-tekst { display: flex; flex-direction: column; gap: 2px; min-width: 56px; }
+        .okt-hvile-tid { font-size: 1.25rem; color: var(--ink); line-height: 1; }
+        .okt-hvile-knapp { height: 36px; min-width: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: none; color: var(--ink); font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .okt-hvile-knapp:hover { border-color: var(--gold); color: var(--gold-hi); }
+        .okt-forrige { grid-column: 2 / -1; display: flex; align-items: center; gap: 10px; margin-top: -2px; font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.06em; color: var(--text-muted); }
+        .okt-pr { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: #17130C; letter-spacing: 0.1em; text-transform: uppercase; }
+        .feiring-pr { display: inline-flex; align-items: center; gap: 8px; margin-top: 1rem; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(201,169,110,0.5); color: var(--gold-hi); font-size: 0.84rem; }
 
         .okt-klokke { display:flex; flex-direction:column; gap:1rem; padding:1.4rem 1.5rem; margin-bottom:1rem; }
         .okt-alarm { border-color: rgba(224,97,79,0.5) !important; animation: alarmP 0.8s ease-in-out infinite alternate; }
