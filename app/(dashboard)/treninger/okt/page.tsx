@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import ovelserData from '@/data/ovelser.json'
 import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
@@ -10,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame } from 'lucide-react'
 import { Dial } from '@/components/atelier/Dial'
 import { OppvarmingIkon } from '@/components/atelier/Glyph'
+import { lokalDato } from '@/lib/dato'
 
 
 function spillAlarm() {
@@ -138,6 +140,8 @@ function OktInner() {
   const [visFavorittModal, setVisFavorittModal] = useState(false)
   const [bytteIndex, setBytteIndex] = useState<number | null>(null)
   const [bekrefter,  setBekrefter]  = useState(false)
+  const [lagretOktId, setLagretOktId] = useState<string | null>(searchParams.get('okt'))
+  const qc = useQueryClient()
   const [feiring,    setFeiring]    = useState<{ sett: number; ovelser: number; kg: number; tid: number } | null>(null)
   const meldingRef = useRef<NodeJS.Timeout | null>(null)
   const visMelding = (msg: string) => {
@@ -185,7 +189,7 @@ function OktInner() {
   useEffect(() => { bygg() }, [])
 
   useEffect(() => {
-    const dato = new Date().toISOString().split('T')[0]
+    const dato = lokalDato()
     setDagensDato(dato)
     const lagret = localStorage.getItem(`notat_${dato}`)
     if (lagret) setOktNotat(lagret)
@@ -371,23 +375,36 @@ function OktInner() {
       ...o, sett_logg: o.sett_logg.map((s,j) => j!==sIdx ? s : {...s,[felt]:val})
     }))
 
+  // Én rad per økt: finnes den (åpnet fra kalenderen, eller lagret som utkast), oppdateres den.
+  // Tidligere ble det laget en ny rad ved hvert lagre-trykk og ved fullføring – duplikater i kalenderen.
+  const lagreOktRad = async (brukerId: string, dato: string, erFullfort: boolean) => {
+    const rad = {
+      bruker_id: brukerId, dato, tittel, type: 'styrke', fullfort: erFullfort,
+      varighet_min: klokkeMode === 'stopp' && sekunder >= 60 ? Math.round(sekunder / 60) : 60,
+      ovelser: okter.map(o => ({ navn: o.navn, sett: o.sett, reps: o.sett_logg.map(s=>s.reps).join('/'), kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0 })),
+    }
+    if (lagretOktId) {
+      const { error } = await supabase.from('okter').update(rad).eq('id', lagretOktId)
+      return error
+    }
+    const { data, error } = await supabase.from('okter').insert([rad]).select('id').single()
+    if (data?.id) setLagretOktId(data.id)
+    return error
+  }
+
+  // Dashbord, kalender og statistikk leser fra React Query-cachen – den må friskes opp etter lagring
+  const oppdaterCache = () => {
+    for (const key of ['okter', 'okterIdag', 'stats', 'aktivitet']) qc.invalidateQueries({ queryKey: [key] })
+  }
+
   const lagreOkt = async () => {
     setLagrer(true)
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (!currentUser) { setLagrer(false); return }
-    const dato = new Date().toISOString().split('T')[0]
-    await supabase.from('okter').insert([{
-      bruker_id: currentUser.id, dato, tittel, type: 'styrke', varighet_min: 60, fullfort: false,
-      ovelser: okter.map(o => ({ navn: o.navn, sett: o.sett, reps: o.sett_logg.map(s=>s.reps).join('/'), kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0 })),
-    }])
-    for (const o of okter) {
-      if (!o.sett_logg.some(s => s.kg > 0)) continue
-      await supabase.from('treningslogger').insert({
-        bruker_id: currentUser.id, dato, ovelse_navn: o.navn, muskelgruppe: o.muskler,
-        sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort }))
-      })
-    }
-    visMelding('Utkastet er lagret.')
+    // Utkast skriver ikke treningslogger – de hører til fullførte økter og ville ellers blitt telt dobbelt
+    const error = await lagreOktRad(currentUser.id, lokalDato(), false)
+    visMelding(error ? `Kunne ikke lagre: ${error.message}` : 'Utkastet er lagret.')
+    if (!error) oppdaterCache()
     setLagrer(false)
   }
 
@@ -417,36 +434,25 @@ function OktInner() {
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (!currentUser) { setLagrer(false); return }
 
-    const dato = new Date().toISOString().split('T')[0]
-    const { error } = await supabase.from('okter').insert([{
-      bruker_id: currentUser.id,
-      dato,
-      tittel,
-      type:'styrke',
-      varighet_min:60,
-      fullfort: true,
-      ovelser: okter.map(o => ({
-        navn: o.navn,
-        sett: o.sett,
-        reps: o.sett_logg.map(s=>s.reps).join('/'),
-        kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0
-      })),
-    }])
+    const dato = lokalDato()
+    const error = await lagreOktRad(currentUser.id, dato, true)
 
     if (error) {
-      console.error('Feil ved lagring:', error)
       visMelding('Noe gikk galt ved lagring: ' + error.message)
     } else {
-      for (const o of okter) {
-        if (!o.sett_logg.some(s => s.kg > 0)) continue
-        await supabase.from('treningslogger').insert({
+      const logger = okter
+        .filter(o => o.sett_logg.some(s => s.kg > 0))
+        .map(o => ({
           bruker_id: currentUser.id,
           dato,
           ovelse_navn: o.navn,
           muskelgruppe: o.muskler,
-          sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort }))
-        })
-      }
+          sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort })),
+        }))
+      // Én samlet insert i stedet for én forespørsel per øvelse
+      const { error: loggFeil } = logger.length ? await supabase.from('treningslogger').insert(logger) : { error: null }
+      if (loggFeil) visMelding('Økten er lagret, men settene kunne ikke logges: ' + loggFeil.message)
+      oppdaterCache()
       setFeiring({ sett: fullfort, ovelser: okter.length, kg: tonnasje, tid: sekunder })
     }
     setLagrer(false)

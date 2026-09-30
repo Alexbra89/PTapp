@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subWeeks } from 'date-fns'
+import { lokalDato } from '@/lib/dato'
 
 const supabase = createClient()
 
@@ -98,27 +99,18 @@ export function useOkterManed(userId?: string, maned?: Date) {
   return useQuery({
     queryKey: QK.okterManed(userId ?? '', manadKey),
     enabled:  !!userId && !!maned && userId !== '',
-    staleTime: 0, // 🔥 ENDRE HER: 0 = alltid hent ferske data når komponenten mountes
-    // gcTime: 5 * 60 * 1000, // (dette kan du beholde, det er cache-tid)
+    staleTime: 0, // alltid ferske data når kalenderen åpnes
     queryFn:  async () => {
       const fra = format(startOfMonth(maned!), 'yyyy-MM-dd')
       const til = format(endOfMonth(maned!),   'yyyy-MM-dd')
-      console.log(`Henter økter for ${manadKey}...`) // 🔥 Legg til logging
       
       const { data } = await supabase
         .from('okter')
-        .select('id, dato, tittel, type, varighet_min, notater, ovelser')
+        .select('id, dato, tittel, type, varighet_min, notater, ovelser, fullfort')
         .eq('bruker_id', userId!)
         .gte('dato', fra)
         .lte('dato', til)
         .order('dato')
-      
-      console.log(`Hentet ${data?.length || 0} økter`) // 🔥 Legg til logging
-      console.log('Økter med øvelser:', data?.filter(o => o.ovelser?.length > 0).map(o => ({
-        id: o.id,
-        tittel: o.tittel,
-        antallOvelser: o.ovelser?.length
-      })))
       
       return data ?? []
     },
@@ -172,7 +164,7 @@ export function useStats(userId?: string) {
       const today = new Date(); today.setHours(0,0,0,0)
       for (let i = 0; i < 60; i++) {
         const d = new Date(today); d.setDate(today.getDate() - i)
-        if (dSet.has(d.toISOString().split('T')[0])) streak++
+        if (dSet.has(lokalDato(d))) streak++
         else if (i > 0) break
       }
 

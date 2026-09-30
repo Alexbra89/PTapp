@@ -7,6 +7,7 @@ import { nb } from 'date-fns/locale'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { useUser, useProfil, useDagensOkter, useStats, useAktivitet } from '@/hooks/useSupabaseQuery'
 import { TickRing } from '@/components/atelier/Dial'
+import { lokalDato } from '@/lib/dato'
 
 const UKEMAL = 4
 
@@ -40,7 +41,7 @@ const rise: Variants = {
 }
 
 export default function DashboardPage() {
-  const idag  = new Date().toISOString().split('T')[0]
+  const idag  = lokalDato()
   const time  = new Date().getHours()
   const hilsen = time < 5 ? 'God natt' : time < 10 ? 'God morgen' : time < 17 ? 'God dag' : 'God kveld'
   const dagNavn = format(new Date(), 'EEEE d. MMMM', { locale: nb })

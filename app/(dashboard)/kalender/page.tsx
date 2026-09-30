@@ -180,6 +180,7 @@ export default function KalenderPage() {
   const [visDetalj,   setVisDetalj]   = useState<string | null>(null)
   const [slettId,     setSlettId]     = useState<string | null>(null)
   const [visProgramMal, setVisProgramMal] = useState(false)
+  const [lagreFeil,   setLagreFeil]   = useState('')
 
   const { data: user }                      = useUser()
   const { data: okterArr = [], isFetching } = useOkterManed(user?.id, maned)
@@ -234,13 +235,20 @@ export default function KalenderPage() {
     const dato = format(valgtDag, 'yyyy-MM-dd')
     const forslag = editOkt ? [] : hentAnbefaltOvelser(form.tittel, dato)
     const ovelser = forslag.map((o: any) => ({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 }))
-    await lagreOktMut.mutateAsync({
-      userId: user.id, dato,
-      tittel: form.tittel, type: form.type,
-      varighet_min: form.varighet_min, notater: form.notater,
-      id: editOkt?.id,
-      ovelser,
-    })
+    setLagreFeil('')
+    try {
+      await lagreOktMut.mutateAsync({
+        userId: user.id, dato,
+        tittel: form.tittel, type: form.type,
+        varighet_min: form.varighet_min, notater: form.notater,
+        id: editOkt?.id,
+        ovelser,
+      })
+    } catch (e: any) {
+      // Uten dette ble modalen stående stille ved nettverks-/databasefeil
+      setLagreFeil(e?.message ?? 'Kunne ikke lagre økten.')
+      return
+    }
     setVisModal(false)
     setEditOkt(null)
   }
@@ -255,6 +263,7 @@ const brukProgram = async (program: any) => {
     kg: o.kg || 0
   }))
   
+  try {
   await lagreOktMut.mutateAsync({
     userId: user.id,
     dato: datoStr,
@@ -264,6 +273,9 @@ const brukProgram = async (program: any) => {
     notater: '',
     ovelser: ovelser
   })
+  } catch {
+    return
+  }
   
   setVisProgramMal(false)
   qc.invalidateQueries({ queryKey: QK.okterManed(user.id, format(maned, 'yyyy-MM')) })
@@ -552,11 +564,12 @@ const brukProgram = async (program: any) => {
                 value={form.notater}
                 onChange={e => setForm(f => ({ ...f, notater: e.target.value }))} />
             </div>
+            {lagreFeil && <div className="login-error-box" style={{ margin: '0 1.5rem 1rem' }}><span className="login-error-text">{lagreFeil}</span></div>}
             <div className="kal-modal-footer">
-              <button className="btn btn-ghost" onClick={() => setVisModal(false)}>Avbryt</button>
+              <button className="btn btn-ghost" onClick={() => { setVisModal(false); setLagreFeil('') }}>Avbryt</button>
               <button className="btn btn-primary"
                 onClick={lagreOkt} disabled={lagrer || !form.tittel.trim()}>
-                {lagrer ? <span className="spinner" style={{ width: 14, height: 14 }} /> : editOkt ? '💾 Lagre' : '＋ Opprett'}
+                {lagrer ? <span className="spinner" style={{ width: 14, height: 14 }} /> : editOkt ? 'Lagre' : 'Opprett'}
               </button>
             </div>
           </div>

@@ -9,6 +9,7 @@ import OvelsesVelger from '@/components/OvelsesVelger'
 import { motion } from 'framer-motion'
 import { Home, Building2, Flame, Dumbbell, Pause, RotateCcw, X, ChevronDown, CalendarPlus, ArrowRight, Sparkles, ListChecks } from 'lucide-react'
 import { MuskelGlyph, OppvarmingIkon } from '@/components/atelier/Glyph'
+import { lokalDato } from '@/lib/dato'
 
 type Sted   = 'hjemme' | 'gym'
 type Gruppe = 'bryst'|'rygg'|'bein'|'skuldre'|'bicep'|'tricep'|'core'|'fullkropp'|'tabata'|'cardio'
@@ -266,16 +267,17 @@ function KonfigInner() {
     monday.setHours(0, 0, 0, 0)
 
     const maaneder: string[] = []
+    let feil = 0
 
     for (const [dagNavn, grp] of Object.entries(plan)) {
       const idx     = UKEDAGER.indexOf(dagNavn)
       const dato    = new Date(monday)
       dato.setDate(monday.getDate() + idx)
-      const datoStr = dato.toISOString().split('T')[0]
+      const datoStr = lokalDato(dato)
       const ovelser = genererOvelser(grp, datoStr)
       if (!maaneder.includes(datoStr.slice(0, 7))) maaneder.push(datoStr.slice(0, 7))
 
-      await supabase.from('okter').insert([{
+      const { error } = await supabase.from('okter').insert([{
         bruker_id:    user.id,
         dato:         datoStr,
         tittel:       grp.map(g => g[0].toUpperCase() + g.slice(1)).join(' & '),
@@ -284,6 +286,7 @@ function KonfigInner() {
         notater:      `Auto-generert: ${autofillPlan}`,
         ovelser,
       }])
+      if (error) feil++
     }
 
     // Ugyldiggjør cache for alle berørte måneder → kalender re-fetcher automatisk
@@ -292,7 +295,7 @@ function KonfigInner() {
     }
 
     setAutofillLast(false)
-    setAutofillMsg('Uken er lagt inn i kalenderen.')
+    setAutofillMsg(feil ? `${feil} av ${Object.keys(plan).length} økter kunne ikke lagres.` : 'Uken er lagt inn i kalenderen.')
     setTimeout(() => setAutofillMsg(''), 3000)
     setVisAutofill(false)
   }

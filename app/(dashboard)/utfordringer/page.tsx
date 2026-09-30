@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useSupabaseQuery'
+import { lokalDato } from '@/lib/dato'
 
 // ─── MANUELLE UTFORDRINGER (krever bruker-input) ──────────────────────────────
 const MANUELLE_UTFORDRINGER = [
@@ -107,7 +108,7 @@ export default function UtfordringerPage() {
         let currentDate = new Date()
         currentDate.setHours(0, 0, 0, 0)
         for (let i = 0; i < 60; i++) {
-          const datoStr = currentDate.toISOString().split('T')[0]
+          const datoStr = lokalDato(currentDate)
           if (datoer.has(datoStr)) {
             streak++
             currentDate.setDate(currentDate.getDate() - 1)

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Flame, Timer, Heart, Activity, Play, Pause, RotateCcw, Check } from 'lucide-react'
+import { lokalDato } from '@/lib/dato'
 
 type OppvarmingType = 'boksesekk' | 'romaskin' | 'elipsemaskin' | 'tredemølle' | 'dynamisk'
 
@@ -84,7 +85,7 @@ export default function OppvarmingSide() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const idag = new Date().toISOString().split('T')[0]
+    const idag = lokalDato()
     
     // Sjekk om det finnes en treningslogg for i dag
     const { data: eksisterende } = await supabase

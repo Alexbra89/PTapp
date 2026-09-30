@@ -12,6 +12,7 @@ import Volumgraf from './Volumgraf'
 import { BarChart3, Trophy, Scale, Plus, X, Download, Droplet, ArrowUpRight } from 'lucide-react'
 import { MuskelGlyph } from '@/components/atelier/Glyph'
 import { AtelierTooltip, TikkSoyle, TikkSoyleH, AKSE, RUTENETT, MARKOR, GULL } from '@/components/atelier/chart'
+import { lokalDato } from '@/lib/dato'
 
 const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
 const BarChart  = dynamic(() => import('recharts').then(mod => mod.BarChart),  { ssr: false })
@@ -64,7 +65,7 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
   const lagrePR = async () => {
     if (!userId || !valgtOv || !nyKg || !nyReps) return
     setLagrer(true)
-    const dato    = new Date().toISOString().split('T')[0]
+    const dato    = lokalDato()
     const eksist  = prs.find(p => p.ovelse_id === valgtOv)
     const erNyPR  = !eksist || Number(nyKg) > eksist.kg
 
