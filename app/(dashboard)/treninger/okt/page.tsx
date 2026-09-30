@@ -9,6 +9,7 @@ import ProgramMal from '../../kalender/ProgramMal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame } from 'lucide-react'
 import { Dial } from '@/components/atelier/Dial'
+import { OppvarmingIkon } from '@/components/atelier/Glyph'
 
 
 function spillAlarm() {
@@ -528,7 +529,7 @@ function OktInner() {
           <div className="okt-opp-title"><Flame size={14} strokeWidth={1.5} /> Oppvarming</div>
           {oppvar.map(o => (
             <div key={o.id} className="okt-opp-item">
-              <span className="okt-opp-em">{o.emoji}</span>
+              <span className="okt-opp-em"><OppvarmingIkon id={o.id} size={15} /></span>
               <div>
                 <div className="okt-opp-navn">{o.navn} <span className="mono" style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>· {o.varighet}</span></div>
                 <div className="okt-opp-besk">{o.beskrivelse}</div>
@@ -765,7 +766,7 @@ function OktInner() {
         .okt-opp { padding:1.4rem 1.5rem; margin-bottom:1rem; }
         .okt-opp-title { display:flex; align-items:center; gap:8px; font-family: var(--font-mono); font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase; color: var(--ember); margin-bottom:1rem; }
         .okt-opp-item { display:flex; align-items:flex-start; gap:12px; padding: 0.7rem 0; border-top: 1px solid var(--line); }
-        .okt-opp-em { font-size:1.1rem; flex-shrink:0; filter: grayscale(0.4); }
+        .okt-opp-em { width:30px; height:30px; border-radius:50%; border:1px solid rgba(224,122,79,0.4); color: var(--ember); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .okt-opp-navn { font-size:0.92rem; font-weight:500; color: var(--ink); margin-bottom:2px; }
         .okt-opp-besk { font-size:0.8rem; color: var(--text-muted); line-height:1.5; }
 

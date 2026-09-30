@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
+import { AtelierTooltip, AKSE, RUTENETT, GULL } from '@/components/atelier/chart'
 
 // Lazy-load Recharts
 const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
@@ -114,33 +115,35 @@ export default function ProgresjonOvelse({ userId }: Props) {
   }, [userId, valgtOvelse, tidsrom])
 
   const valgtOvelseData = ALLE_OVELSER.find(o => o.id === valgtOvelse)
+  const siste  = data.length ? (data[data.length - 1] as any).verdi : 0
+  const forste = data.length ? (data[0] as any).verdi : 0
+  const endring = forste > 0 ? Math.round(((siste - forste) / forste) * 100) : 0
 
   return (
-    <div className="progresjon-card glass-card">
+    <div className="progresjon-card glass-card crop">
       <div className="progresjon-header">
-        <div className="progresjon-tittel">
-          <span className="progresjon-emoji">{valgtOvelseData?.emoji}</span>
+        <div>
+          <span className="eyebrow eyebrow-gold">Progresjon · {valgtOvelseData?.kategori}</span>
           <h3 className="progresjon-navn">{valgtOvelseData?.navn}</h3>
         </div>
 
         <div className="progresjon-kontroller">
-          <select 
-            className="progresjon-select"
+          <select
+            className="input progresjon-select"
             value={valgtOvelse}
             onChange={(e) => setValgtOvelse(e.target.value)}
+            aria-label="Velg øvelse"
           >
             {ALLE_OVELSER.map(o => (
-              <option key={o.id} value={o.id}>
-                {o.emoji} {o.navn}
-              </option>
+              <option key={o.id} value={o.id}>{o.navn}</option>
             ))}
           </select>
 
           <div className="progresjon-tidsrom">
             {[
-              { verdi: '3m', label: '3m' },
-              { verdi: '6m', label: '6m' },
-              { verdi: '12m', label: '12m' },
+              { verdi: '3m', label: '3M' },
+              { verdi: '6m', label: '6M' },
+              { verdi: '12m', label: '1Å' },
               { verdi: 'all', label: 'Alt' }
             ].map(t => (
               <button
@@ -157,172 +160,66 @@ export default function ProgresjonOvelse({ userId }: Props) {
 
       {laster ? (
         <div className="progresjon-laster">
-          <span className="spinner" />
+          <span className="spinner-lg" />
         </div>
       ) : data.length === 0 ? (
         <div className="progresjon-tom">
-          <div className="progresjon-tom-emoji">📊</div>
-          <div className="progresjon-tom-t">Ingen data for denne øvelsen</div>
-          <div className="progresjon-tom-s">Logg noen økter for å se progresjon</div>
+          <div className="progresjon-tom-t">Ingen data ennå.</div>
+          <div className="progresjon-tom-s">Logg noen økter med {valgtOvelseData?.navn?.toLowerCase()}, så tegner kurven seg selv.</div>
         </div>
       ) : (
-        <div className="progresjon-graf">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(242,236,225,0.1)" />
-              <XAxis 
-                dataKey="visDato" 
-                tick={{ fill: 'rgba(242,236,225,0.5)', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                interval={Math.floor(data.length / 8)}
-              />
-              <YAxis 
-                tick={{ fill: 'rgba(242,236,225,0.5)', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (!active || !payload?.length) return null
-                  return (
-                    <div className="progresjon-tooltip">
-                      <div className="progresjon-tooltip-dato">{label}</div>
-                      <div className="progresjon-tooltip-verdi">
-                        {payload[0].value} kg·reps
-                      </div>
-                    </div>
-                  )
-                }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="verdi" 
-                stroke="var(--cyan)" 
-                strokeWidth={2.5}
-                dot={{ fill: 'var(--cyan)', r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="progresjon-tall">
+            <div className="num-monument progresjon-siste">{siste.toLocaleString('nb-NO')}<small>kg·reps</small></div>
+            <div className={`progresjon-endring${endring < 0 ? ' ned' : ''}`}>
+              {endring >= 0 ? '+' : ''}{endring}%
+              <span>i perioden</span>
+            </div>
+          </div>
+          <div className="progresjon-graf">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={data} margin={{ top: 10, right: 8, left: -12, bottom: 0 }}>
+                <CartesianGrid {...RUTENETT} vertical={false} />
+                <XAxis dataKey="visDato" {...AKSE} interval={Math.max(0, Math.floor(data.length / 6))} />
+                <YAxis {...AKSE} tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)} />
+                <Tooltip content={<AtelierTooltip enhet="kg·reps" />} cursor={{ stroke: 'rgba(242,236,225,0.15)' }} />
+                <Line
+                  type="monotone"
+                  dataKey="verdi"
+                  stroke={GULL}
+                  strokeWidth={1.6}
+                  dot={{ fill: '#0B0A09', stroke: GULL, strokeWidth: 1.2, r: 3 }}
+                  activeDot={{ r: 5, fill: GULL, stroke: '#0B0A09' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
       )}
 
       <style>{`
-        .progresjon-card {
-          padding: 1.5rem;
-          margin-bottom: 1rem;
-        }
-        .progresjon-header {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        @media (min-width: 768px) {
-          .progresjon-header {
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-          }
-        }
-        .progresjon-tittel {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        .progresjon-emoji {
-          font-size: 2rem;
-        }
-        .progresjon-navn {
-          font-family: var(--font-display);
-          font-size: 1.2rem;
-          font-weight: 700;
-          color: #F2ECE1;
-        }
-        .progresjon-kontroller {
-          display: flex;
-          gap: 1rem;
-          align-items: center;
-          flex-wrap: wrap;
-        }
-        .progresjon-select {
-          background: rgba(242,236,225,0.05);
-          border: 1px solid rgba(242,236,225,0.1);
-          color: #F2ECE1;
-          padding: 0.5rem 1rem;
-          border-radius: 8px;
-          font-size: 0.9rem;
-          cursor: pointer;
-          min-width: 180px;
-        }
-        .progresjon-select option {
-          background: #0B0A09;
-        }
-        .progresjon-tidsrom {
-          display: flex;
-          gap: 0.5rem;
-        }
-        .progresjon-tidsrom-btn {
-          padding: 0.4rem 0.8rem;
-          border-radius: 6px;
-          font-size: 0.8rem;
-          background: rgba(242,236,225,0.03);
-          border: 1px solid rgba(242,236,225,0.1);
-          color: rgba(242,236,225,0.5);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .progresjon-tidsrom-btn:hover {
-          background: rgba(242,236,225,0.08);
-        }
-        .progresjon-tidsrom-btn.active {
-          background: rgba(201,169,110,0.1);
-          border-color: rgba(201,169,110,0.3);
-          color: var(--cyan);
-        }
-        .progresjon-laster {
-          display: flex;
-          justify-content: center;
-          padding: 3rem;
-        }
-        .progresjon-tom {
-          text-align: center;
-          padding: 3rem;
-        }
-        .progresjon-tom-emoji {
-          font-size: 3rem;
-          margin-bottom: 1rem;
-        }
-        .progresjon-tom-t {
-          font-family: var(--font-display);
-          font-size: 1rem;
-          color: #F2ECE1;
-          margin-bottom: 0.5rem;
-        }
-        .progresjon-tom-s {
-          font-size: 0.85rem;
-          color: rgba(242,236,225,0.3);
-        }
-        .progresjon-graf {
-          width: 100%;
-        }
-        .progresjon-tooltip {
-          background: rgba(11,10,9,0.95);
-          border: 1px solid rgba(201,169,110,0.2);
-          border-radius: 8px;
-          padding: 0.5rem 1rem;
-        }
-        .progresjon-tooltip-dato {
-          font-size: 0.7rem;
-          color: rgba(242,236,225,0.5);
-          margin-bottom: 0.25rem;
-        }
-        .progresjon-tooltip-verdi {
-          font-size: 0.9rem;
-          font-weight: 600;
-          color: var(--cyan);
-        }
+        .progresjon-card { padding: 1.75rem; margin-bottom: 1rem; }
+        @media (max-width: 520px) { .progresjon-card { padding: 1.4rem 1.1rem; } }
+        .progresjon-header { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.5rem; }
+        @media (min-width: 768px) { .progresjon-header { flex-direction: row; align-items: flex-end; justify-content: space-between; } }
+        .progresjon-navn { font-family: var(--font-serif); font-weight: 400; font-size: clamp(2.2rem, 5vw, 3rem); line-height: 1; letter-spacing: -0.02em; margin-top: 0.75rem; }
+        .progresjon-kontroller { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+        .progresjon-select { width: auto; min-width: 190px; padding: 0.6rem 1rem; border-radius: 999px; cursor: pointer; }
+        .progresjon-tidsrom { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
+        .progresjon-tidsrom-btn { padding: 0.45rem 0.8rem; border-radius: 999px; font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.08em; background: transparent; border: none; color: var(--text-muted); cursor: pointer; transition: all 0.25s; }
+        .progresjon-tidsrom-btn:hover { color: var(--ink); }
+        .progresjon-tidsrom-btn.active { background: var(--ink); color: #0B0A09; }
+        .progresjon-laster { display: flex; justify-content: center; padding: 4rem; }
+        .progresjon-tom { padding: 3rem 0 1.5rem; border-top: 1px solid var(--line); }
+        .progresjon-tom-t { font-family: var(--font-serif); font-size: 1.8rem; color: var(--ink); margin-bottom: 0.4rem; }
+        .progresjon-tom-s { font-size: 0.88rem; color: var(--text-muted); }
+        .progresjon-tall { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding-top: 1.25rem; border-top: 1px solid var(--line); margin-bottom: 1rem; flex-wrap: wrap; }
+        .progresjon-siste { font-size: clamp(3rem, 9vw, 4.5rem); color: var(--ink); display: flex; align-items: baseline; gap: 8px; }
+        .progresjon-siste small { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; }
+        .progresjon-endring { font-family: var(--font-serif); font-size: 2rem; color: var(--sage); display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
+        .progresjon-endring.ned { color: var(--ember); }
+        .progresjon-endring span { font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); margin-top: 6px; }
+        .progresjon-graf { width: 100%; }
       `}</style>
     </div>
   )
