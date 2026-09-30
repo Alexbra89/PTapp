@@ -3,17 +3,31 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  LayoutGrid, Dumbbell, Library, CalendarDays, Trophy, BarChart3, User, Timer,
+  LogOut, MoreHorizontal, ArrowUpRight,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { Dial } from '@/components/atelier/Dial'
+import { BRAND } from '@/lib/brand'
 
 const NAV = [
-  { href: '/', icon: '⚡', label: 'Dashboard' },
-  { href: '/treninger', icon: '🏋️', label: 'Treninger' },
-  { href: '/ovelser', icon: '💪', label: 'Øvelser' },
-  { href: '/kalender', icon: '📅', label: 'Kalender' },
-  { href: '/utfordringer', icon: '🏆', label: 'Utfordringer' },
-  { href: '/statistikk', icon: '📊', label: 'Statistikk' },
-  { href: '/profiler', icon: '👤', label: 'Profil' },
+  { href: '/',             icon: LayoutGrid,   label: 'Oversikt' },
+  { href: '/treninger',    icon: Dumbbell,     label: 'Treninger' },
+  { href: '/ovelser',      icon: Library,      label: 'Øvelser' },
+  { href: '/kalender',     icon: CalendarDays, label: 'Kalender' },
+  { href: '/utfordringer', icon: Trophy,       label: 'Utfordringer' },
+  { href: '/statistikk',   icon: BarChart3,    label: 'Statistikk' },
+  { href: '/tidtaking',    icon: Timer,        label: 'Tidtaking' },
+  { href: '/profiler',     icon: User,         label: 'Profil' },
 ]
+
+// Mobil: fire faste + "Mer"-ark med resten
+const DOCK = ['/', '/treninger', '/kalender', '/statistikk']
+
+const erAktiv = (pathname: string, href: string) =>
+  href === '/' ? pathname === '/' || pathname === '/dashboard' : pathname.startsWith(href)
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -21,27 +35,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [loggingUt, setLoggingUt] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [visMer, setVisMer] = useState(false)
 
   useEffect(() => {
     const sjekkInnlogging = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      console.log('Bruker ved oppstart:', user?.email)
       setUser(user)
-      
-      // Hvis ikke innlogget, send til login
-      if (!user) {
-        console.log('Ingen bruker, redirect til login')
-        router.push('/login')
-      }
+      if (!user) router.push('/login')
     }
-    
+
     sjekkInnlogging()
 
-    // Lytt på auth-endringer
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth event:', event, session?.user?.email)
-      
       if (event === 'SIGNED_OUT') {
         setUser(null)
         router.push('/login')
@@ -53,6 +58,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return () => subscription?.unsubscribe()
   }, [router, supabase])
+
+  useEffect(() => { setVisMer(false) }, [pathname])
 
   const loggUt = async () => {
     setLoggingUt(true)
@@ -66,46 +73,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const fornavn = user?.user_metadata?.full_name?.split(' ')[0]
     || user?.email?.split('@')[0]
-    || 'Bruker'
+    || 'Medlem'
+
+  const merAktiv = !DOCK.some(h => erAktiv(pathname, h))
+  const erForside = pathname === '/' || pathname === '/dashboard'
 
   return (
     <>
       <div className="app-bg" aria-hidden>
-        <div className="app-bg-grid" />
-        <div className="app-bg-blob app-bg-blob-1" />
-        <div className="app-bg-blob app-bg-blob-2" />
-        <div className="app-bg-blob app-bg-blob-3" />
+        <Dial className="app-bg-dial" />
       </div>
 
-      {/* Mobil overlay */}
-      {sidebarOpen && (
-        <div className="dash-overlay" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`dash-sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="dash-sidebar-logo">
-          <div className="dash-sidebar-logo-icon">🏋️</div>
-          <span className="dash-sidebar-logo-text">Treningsapp</span>
-        </div>
+      {/* ── Skinne (desktop) ── */}
+      <aside className="dash-sidebar">
+        <Link href="/" className="dash-sidebar-logo">
+          <span className="wordmark"><em>{BRAND.navn}</em></span>
+          <span className="wordmark-sub">{BRAND.under}</span>
+        </Link>
 
         <div className="dash-sidebar-nav">
-          <div className="dash-sidebar-section-label">Meny</div>
+          <div className="dash-sidebar-section-label">Register</div>
           <nav>
-            {NAV.map(item => {
-              const isActive = item.href === '/'
-                ? pathname === '/'
-                : pathname.startsWith(item.href)
-
+            {NAV.map((item, i) => {
+              const aktiv = erAktiv(pathname, item.href)
+              const Icon = item.icon
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={true}
-                  className={`dash-nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setSidebarOpen(false)}
+                  prefetch
+                  className={`dash-nav-item ${aktiv ? 'active' : ''}`}
+                  style={{ isolation: 'isolate' }}
                 >
-                  <span className="dash-nav-icon">{item.icon}</span>
+                  {aktiv && (
+                    <motion.span
+                      layoutId="nav-pill"
+                      className="dash-nav-pill"
+                      transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+                    />
+                  )}
+                  <span className="dash-nav-index">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="dash-nav-icon"><Icon size={17} strokeWidth={1.4} /></span>
                   <span className="dash-nav-label">{item.label}</span>
                 </Link>
               )
@@ -114,58 +122,116 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <div className="dash-sidebar-footer">
-          <div className="dash-user-row">
-            <div className="dash-user-avatar">{initialer}</div>
-            <div className="dash-user-info">
-              <div className="dash-user-name">{fornavn}</div>
-              <div className="dash-user-email">{user?.email}</div>
+          <div className="member-card">
+            <div className="member-top">
+              <span className="eyebrow eyebrow-gold">{BRAND.kort}</span>
+            </div>
+            <div className="member-row">
+              <div className="dash-user-avatar">{initialer}</div>
+              <div className="dash-user-info">
+                <div className="dash-user-name">{fornavn}</div>
+                <div className="dash-user-email">{user?.email}</div>
+              </div>
+              <button className="dash-logout-btn" onClick={loggUt} disabled={loggingUt} aria-label="Logg ut" title="Logg ut">
+                {loggingUt
+                  ? <span className="spinner" style={{ width: 12, height: 12, borderColor: 'rgba(242,236,225,0.2)', borderTopColor: 'currentColor' }} />
+                  : <LogOut size={14} strokeWidth={1.5} />}
+              </button>
             </div>
           </div>
-          <button className="dash-logout-btn" onClick={loggUt} disabled={loggingUt}>
-            {loggingUt ? <span className="spinner" style={{ width: 12, height: 12 }} /> : '🚪'} Logg ut
-          </button>
         </div>
       </aside>
 
       <main className="dash-main">
-        {/* Header med hamburger */}
-        <div className="dash-header">
-          <div className="dash-header-left">
-            <button 
-              className="dash-hamburger" 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              aria-label="Meny"
-            >
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
+        {/* ── Toppstripe (mobil) ── */}
+        <header className="dash-topbar">
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <span className="wordmark"><em>{BRAND.navn}</em></span>
+          </Link>
+          <Link href="/profiler" className="dash-user-avatar dash-topbar-avatar" style={{ textDecoration: 'none' }} aria-label="Profil">
+            {initialer}
+          </Link>
+        </header>
 
-          <div className="dash-header-right">
-            <span className="badge badge-cyan">
-              <span className="neon-dot neon-dot-cyan anim-pulse" />
-              Live
-            </span>
-            <div className="dash-header-avatar">{initialer}</div>
-          </div>
-        </div>
-
-        {/* Innhold */}
         <div className="dash-content">
           {children}
         </div>
 
-        {/* Tilbakeknapp nederst - midtstilt */}
-        <div className="dash-footer-nav">
-          <button 
-            className="dash-back-button"
-            onClick={() => router.back()}
-          >
-            ← Tilbake
-          </button>
-        </div>
+        {!erForside && (
+          <div className="dash-footer-nav">
+            <button className="dash-back-button" onClick={() => router.back()}>
+              <span className="line" /> Tilbake
+            </button>
+          </div>
+        )}
       </main>
+
+      {/* ── Flytende dokk (mobil) ── */}
+      <nav className="dock" aria-label="Hovedmeny">
+        {DOCK.map(href => {
+          const item = NAV.find(n => n.href === href)!
+          const aktiv = erAktiv(pathname, href)
+          const Icon = item.icon
+          return (
+            <Link key={href} href={href} prefetch className={`dock-item ${aktiv ? 'active' : ''}`}>
+              {aktiv && (
+                <motion.span layoutId="dock-pill" className="dock-pill" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />
+              )}
+              <Icon size={18} strokeWidth={aktiv ? 1.8 : 1.4} />
+              <span className="dock-item-label">{item.label}</span>
+            </Link>
+          )
+        })}
+        <button className={`dock-item ${merAktiv ? 'active' : ''}`} onClick={() => setVisMer(true)} aria-label="Mer">
+          {merAktiv && (
+            <motion.span layoutId="dock-pill" className="dock-pill" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />
+          )}
+          <MoreHorizontal size={18} strokeWidth={1.5} />
+          <span className="dock-item-label">Mer</span>
+        </button>
+      </nav>
+
+      {/* ── "Mer"-ark (mobil) ── */}
+      <AnimatePresence>
+        {visMer && (
+          <>
+            <motion.div
+              className="sheet-bg"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setVisMer(false)}
+            />
+            <motion.div
+              className="sheet"
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 38 }}
+              drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.6 }}
+              onDragEnd={(_, info) => { if (info.offset.y > 80) setVisMer(false) }}
+            >
+              <div className="sheet-grip" />
+              <div className="eyebrow" style={{ marginBottom: '0.5rem' }}>Register</div>
+              {NAV.filter(n => !DOCK.includes(n.href)).map(item => {
+                const Icon = item.icon
+                const i = NAV.indexOf(item)
+                return (
+                  <Link key={item.href} href={item.href} className="sheet-link">
+                    <span className="dash-nav-index">{String(i + 1).padStart(2, '0')}</span>
+                    <Icon size={18} strokeWidth={1.4} style={{ color: erAktiv(pathname, item.href) ? 'var(--gold)' : undefined }} />
+                    <span style={{ flex: 1 }} className="serif">
+                      <span style={{ fontSize: '1.45rem' }}>{item.label}</span>
+                    </span>
+                    <ArrowUpRight size={16} strokeWidth={1.4} style={{ opacity: 0.4 }} />
+                  </Link>
+                )
+              })}
+              <button className="sheet-link sheet-link-danger" onClick={loggUt} disabled={loggingUt}>
+                <span className="dash-nav-index" />
+                <LogOut size={18} strokeWidth={1.4} />
+                <span style={{ flex: 1 }}>{loggingUt ? 'Logger ut …' : 'Logg ut'}</span>
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   )
 }

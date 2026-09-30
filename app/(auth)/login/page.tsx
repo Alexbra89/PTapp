@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Dial } from '@/components/atelier/Dial'
+import { BRAND } from '@/lib/brand'
 
 export default function Login() {
   const [epost, setEpost]           = useState('')
@@ -32,7 +36,7 @@ export default function Login() {
     } catch (err: any) {
       setError(
         err.message === 'Invalid login credentials'
-          ? 'Feil epost eller passord'
+          ? 'Feil e-post eller passord.'
           : err.message
       )
     } finally {
@@ -42,63 +46,39 @@ export default function Login() {
 
   return (
     <div className="login-root">
-      <div className="app-bg">
-        <div className="app-bg-grid" />
-        <div className="app-bg-blob app-bg-blob-1" />
-        <div className="app-bg-blob app-bg-blob-2" />
-        <div className="app-bg-blob app-bg-blob-3" />
+      <div className="app-bg" aria-hidden>
+        <Dial className="app-bg-dial" />
       </div>
 
-      <div
-        className="login-card-wrap anim-fade-up"
-        style={{ opacity: mounted ? undefined : 0 }}
+      <motion.div
+        className="login-card-wrap"
+        initial={{ opacity: 0, y: 24 }}
+        animate={mounted ? { opacity: 1, y: 0 } : undefined}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="login-glow" aria-hidden>
-          <div className="login-glow-inner" />
-        </div>
-
-        <div className="login-card glass-card">
-
-          {/* Logo */}
+        <div className="login-card glass-card crop">
           <div className="login-logo-area">
             <div className="login-logo-icon">
-              <div className="login-logo-ring">
-                <div className="login-logo-ring-inner">
-                  <span style={{ fontSize: '1.8rem' }}>🏋️</span>
-                </div>
-              </div>
+              <span className="monogram">A</span>
             </div>
-            <div className="login-title">Treningsapp</div>
-            <div className="login-subtitle">Din personlige treningspartner</div>
+            <div className="login-title">
+              Velkommen<br />tilbake til <em>{BRAND.navn}.</em>
+            </div>
+            <div className="login-subtitle">{BRAND.kort} · Medlemsinngang</div>
           </div>
 
-          {/* Status */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
-            <span className="badge badge-green">
-              <span className="neon-dot neon-dot-green anim-pulse" />
-              Alle systemer operative
-            </span>
-          </div>
-
-          {/* Divider */}
-          <div className="login-divider">
-            <div className="login-divider-line" />
-            <span className="login-divider-text">Logg inn</span>
-            <div className="login-divider-line" />
-          </div>
-
-          {/* Form */}
           <form onSubmit={handleSubmit}>
             <div className="login-field">
-              <label className="login-field-label">Epost</label>
+              <label className="login-field-label" htmlFor="epost">E-post</label>
               <div style={{ position: 'relative' }}>
-                <span className="login-field-icon">✉</span>
+                <span className="login-field-icon"><Mail size={15} strokeWidth={1.4} /></span>
                 <input
+                  id="epost"
                   type="email"
                   className="input login-field-input"
                   value={epost}
                   onChange={e => setEpost(e.target.value)}
-                  placeholder="din@epost.no"
+                  placeholder="navn@epost.no"
                   required
                   autoComplete="email"
                 />
@@ -106,10 +86,11 @@ export default function Login() {
             </div>
 
             <div className="login-field">
-              <label className="login-field-label">Passord</label>
+              <label className="login-field-label" htmlFor="passord">Passord</label>
               <div style={{ position: 'relative' }}>
-                <span className="login-field-icon">🔒</span>
+                <span className="login-field-icon"><Lock size={15} strokeWidth={1.4} /></span>
                 <input
+                  id="passord"
                   type={visPassord ? 'text' : 'password'}
                   className="input login-field-input login-field-input-pr"
                   value={passord}
@@ -124,41 +105,37 @@ export default function Login() {
                   onClick={() => setVisPassord(!visPassord)}
                   aria-label={visPassord ? 'Skjul passord' : 'Vis passord'}
                 >
-                  {visPassord ? '🙈' : '👁'}
+                  {visPassord ? <EyeOff size={16} strokeWidth={1.4} /> : <Eye size={16} strokeWidth={1.4} />}
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="login-error-box">
-                <span
-                  className="neon-dot"
-                  style={{ background: '#ff3250', boxShadow: '0 0 8px #ff3250', flexShrink: 0 }}
-                />
+              <motion.div className="login-error-box" initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}>
                 <span className="login-error-text">{error}</span>
-              </div>
+              </motion.div>
             )}
 
             <button
               type="submit"
               className="btn btn-primary login-btn-full"
               disabled={laster}
-              style={{ marginBottom: '1.2rem' }}
+              style={{ marginTop: '0.75rem', marginBottom: '1.4rem', justifyContent: 'space-between', paddingLeft: '1.5rem', paddingRight: '0.5rem' }}
             >
-              {laster ? <span className="spinner" /> : <>⚡ Logg inn</>}
+              <span>{laster ? 'Åpner døren …' : 'Logg inn'}</span>
+              <span className="hq-cta-arrow" style={{ width: 36, height: 36 }}>
+                {laster ? <span className="spinner" style={{ borderColor: 'rgba(227,198,140,0.25)', borderTopColor: 'var(--gold-hi)' }} /> : <ArrowRight size={16} strokeWidth={1.5} />}
+              </span>
             </button>
           </form>
 
           <p className="login-signup-row">
-            Har du ikke bruker?{' '}
-            <Link href="/signup" className="login-signup-link">
-              Opprett konto →
-            </Link>
+            Ikke medlem ennå?{' '}
+            <Link href="/signup" className="login-signup-link">Opprett konto</Link>
           </p>
         </div>
-
-        <p className="login-footer">© 2024 Treningsapp · Alle rettigheter reservert</p>
-      </div>
+        <p className="login-footer">{BRAND.navn} · {BRAND.under}</p>
+      </motion.div>
     </div>
   )
 }

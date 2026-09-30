@@ -6,10 +6,11 @@ import { createClient } from '@/lib/supabase/client'
 import ovelserData from '@/data/ovelser.json'
 import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from '../../kalender/ProgramMal'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame } from 'lucide-react'
+import { Dial } from '@/components/atelier/Dial'
+import { OppvarmingIkon } from '@/components/atelier/Glyph'
 
-console.log('🎯 SJEKKER ØVELSER:')
-console.log('Type:', typeof ovelserData)
-console.log('Kategorier:', Object.keys(ovelserData))
 
 function spillAlarm() {
   try {
@@ -136,6 +137,14 @@ function OktInner() {
   const [dagensDato, setDagensDato] = useState('')
   const [visFavorittModal, setVisFavorittModal] = useState(false)
   const [bytteIndex, setBytteIndex] = useState<number | null>(null)
+  const [bekrefter,  setBekrefter]  = useState(false)
+  const [feiring,    setFeiring]    = useState<{ sett: number; ovelser: number; kg: number; tid: number } | null>(null)
+  const meldingRef = useRef<NodeJS.Timeout | null>(null)
+  const visMelding = (msg: string) => {
+    setLagretMsg(msg)
+    if (meldingRef.current) clearTimeout(meldingRef.current)
+    meldingRef.current = setTimeout(() => setLagretMsg(''), 2800)
+  }
 
   // ✅ FIX 1: Hent userId direkte fra Supabase, ikke useUser()
   // useUser() kan returnere et objekt der .id ikke er direkte tilgjengelig
@@ -215,7 +224,7 @@ function OktInner() {
   const leggTilFavoritt = async (ovelse: any) => {
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (!currentUser) {
-      alert('❌ Du må være logget inn')
+      visMelding('Du må være logget inn.')
       return
     }
     
@@ -228,7 +237,7 @@ function OktInner() {
         .maybeSingle()
       
       if (eksisterende) {
-        alert(`⭐ ${ovelse.navn} er allerede i favoritter!`)
+        visMelding(`${ovelse.navn} er allerede blant favorittene.`)
         return
       }
       
@@ -246,13 +255,13 @@ function OktInner() {
       
       if (error) {
         console.error('Feil ved lagring av favoritt:', error)
-        alert(`❌ Kunne ikke lagre favoritt: ${error.message}`)
+        visMelding(`Kunne ikke lagre favoritt: ${error.message}`)
       } else {
-        alert(`⭐ ${ovelse.navn} lagt til i favoritter!`)
+        visMelding(`${ovelse.navn} er lagt til i favoritter.`)
       }
     } catch (err) {
       console.error('Uventet feil:', err)
-      alert('❌ Noe gikk galt, prøv igjen')
+      visMelding('Noe gikk galt. Prøv igjen.')
     }
   }
 
@@ -378,62 +387,132 @@ function OktInner() {
         sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort }))
       })
     }
-    setLagretMsg('Økt lagret! ✓')
-    setTimeout(() => setLagretMsg(''), 3000)
+    visMelding('Utkastet er lagret.')
     setLagrer(false)
   }
 
   if (laster) return (
-    <div style={{display:'flex',justifyContent:'center',padding:'4rem'}}><div className="spinner-lg"/></div>
+    <div className="okt-laster"><div className="spinner-lg"/><span className="eyebrow">Gjør klar økten</span></div>
   )
 
-  const fullfort = okter.flatMap(o=>o.sett_logg).filter(s=>s.fullfort).length
-  const totalt   = okter.flatMap(o=>o.sett_logg).length
+  const alleSett = okter.flatMap(o=>o.sett_logg)
+  const fullfort = alleSett.filter(s=>s.fullfort).length
+  const totalt   = alleSett.length
+  const andel    = totalt ? fullfort / totalt : 0
+  const tonnasje = Math.round(alleSett.filter(s=>s.fullfort).reduce((sum,s)=>sum + (s.kg||0)*(s.reps||0), 0))
+  const alleFerdig = totalt > 0 && fullfort === totalt
+
+  const fullforTrening = async () => {
+    if (!alleFerdig) {
+      visMelding(`Fullfør alle sett først. ${totalt - fullfort} igjen.`)
+      return
+    }
+    if (!bekrefter) {
+      setBekrefter(true)
+      setTimeout(() => setBekrefter(false), 4000)
+      return
+    }
+    setBekrefter(false)
+    setLagrer(true)
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) { setLagrer(false); return }
+
+    const dato = new Date().toISOString().split('T')[0]
+    const { error } = await supabase.from('okter').insert([{
+      bruker_id: currentUser.id,
+      dato,
+      tittel,
+      type:'styrke',
+      varighet_min:60,
+      fullfort: true,
+      ovelser: okter.map(o => ({
+        navn: o.navn,
+        sett: o.sett,
+        reps: o.sett_logg.map(s=>s.reps).join('/'),
+        kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0
+      })),
+    }])
+
+    if (error) {
+      console.error('Feil ved lagring:', error)
+      visMelding('Noe gikk galt ved lagring: ' + error.message)
+    } else {
+      for (const o of okter) {
+        if (!o.sett_logg.some(s => s.kg > 0)) continue
+        await supabase.from('treningslogger').insert({
+          bruker_id: currentUser.id,
+          dato,
+          ovelse_navn: o.navn,
+          muskelgruppe: o.muskler,
+          sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort }))
+        })
+      }
+      setFeiring({ sett: fullfort, ovelser: okter.length, kg: tonnasje, tid: sekunder })
+    }
+    setLagrer(false)
+  }
 
   return (
-    <div className="okt-page anim-fade-up">
-      <div className="okt-header">
-        <button className="okt-tilbake" onClick={() => router.back()}>← Tilbake</button>
-        <div className="okt-header-info">
-          <h1 className="okt-tittel">{tittel}</h1>
-          <div className="okt-badges">
-            <span className="okt-badge-cyan">{okter.length} øvelser</span>
-            <span className="okt-badge-green">{fullfort}/{totalt} sett ✓</span>
+    <div className="okt-page">
+
+      {/* ── Hode ── */}
+      <motion.header className="okt-hode" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16,1,0.3,1] }}>
+        <div className="okt-hode-topp">
+          <span className="eyebrow eyebrow-gold"><span className="neon-dot neon-dot-cyan anim-pulse" style={{ marginRight: 8, verticalAlign: 'middle' }} />Økt pågår</span>
+          <button className="btn btn-subtle okt-lagre-btn" onClick={lagreOkt} disabled={lagrer}>
+            {lagrer ? <span className="spinner" /> : <Bookmark size={14} strokeWidth={1.5} />} Lagre utkast
+          </button>
+        </div>
+        <h1 className="okt-tittel">{tittel}</h1>
+        <div className="okt-fremdrift">
+          <div className="okt-fremdrift-tall num-monument">
+            {fullfort}<span>/{totalt}</span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="okt-fremdrift-meta">
+              <span className="eyebrow">Sett fullført</span>
+              <span className="eyebrow">{okter.length} øvelser · {new Intl.NumberFormat('nb-NO').format(tonnasje)} kg</span>
+            </div>
+            <div className="tick-track"><div className="tick-fill" style={{ width: `${andel*100}%` }} /></div>
           </div>
         </div>
-        <button className="btn btn-primary okt-lagre-btn" onClick={lagreOkt} disabled={lagrer}>
-          {lagrer ? <span className="spinner" style={{width:14,height:14}}/> : '💾 Lagre økt'}
-        </button>
-      </div>
+      </motion.header>
 
-      {lagretMsg && <div className="okt-lagret-msg">{lagretMsg}</div>}
+      <AnimatePresence>
+        {lagretMsg && (
+          <motion.div className="okt-toast" initial={{ opacity: 0, y: 20, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: 20, x: '-50%' }}>
+            {lagretMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      {/* ── Klokke ── */}
       <div className={`okt-klokke glass-card${alarm ? ' okt-alarm' : ''}`}>
         <div className="okt-klokke-rad1">
           <div className="okt-klokke-venstre">
-            <div className="okt-tid" style={{color: alarm ? '#ff4444' : kjoerer ? 'var(--cyan)' : 'rgba(255,255,255,0.4)'}}>
+            <div className="okt-klokke-info">{alarm ? 'Tiden er ute' : kjoerer ? (klokkeMode === 'ned' ? 'Hvile' : 'Tid brukt') : klokkeMode === 'ned' ? `Nedtelling · ${nedMal} min` : 'Stoppeklokke'}</div>
+            <div className="okt-tid" style={{color: alarm ? 'var(--danger)' : kjoerer ? 'var(--ink)' : 'var(--text-muted)'}}>
               {formatTid(sekunder)}
             </div>
-            <div className="okt-klokke-info">{alarm ? '⚠️ TID ER UTE!' : kjoerer ? '⏱ Pågår...' : klokkeMode === 'ned' ? `Nedtelling: ${nedMal} min` : 'Stoppeklokke'}</div>
           </div>
           <div className="okt-klokke-hoeyre">
+            <button className="okt-reset" onClick={nullstillKlokke} title="Nullstill" aria-label="Nullstill"><RotateCcw size={15} strokeWidth={1.5} /></button>
             {!kjoerer
-              ? <button className="btn btn-primary okt-k-btn" onClick={startKlokke}>▶ Start</button>
-              : <button className="btn btn-ghost  okt-k-btn" onClick={() => setKjoerer(false)}>⏸ Pause</button>
+              ? <button className="okt-play" onClick={startKlokke} aria-label="Start"><Play size={20} strokeWidth={1.5} fill="currentColor" /></button>
+              : <button className="okt-play okt-play-on" onClick={() => setKjoerer(false)} aria-label="Pause"><Pause size={20} strokeWidth={1.5} fill="currentColor" /></button>
             }
-            <button className="okt-reset" onClick={nullstillKlokke} title="Nullstill">↺</button>
           </div>
         </div>
         <div className="okt-klokke-rad2">
           <div className="okt-modus-rad">
-            <button className={`okt-modus${klokkeMode==='stopp'?' on':''}`} onClick={() => { setKlokkeMode('stopp'); nullstillKlokke() }}>⏱ Stopp</button>
-            <button className={`okt-modus${klokkeMode==='ned'?' on':''}`}  onClick={() => { setKlokkeMode('ned');  nullstillKlokke() }}>⏳ Ned</button>
+            <button className={`okt-modus${klokkeMode==='stopp'?' on':''}`} onClick={() => { setKlokkeMode('stopp'); nullstillKlokke() }}>Stoppeklokke</button>
+            <button className={`okt-modus${klokkeMode==='ned'?' on':''}`}  onClick={() => { setKlokkeMode('ned');  nullstillKlokke() }}>Nedtelling</button>
           </div>
           {klokkeMode === 'ned' && !kjoerer && (
             <div className="okt-ned-rad">
-              <button className="okt-ned-btn" onClick={() => setNedMal(m=>Math.max(1,m-1))}>−</button>
+              <button className="okt-ned-btn" onClick={() => setNedMal(m=>Math.max(1,m-1))} aria-label="Minus"><Minus size={12} /></button>
               <span className="okt-ned-v">{nedMal}m</span>
-              <button className="okt-ned-btn" onClick={() => setNedMal(m=>Math.min(120,m+1))}>+</button>
+              <button className="okt-ned-btn" onClick={() => setNedMal(m=>Math.min(120,m+1))} aria-label="Pluss"><Plus size={12} /></button>
               <div className="okt-quick-rad">
                 {[1,2,3,5,10,15,20,30].map(m=>(
                   <button key={m} className={`okt-quick${nedMal===m?' on':''}`} onClick={()=>setNedMal(m)}>{m}m</button>
@@ -444,14 +523,15 @@ function OktInner() {
         </div>
       </div>
 
+      {/* ── Oppvarming ── */}
       {oppvar.length > 0 && (
         <div className="okt-opp glass-card">
-          <div className="okt-opp-title">🔥 Oppvarming</div>
+          <div className="okt-opp-title"><Flame size={14} strokeWidth={1.5} /> Oppvarming</div>
           {oppvar.map(o => (
             <div key={o.id} className="okt-opp-item">
-              <span className="okt-opp-em">{o.emoji}</span>
+              <span className="okt-opp-em"><OppvarmingIkon id={o.id} size={15} /></span>
               <div>
-                <div className="okt-opp-navn">{o.navn} — {o.varighet}</div>
+                <div className="okt-opp-navn">{o.navn} <span className="mono" style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>· {o.varighet}</span></div>
                 <div className="okt-opp-besk">{o.beskrivelse}</div>
               </div>
             </div>
@@ -459,160 +539,106 @@ function OktInner() {
         </div>
       )}
 
+      {/* ── Øvelser ── */}
       <div className="okt-liste">
         {okter.map((o, oIdx) => {
           const done = o.sett_logg.every(s => s.fullfort)
+          const ferdigeSett = o.sett_logg.filter(s => s.fullfort).length
           return (
-            <div key={oIdx} className={`okt-kort glass-card${done ? ' okt-kort-done' : ''}`}>
+            <motion.div
+              key={oIdx}
+              layout
+              className={`okt-kort glass-card${done ? ' okt-kort-done' : ''}`}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.1 + oIdx * 0.05, ease: [0.16,1,0.3,1] }}
+            >
               <div className="okt-ov-header"
                 onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{...x,expanded:!x.expanded}))}>
-                <div className="okt-ov-num">{oIdx+1}</div>
-                <span className="okt-ov-em">{o.emoji}</span>
+                <div className="okt-ov-num">{done ? <Check size={14} strokeWidth={2} /> : String(oIdx+1).padStart(2,'0')}</div>
                 <div className="okt-ov-info">
                   <div className="okt-ov-navn">{o.navn}</div>
-                  <div className="okt-ov-musk">{o.muskler}</div>
-                  <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                    <button 
-                      className="okt-fav-btn"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        leggTilFavoritt(o)
-                      }}
-                      title="Legg til i favoritter"
-                    >
-                      ⭐
-                    </button>
-                    <button 
-                      className="okt-bytte-btn"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // ✅ FIX 4: Sett begge states, INGEN alert() som blokkerer rendering
-                        setBytteIndex(oIdx)
-                        setVisFavorittModal(true)
-                      }}
-                      title="Bytt ut øvelse"
-                    >
-                      🔄 Bytt
-                    </button>
+                  <div className="okt-ov-musk">
+                    <span>{o.sett} × {o.reps}</span>
+                    <span>Hvile {o.hvile}</span>
+                    {o.muskler && o.muskler !== '–' && <span>{o.muskler}</span>}
                   </div>
                 </div>
-                <div className="okt-ov-tags">
-                  <span className="okt-tag">{o.sett}×</span>
-                  <span className="okt-tag">{o.reps}</span>
-                  <span className="okt-tag">{o.hvile}</span>
-                  {done && <span className="okt-tag-done">✓ Ferdig</span>}
-                </div>
-                <span className="okt-toggle">{o.expanded?'▲':'▼'}</span>
+                <span className="okt-ov-count mono">{ferdigeSett}/{o.sett_logg.length}</span>
+                <span className={`okt-toggle${o.expanded ? ' open' : ''}`}><ChevronDown size={16} strokeWidth={1.4} /></span>
               </div>
-              {o.expanded && (
-                <div className="okt-ov-body">
-                  {o.beskrivelse && (
-                    <div className="okt-besk">
-                      <div className="okt-besk-lbl">📖 Hva er dette?</div>
-                      <p className="okt-besk-txt">{o.beskrivelse}</p>
-                    </div>
-                  )}
-                  {o.tips && <div className="okt-tips">💡 {o.tips}</div>}
-                  <div className="okt-sett-header">
-                    <span>Sett</span><span>Reps</span><span>Kg</span><span>✓</span><span></span>
-                  </div>
-                  {o.sett_logg.map((s, sIdx) => (
-                    <div key={sIdx} className={`okt-sett-row${s.fullfort ? ' okt-sett-done' : ''}`}>
-                      <span className="okt-sett-nr">#{sIdx+1}</span>
-                      <input className="input okt-input" type="number" min={1} value={s.reps}
-                        onChange={e => oppdaterSett(oIdx,sIdx,'reps',parseInt(e.target.value)||0)} />
-                      <input className="input okt-input" type="number" min={0} step={0.5}
-                        value={s.kg||''} placeholder="0"
-                        onChange={e => oppdaterSett(oIdx,sIdx,'kg',parseFloat(e.target.value)||0)} />
-                      <button className={`okt-check${s.fullfort?' done':''}`}
-                        onClick={() => oppdaterSett(oIdx,sIdx,'fullfort',!s.fullfort)}>
-                        {s.fullfort ? '✓' : '○'}
+
+              <AnimatePresence initial={false}>
+                {o.expanded && (
+                  <motion.div
+                    className="okt-ov-body"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.45, ease: [0.16,1,0.3,1] }}
+                  >
+                    <div className="okt-verktoy">
+                      <button className="okt-fav-btn" onClick={(e) => { e.stopPropagation(); leggTilFavoritt(o) }}>
+                        <Star size={12} strokeWidth={1.5} /> Favoritt
                       </button>
-                      <button className="okt-fjern"
-                        onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{
-                          ...x, sett: x.sett-1, sett_logg: x.sett_logg.filter((_,j) => j!==sIdx)
-                        }))}>✕</button>
+                      <button className="okt-bytte-btn" onClick={(e) => { e.stopPropagation(); setBytteIndex(oIdx); setVisFavorittModal(true) }}>
+                        <Repeat size={12} strokeWidth={1.5} /> Bytt øvelse
+                      </button>
                     </div>
-                  ))}
-                  <button className="okt-add-sett"
-                    onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{
-                      ...x, sett: x.sett+1,
-                      sett_logg: [...x.sett_logg, {reps:parseInt(o.reps.split('-')[0])||10,kg:0,fullfort:false}]
-                    }))}>
-                    ＋ Legg til sett
-                  </button>
-                </div>
-              )}
-            </div>
+
+                    {o.beskrivelse && <p className="okt-besk-txt">{o.beskrivelse}</p>}
+                    {o.tips && o.tips !== '–' && <div className="okt-tips"><span className="eyebrow eyebrow-gold">Teknikk</span>{o.tips}</div>}
+
+                    <div className="okt-sett-header">
+                      <span>Sett</span><span>Reps</span><span>Kg</span><span /><span />
+                    </div>
+                    {o.sett_logg.map((s, sIdx) => (
+                      <motion.div key={sIdx} layout className={`okt-sett-row${s.fullfort ? ' okt-sett-done' : ''}`}>
+                        <span className="okt-sett-nr">{String(sIdx+1).padStart(2,'0')}</span>
+                        <input className="input okt-input" type="number" inputMode="numeric" min={1} value={s.reps}
+                          onChange={e => oppdaterSett(oIdx,sIdx,'reps',parseInt(e.target.value)||0)} />
+                        <input className="input okt-input" type="number" inputMode="decimal" min={0} step={0.5}
+                          value={s.kg||''} placeholder="0"
+                          onChange={e => oppdaterSett(oIdx,sIdx,'kg',parseFloat(e.target.value)||0)} />
+                        <motion.button
+                          className={`okt-check${s.fullfort?' done':''}`}
+                          whileTap={{ scale: 0.85 }}
+                          onClick={() => oppdaterSett(oIdx,sIdx,'fullfort',!s.fullfort)}
+                          aria-label={s.fullfort ? 'Merk som ikke fullført' : 'Merk som fullført'}
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {s.fullfort
+                              ? <motion.span key="on" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }} style={{ display: 'flex' }}><Check size={16} strokeWidth={2} /></motion.span>
+                              : <motion.span key="off" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="okt-check-ring" />}
+                          </AnimatePresence>
+                        </motion.button>
+                        <button className="okt-fjern" aria-label="Fjern sett"
+                          onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{
+                            ...x, sett: x.sett-1, sett_logg: x.sett_logg.filter((_,j) => j!==sIdx)
+                          }))}><X size={13} strokeWidth={1.5} /></button>
+                      </motion.div>
+                    ))}
+                    <button className="okt-add-sett"
+                      onClick={() => setOkter(p => p.map((x,i) => i!==oIdx?x:{
+                        ...x, sett: x.sett+1,
+                        sett_logg: [...x.sett_logg, {reps:parseInt(o.reps.split('-')[0])||10,kg:0,fullfort:false}]
+                      }))}>
+                      <Plus size={13} strokeWidth={1.5} /> Legg til sett
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           )
         })}
       </div>
 
-      <button className="okt-lagre-bunn btn btn-primary" onClick={lagreOkt} disabled={lagrer}>
-        {lagrer ? <span className="spinner" style={{width:16,height:16}}/> : '💾 Lagre økt i kalender'}
-      </button>
-
-      <div style={{ display:'flex', justifyContent:'center', marginTop:'1rem', marginBottom:'1rem' }}>
-        <button
-          className="btn btn-primary"
-          style={{ padding:'1rem 3rem', fontSize:'1.2rem', background:'linear-gradient(135deg, var(--cyan), var(--purple))', border:'none', width:'100%', maxWidth:'400px' }}
-          onClick={async () => {
-            const alleFullfort = okter.every(o => o.sett_logg.every(s => s.fullfort))
-            if (!alleFullfort) { 
-              alert('❌ Du må fullføre ALLE sett først!')
-              return 
-            }
-            if (!confirm('Er du klar for å fullføre treningen?')) return
-            
-            setLagrer(true)
-            const { data: { user: currentUser } } = await supabase.auth.getUser()
-            if (!currentUser) { setLagrer(false); return }
-            
-            const dato = new Date().toISOString().split('T')[0]
-            const { error } = await supabase.from('okter').insert([{
-              bruker_id: currentUser.id, 
-              dato, 
-              tittel, 
-              type:'styrke', 
-              varighet_min:60, 
-              fullfort: true,
-              ovelser: okter.map(o => ({ 
-                navn: o.navn, 
-                sett: o.sett, 
-                reps: o.sett_logg.map(s=>s.reps).join('/'), 
-                kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0 
-              })),
-            }])
-            
-            if (error) { 
-              console.error('Feil ved lagring:', error)
-              alert('❌ Noe gikk galt ved lagring: ' + error.message)
-            } else {
-              for (const o of okter) {
-                if (!o.sett_logg.some(s => s.kg > 0)) continue
-                await supabase.from('treningslogger').insert({
-                  bruker_id: currentUser.id, 
-                  dato, 
-                  ovelse_navn: o.navn, 
-                  muskelgruppe: o.muskler,
-                  sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort }))
-                })
-              }
-              alert('🎉 GRATULERER! Trening fullført!')
-              router.push('/kalender')
-            }
-            setLagrer(false)
-          }}
-        >
-          {lagrer ? <span className="spinner" style={{width:20,height:20}}/> : '✅ FULLFØR TRENING'}
-        </button>
-      </div>
-
+      {/* ── Notat ── */}
       <div className="okt-notat-seksjon glass-card">
-        <div className="okt-notat-tittel">📝 Notat om økten</div>
+        <div className="okt-notat-tittel">Notat <em>om økten</em></div>
         <textarea
           className="input okt-notat-textarea"
-          placeholder="Hvordan gikk det? Energi? Søvn? Noe å huske til neste gang?"
+          placeholder="Energi, søvn, noe å huske til neste gang …"
           value={oktNotat}
           onChange={e => setOktNotat(e.target.value)}
           rows={3}
@@ -622,17 +648,61 @@ function OktInner() {
           onClick={() => {
             if (!dagensDato || !oktNotat.trim()) return
             localStorage.setItem(`notat_${dagensDato}`, oktNotat)
-            setLagretMsg('Notat lagret! ✓')
-            setTimeout(() => setLagretMsg(''), 2000)
+            visMelding('Notatet er lagret.')
           }}
         >
-          💾 Lagre notat
+          Lagre notat
         </button>
       </div>
 
-      {/* ✅ FIX 5: Modal rendres alltid i treet, kun synlig når visFavorittModal=true og userId finnes */}
+      {/* ── Fullfør ── */}
+      <div className="okt-avslutt">
+        <motion.button
+          className={`btn ${alleFerdig ? 'btn-gold' : 'btn-primary'} okt-fullfor${bekrefter ? ' bekreft' : ''}`}
+          onClick={fullforTrening}
+          disabled={lagrer}
+          whileTap={{ scale: 0.98 }}
+        >
+          <span>{lagrer ? 'Lagrer …' : bekrefter ? 'Trykk igjen for å bekrefte' : alleFerdig ? 'Fullfør treningen' : `Fullfør treningen · ${totalt - fullfort} sett igjen`}</span>
+          <span className="hq-cta-arrow">{lagrer ? <span className="spinner" style={{ borderColor: 'rgba(227,198,140,0.25)', borderTopColor: 'var(--gold-hi)' }} /> : <ArrowRight size={18} strokeWidth={1.5} />}</span>
+        </motion.button>
+        <span className="eyebrow" style={{ textAlign: 'center' }}>Lagres i kalenderen og statistikken</span>
+      </div>
+
+      {/* ── Fullført-seremoni ── */}
+      <AnimatePresence>
+        {feiring && (
+          <motion.div className="feiring" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="feiring-ring" initial={{ scale: 0.6, opacity: 0, rotate: -90 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ duration: 1.6, ease: [0.16,1,0.3,1] }}>
+              <Dial className="w-full h-full" />
+            </motion.div>
+            <motion.div className="feiring-innhold" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 1, ease: [0.16,1,0.3,1] }}>
+              <span className="eyebrow eyebrow-gold">{new Date().toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+              <h2 className="feiring-tittel">Fullført<em>.</em></h2>
+              <p className="feiring-sub">{tittel}</p>
+              <div className="feiring-tall">
+                {[
+                  { v: feiring.sett, l: 'Sett' },
+                  { v: feiring.ovelser, l: 'Øvelser' },
+                  { v: new Intl.NumberFormat('nb-NO').format(feiring.kg), l: 'Kg løftet' },
+                ].map((t, i) => (
+                  <motion.div key={t.l} className="feiring-tall-kol" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 + i * 0.12, duration: 0.8, ease: [0.16,1,0.3,1] }}>
+                    <div className="num-monument">{t.v}</div>
+                    <span className="eyebrow">{t.l}</span>
+                  </motion.div>
+                ))}
+              </div>
+              <button className="btn btn-primary hq-cta" style={{ marginTop: '2.5rem' }} onClick={() => router.push('/kalender')}>
+                <span>Til kalenderen</span>
+                <span className="hq-cta-arrow"><ArrowRight size={18} strokeWidth={1.5} /></span>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {visFavorittModal && userId && bytteIndex !== null && (
-        <ProgramMal 
+        <ProgramMal
           userId={userId}
           onClose={() => {
             setVisFavorittModal(false)
@@ -645,99 +715,134 @@ function OktInner() {
         />
       )}
 
-      {/* ✅ FIX 6: Fallback hvis userId ikke er lastet ennå når modal åpnes */}
       {visFavorittModal && !userId && (
         <div className="pr-modal-bg" onClick={() => setVisFavorittModal(false)}>
           <div className="pr-modal glass-card" style={{ maxWidth: '400px', padding: '2rem', textAlign: 'center' }}>
-            <p style={{ color: 'rgba(255,255,255,0.6)' }}>Laster brukerdata...</p>
+            <p style={{ color: 'var(--text-secondary)' }}>Laster brukerdata …</p>
             <button className="btn btn-ghost" style={{ marginTop: '1rem' }} onClick={() => setVisFavorittModal(false)}>Lukk</button>
           </div>
         </div>
       )}
 
       <style>{`
-        .okt-page { max-width: 860px; width: 100%; }
-        .okt-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-        .okt-tilbake { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.82rem; cursor: pointer; font-family: var(--font-body,sans-serif); transition: all 0.15s; flex-shrink: 0; }
-        .okt-tilbake:hover { background: rgba(255,255,255,0.1); color: #fff; }
-        .okt-header-info { flex: 1; min-width: 0; }
-        .okt-tittel { font-family: var(--font-display,sans-serif); font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .okt-badges { display: flex; gap: 8px; flex-wrap: wrap; }
-        .okt-badge-cyan { padding:3px 10px; border-radius:999px; font-size:0.72rem; background:rgba(0,245,255,0.12); border:1px solid rgba(0,245,255,0.25); color:var(--cyan,#00f5ff); }
-        .okt-badge-green { padding:3px 10px; border-radius:999px; font-size:0.72rem; background:rgba(0,255,136,0.12); border:1px solid rgba(0,255,136,0.25); color:var(--green,#00ff88); }
-        .okt-lagre-btn { flex-shrink: 0; font-size:0.82rem !important; padding:0.5rem 1.1rem !important; }
-        .okt-lagret-msg { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); color: var(--green,#00ff88); border-radius: 10px; padding: 0.6rem 1rem; font-size: 0.82rem; text-align: center; margin-bottom: 1rem; }
-        .okt-opp { padding: 1.125rem 1.25rem; margin-bottom: 1rem; border-color: rgba(255,140,0,0.2) !important; }
-        .okt-opp-title { font-family: var(--font-display,sans-serif); font-size: 0.85rem; font-weight: 700; color: var(--orange,#ff8c00); margin-bottom: 0.75rem; }
-        .okt-opp-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
-        .okt-opp-em { font-size: 1.2rem; flex-shrink: 0; }
-        .okt-opp-navn { font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 2px; }
-        .okt-opp-besk { font-size: 0.75rem; color: rgba(255,255,255,0.4); line-height: 1.4; }
-        .okt-liste { display: flex; flex-direction: column; gap: 0.75rem; }
-        .okt-kort { overflow: hidden; transition: border-color 0.3s; }
-        .okt-kort-done { border-color: rgba(0,255,136,0.2) !important; }
-        .okt-ov-header { display: flex; align-items: center; gap: 10px; padding: 1rem 1.25rem; cursor: pointer; transition: background 0.15s; }
-        .okt-ov-header:hover { background: rgba(255,255,255,0.02); }
-        .okt-ov-num { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; background: rgba(0,245,255,0.12); border: 1px solid rgba(0,245,255,0.25); color: var(--cyan,#00f5ff); font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-        .okt-ov-em { font-size: 1.2rem; flex-shrink: 0; }
-        .okt-ov-info { flex: 1; min-width: 0; }
-        .okt-ov-navn { font-family: var(--font-display,sans-serif); font-size: 0.92rem; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .okt-ov-musk { font-size: 0.67rem; color: rgba(255,255,255,0.3); margin-top: 2px; }
-        .okt-fav-btn, .okt-bytte-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 6px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer; transition: all 0.15s; font-family: var(--font-body,sans-serif); }
-        .okt-fav-btn:hover { background: rgba(255,200,0,0.1); border-color: rgba(255,200,0,0.3); color: #ffc800; }
-        .okt-bytte-btn:hover { background: rgba(0,245,255,0.1); border-color: rgba(0,245,255,0.3); color: var(--cyan,#00f5ff); }
-        .okt-ov-tags { display: flex; gap: 5px; flex-wrap: wrap; flex-shrink: 0; }
-        .okt-tag { padding:2px 7px; border-radius:999px; font-size:0.62rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.38); white-space:nowrap; }
-        .okt-tag-done { padding:2px 8px; border-radius:999px; font-size:0.62rem; background:rgba(0,255,136,0.12); border:1px solid rgba(0,255,136,0.25); color:var(--green,#00ff88); white-space:nowrap; }
-        .okt-toggle { color:rgba(255,255,255,0.25); font-size:0.65rem; flex-shrink:0; }
-        .okt-ov-body { padding: 0 1.25rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.05); }
-        .okt-besk { margin: 0.75rem 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
-        .okt-besk-lbl { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:rgba(255,255,255,0.28); font-weight:700; margin-bottom:4px; }
-        .okt-besk-txt { font-size:0.82rem; color:rgba(255,255,255,0.58); line-height:1.6; margin:0; }
-        .okt-tips { font-size: 0.78rem; color: rgba(255,200,0,0.75); margin: 0.5rem 0 0.75rem; padding: 6px 10px; background: rgba(255,200,0,0.06); border-radius: 8px; border-left: 2px solid rgba(255,200,0,0.3); }
-        .okt-sett-header { display: grid; grid-template-columns: 32px 1fr 1fr 36px 26px; gap: 8px; margin: 0.75rem 0 5px; padding: 0 4px; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.22); }
-        .okt-sett-row { display: grid; grid-template-columns: 32px 1fr 1fr 36px 26px; gap: 8px; align-items: center; margin-bottom: 5px; transition: background 0.15s; border-radius: 8px; padding: 0 4px; }
-        .okt-sett-done { background: rgba(0,255,136,0.04); }
-        .okt-sett-nr { font-size:0.7rem; color:rgba(255,255,255,0.28); text-align:center; }
-        .okt-input { text-align:center; padding:0.35rem 0.4rem !important; font-size:0.88rem !important; }
-        .okt-check { width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.38); cursor: pointer; font-size:0.88rem; transition: all 0.15s; display:flex; align-items:center; justify-content:center; }
-        .okt-check.done { background:rgba(0,255,136,0.14); border-color:rgba(0,255,136,0.4); color:var(--green,#00ff88); }
-        .okt-fjern { background:none; border:none; color:rgba(255,255,255,0.18); cursor:pointer; font-size:0.72rem; transition:color 0.15s; }
-        .okt-fjern:hover { color:#ff5555; }
-        .okt-add-sett { margin-top: 8px; background: none; border: 1px dashed rgba(255,255,255,0.13); color: rgba(255,255,255,0.3); border-radius: 8px; padding: 5px 12px; font-size: 0.75rem; cursor: pointer; font-family: var(--font-body,sans-serif); width: 100%; transition: all 0.15s; }
-        .okt-add-sett:hover { border-color:var(--cyan,#00f5ff); color:var(--cyan,#00f5ff); }
-        .okt-lagre-bunn { width: 100%; margin-top: 1.5rem; padding: 0.875rem !important; font-size: 0.95rem !important; }
-        .okt-klokke { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 1.25rem; margin-bottom: 1rem; }
-        @keyframes alarmP { from{box-shadow:0 0 0 rgba(255,68,68,0);} to{box-shadow:0 0 18px rgba(255,68,68,0.3);} }
-        .okt-alarm { border-color: rgba(255,68,68,0.4) !important; animation: alarmP 0.5s ease-in-out infinite alternate; }
-        .okt-klokke-rad1 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-        .okt-klokke-venstre { flex-shrink:0; }
-        .okt-tid { font-family:var(--font-display,monospace); font-size:2rem; font-weight:800; letter-spacing:0.04em; font-variant-numeric:tabular-nums; line-height:1; }
-        .okt-klokke-info { font-size:0.62rem; color:rgba(255,255,255,0.28); margin-top:2px; }
-        .okt-klokke-hoeyre { display:flex; gap:6px; align-items:center; flex-shrink:0; }
-        .okt-k-btn { font-size:0.82rem !important; padding:0.5rem 1.25rem !important; min-width: 90px; }
-        .okt-klokke-rad2 { display:flex; flex-direction: column; gap: 6px; }
-        .okt-modus-rad { display:flex; gap:5px; }
-        .okt-modus { padding:3px 10px; border-radius:999px; font-size:0.68rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.38); cursor:pointer; font-family:var(--font-body,sans-serif); transition:all 0.12s; }
-        .okt-modus.on { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.3); color:var(--cyan); }
-        .okt-ned-rad { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-        .okt-ned-btn { width:22px; height:22px; border-radius:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:#fff; cursor:pointer; font-size:0.85rem; font-family:var(--font-body,sans-serif); display:flex; align-items:center; justify-content:center; }
-        .okt-ned-v { font-family:var(--font-display,monospace); font-size:1rem; font-weight:700; color:var(--cyan); min-width:28px; text-align:center; }
-        .okt-quick-rad { display:flex; gap:2px; flex-wrap:wrap; }
-        .okt-quick { padding:2px 5px; border-radius:5px; font-size:0.6rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); color:rgba(255,255,255,0.3); cursor:pointer; font-family:var(--font-body,sans-serif); transition:all 0.1s; }
-        .okt-quick.on { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.25); color:var(--cyan); }
-        .okt-reset { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.35); width:32px; height:32px; border-radius:7px; cursor:pointer; font-size:0.9rem; transition:all 0.12s; display:flex; align-items:center; justify-content:center; }
-        .okt-reset:hover { background:rgba(255,255,255,0.1); color:#fff; }
-        .okt-notat-seksjon { padding:1.25rem; margin-top:1rem; display:flex; flex-direction:column; gap:.75rem; }
-        .okt-notat-tittel { font-family:var(--font-display,sans-serif); font-size:.88rem; font-weight:700; color:#fff; }
-        .okt-notat-textarea { width:100%; resize:vertical; min-height:80px; }
-        .okt-notat-lagre { font-size:.82rem !important; align-self:flex-end; }
-        .spinner-lg { width:32px; height:32px; border:3px solid rgba(255,255,255,0.1); border-top-color:var(--cyan); border-radius:50%; animation:spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .pr-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .okt-page { max-width: 820px; width: 100%; margin: 0 auto; }
+        .okt-laster { display:flex; flex-direction:column; align-items:center; gap:1.25rem; padding:6rem 0; }
+
+        .okt-hode { margin-bottom: 1.75rem; }
+        .okt-hode-topp { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding-bottom:1rem; border-bottom:1px solid var(--line); }
+        .okt-lagre-btn { font-size:0.78rem !important; padding:0.5rem 0.95rem !important; gap:7px !important; }
+        .okt-tittel { font-family: var(--font-serif); font-weight:400; font-size: clamp(2.4rem, 7vw, 3.8rem); line-height:0.95; letter-spacing:-0.03em; color: var(--ink); margin: 1.5rem 0 1.75rem; text-wrap: balance; }
+        .okt-fremdrift { display:flex; align-items:flex-end; gap:1.5rem; }
+        .okt-fremdrift-tall { font-size: clamp(3.6rem, 10vw, 5rem); color: var(--ink); }
+        .okt-fremdrift-tall span { color: var(--text-muted); font-size: 0.45em; margin-left: 2px; }
+        .okt-fremdrift-meta { display:flex; justify-content:space-between; gap:1rem; margin-bottom:10px; flex-wrap:wrap; }
+
+        .okt-toast { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); z-index: 70; padding: 0.8rem 1.3rem; border-radius: 999px; background: var(--ink); color: #0B0A09; font-size: 0.86rem; font-weight: 500; box-shadow: 0 20px 40px -12px rgba(0,0,0,0.7); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+        @media (min-width: 901px) { .okt-toast { bottom: 2rem; } }
+
+        .okt-klokke { display:flex; flex-direction:column; gap:1rem; padding:1.4rem 1.5rem; margin-bottom:1rem; }
+        .okt-alarm { border-color: rgba(224,97,79,0.5) !important; animation: alarmP 0.8s ease-in-out infinite alternate; }
+        @keyframes alarmP { from{box-shadow:0 0 0 0 rgba(224,97,79,0);} to{box-shadow:0 0 0 6px rgba(224,97,79,0.12);} }
+        .okt-klokke-rad1 { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+        .okt-klokke-info { font-family: var(--font-mono); font-size:0.6rem; letter-spacing:0.18em; text-transform:uppercase; color: var(--text-muted); margin-bottom: 6px; }
+        .okt-tid { font-size: clamp(2.8rem, 9vw, 3.6rem); line-height:1; font-variant-numeric: tabular-nums; transition: color 0.3s; }
+        .okt-klokke-hoeyre { display:flex; gap:10px; align-items:center; }
+        .okt-play { width:60px; height:60px; border-radius:50%; border:none; cursor:pointer; background: var(--ink); color:#0B0A09; display:flex; align-items:center; justify-content:center; transition: transform 0.25s var(--ease-out), background 0.25s; box-shadow: 0 12px 30px -12px rgba(201,169,110,0.5); }
+        .okt-play:hover { transform: scale(1.05); background: #FBF6EC; }
+        .okt-play:active { transform: scale(0.94); }
+        .okt-play-on { background: transparent; color: var(--gold-hi); border: 1px solid rgba(201,169,110,0.5); box-shadow: none; }
+        .okt-play-on:hover { background: rgba(201,169,110,0.08); }
+        .okt-reset { width:40px; height:40px; border-radius:50%; background:transparent; border:1px solid var(--line); color: var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; transition: all 0.25s; }
+        .okt-reset:hover { color: var(--ink); border-color: var(--line-strong); transform: rotate(-60deg); }
+        .okt-klokke-rad2 { display:flex; flex-direction:column; gap:10px; padding-top: 1rem; border-top: 1px solid var(--line); }
+        .okt-modus-rad { display:flex; gap:6px; }
+        .okt-modus { padding:6px 14px; border-radius:999px; font-size:0.74rem; border:1px solid var(--line); color: var(--text-secondary); cursor:pointer; transition: all 0.2s; }
+        .okt-ned-rad { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .okt-ned-btn { width:28px; height:28px; border-radius:50%; background:transparent; border:1px solid var(--line-strong); color: var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .okt-ned-v { font-size:1rem; color: var(--gold); min-width:36px; text-align:center; }
+        .okt-quick-rad { display:flex; gap:4px; flex-wrap:wrap; }
+        .okt-quick { padding:4px 9px; border-radius:999px; font-family: var(--font-mono); font-size:0.62rem; border:1px solid var(--line); color: var(--text-muted); cursor:pointer; transition: all 0.2s; }
+
+        .okt-opp { padding:1.4rem 1.5rem; margin-bottom:1rem; }
+        .okt-opp-title { display:flex; align-items:center; gap:8px; font-family: var(--font-mono); font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase; color: var(--ember); margin-bottom:1rem; }
+        .okt-opp-item { display:flex; align-items:flex-start; gap:12px; padding: 0.7rem 0; border-top: 1px solid var(--line); }
+        .okt-opp-em { width:30px; height:30px; border-radius:50%; border:1px solid rgba(224,122,79,0.4); color: var(--ember); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .okt-opp-navn { font-size:0.92rem; font-weight:500; color: var(--ink); margin-bottom:2px; }
+        .okt-opp-besk { font-size:0.8rem; color: var(--text-muted); line-height:1.5; }
+
+        .okt-liste { display:flex; flex-direction:column; gap:0.75rem; }
+        .okt-kort { overflow:hidden; }
+        .okt-kort-done { border-color: rgba(201,169,110,0.35) !important; background: linear-gradient(180deg, rgba(201,169,110,0.06), rgba(201,169,110,0.01)), var(--bg-card) !important; }
+        .okt-ov-header { display:flex; align-items:center; gap:14px; padding:1.25rem 1.4rem; cursor:pointer; }
+        .okt-ov-num { width:36px; height:36px; border-radius:50%; flex-shrink:0; border:1px solid var(--line-strong); color: var(--text-secondary); font-family: var(--font-mono); font-size:0.68rem; display:flex; align-items:center; justify-content:center; transition: all 0.4s var(--ease-out); }
+        .okt-kort-done .okt-ov-num { background: var(--gold); border-color: var(--gold); color: #17130C; }
+        .okt-ov-info { flex:1; min-width:0; }
+        .okt-ov-navn { font-family: var(--font-serif); font-size:1.55rem; line-height:1.05; letter-spacing:-0.01em; color: var(--ink); }
+        .okt-ov-musk { display:flex; gap:12px; flex-wrap:wrap; margin-top:6px; font-family: var(--font-mono); font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color: var(--text-muted); }
+        .okt-ov-count { font-size:0.72rem; color: var(--text-muted); }
+        .okt-kort-done .okt-ov-count { color: var(--gold); }
+        .okt-toggle { color: var(--text-muted); display:flex; transition: transform 0.4s var(--ease-out); }
+        .okt-toggle.open { transform: rotate(180deg); }
+
+        .okt-ov-body { padding: 0 1.4rem; overflow:hidden; }
+        .okt-ov-body > :last-child { margin-bottom: 1.4rem; }
+        .okt-verktoy { display:flex; gap:6px; padding-top: 1rem; border-top: 1px solid var(--line); }
+        .okt-fav-btn, .okt-bytte-btn { display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--line); color: var(--text-secondary); border-radius:999px; padding:6px 12px; font-size:0.74rem; cursor:pointer; transition: all 0.2s; }
+        .okt-fav-btn:hover, .okt-bytte-btn:hover { border-color: rgba(201,169,110,0.5); color: var(--gold-hi); }
+        .okt-besk-txt { font-size:0.88rem; color: var(--text-secondary); line-height:1.65; margin: 1rem 0 0; max-width: 60ch; }
+        .okt-tips { display:flex; flex-direction:column; gap:4px; font-size:0.86rem; color: var(--ink); margin: 1rem 0 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 1px solid var(--gold); }
+
+        .okt-sett-header { display:grid; grid-template-columns: 34px 1fr 1fr 44px 28px; gap:8px; margin: 1.4rem 0 8px; padding: 0 6px; font-family: var(--font-mono); font-size:0.58rem; text-transform:uppercase; letter-spacing:0.16em; color: var(--text-muted); }
+        .okt-sett-row { display:grid; grid-template-columns: 34px 1fr 1fr 44px 28px; gap:8px; align-items:center; margin-bottom:6px; border-radius:14px; padding: 4px 6px; transition: background 0.4s; }
+        .okt-sett-done { background: rgba(201,169,110,0.06); }
+        .okt-sett-header span:nth-child(2), .okt-sett-header span:nth-child(3) { text-align: center; }
+        .okt-sett-header span:first-child { white-space: nowrap; }
+        .okt-sett-nr { font-family: var(--font-mono); font-size:0.7rem; color: var(--text-muted); }
+        .okt-sett-done .okt-sett-nr { color: var(--gold); }
+        .okt-input { text-align:center; padding:0.6rem 0.4rem !important; font-size:1rem !important; border-radius: 12px !important; }
+        .okt-sett-done .okt-input { color: var(--gold-hi); border-color: rgba(201,169,110,0.2); }
+        .okt-check { width:44px; height:44px; border-radius:50%; border:1px solid var(--line-strong); background:transparent; color: var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; transition: background 0.3s, border-color 0.3s, color 0.3s; }
+        .okt-check:hover { border-color: rgba(201,169,110,0.6); }
+        .okt-check.done { background: var(--gold); border-color: var(--gold); color:#17130C; box-shadow: 0 0 0 5px rgba(201,169,110,0.12); }
+        .okt-check-ring { width:8px; height:8px; border-radius:50%; background: var(--line-strong); }
+        .okt-fjern { background:none; border:none; color: var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0.5; transition: all 0.2s; }
+        .okt-fjern:hover { color: var(--danger); opacity:1; }
+        .okt-add-sett { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px; background:none; border:1px dashed var(--line-strong); color: var(--text-muted); border-radius:14px; padding:0.7rem; font-size:0.8rem; cursor:pointer; width:100%; transition: all 0.25s; }
+        .okt-add-sett:hover { border-color: var(--gold); color: var(--gold-hi); border-style: solid; }
+
+        .okt-notat-seksjon { padding:1.5rem; margin-top:1rem; display:flex; flex-direction:column; gap:.9rem; }
+        .okt-notat-tittel { font-family: var(--font-serif); font-size:1.6rem; line-height:1; }
+        .okt-notat-tittel em { color: var(--gold); }
+        .okt-notat-textarea { width:100%; resize:vertical; min-height:90px; line-height:1.6; }
+        .okt-notat-lagre { font-size:.8rem !important; align-self:flex-end; padding: 0.55rem 1.1rem !important; }
+
+        .okt-avslutt { display:flex; flex-direction:column; gap:12px; margin: 2rem 0 1rem; }
+        .okt-fullfor { width:100%; justify-content:space-between; padding: 1.1rem 0.6rem 1.1rem 1.6rem; font-size: 1rem; }
+        .okt-fullfor.bekreft { background: var(--gold-hi) !important; }
+
+        .feiring { position: fixed; inset: 0; z-index: 200; display:flex; align-items:center; justify-content:center; padding: 1.5rem; background: radial-gradient(800px 500px at 50% 30%, rgba(201,169,110,0.16), transparent 60%), rgba(8,7,6,0.96); backdrop-filter: blur(10px); overflow: hidden; }
+        .feiring-ring { position:absolute; width: min(120vw, 820px); aspect-ratio: 1; color: rgba(201,169,110,0.22); pointer-events:none; }
+        .feiring-innhold { position:relative; width:100%; max-width: 460px; text-align:center; display:flex; flex-direction:column; align-items:center; }
+        .feiring-tittel { font-family: var(--font-serif); font-weight:400; font-size: clamp(4.5rem, 18vw, 7.5rem); line-height:0.9; letter-spacing:-0.04em; margin-top: 1.25rem; }
+        .feiring-tittel em { color: var(--gold); }
+        .feiring-sub { color: var(--text-secondary); margin-top: 0.75rem; }
+        .feiring-tall { display:grid; grid-template-columns: repeat(3,1fr); width:100%; margin-top: 2.5rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        .feiring-tall-kol { padding: 1.25rem 0.5rem; display:flex; flex-direction:column; align-items:center; gap:8px; }
+        .feiring-tall-kol + .feiring-tall-kol { border-left: 1px solid var(--line); }
+        .feiring-tall-kol .num-monument { font-size: clamp(2.2rem, 9vw, 3rem); }
+
+        @media (max-width: 520px) {
+          .okt-ov-header { padding: 1.1rem 1.1rem; gap: 12px; }
+          .okt-ov-body { padding: 0 1.1rem; }
+          .okt-ov-navn { font-size: 1.35rem; }
+          .okt-sett-header, .okt-sett-row { grid-template-columns: 26px 1fr 1fr 44px 22px; gap: 6px; }
+          .okt-klokke { padding: 1.2rem; }
+        }
+
+        .pr-modal-bg { position: fixed; inset: 0; background: rgba(5,5,4,0.7); backdrop-filter: blur(6px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
         .pr-modal { width: 100%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
-        .pr-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
-        .pr-modal-tittel { font-family: var(--font-display,sans-serif); font-size: 1rem; font-weight: 700; color: #fff; }
+        .pr-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+        .pr-modal-tittel { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 400; color: var(--ink); }
         .pr-modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1; }
       `}</style>
     </div>

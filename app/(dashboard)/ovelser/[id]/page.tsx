@@ -525,17 +525,17 @@ const OVELSER: Ovelse[] = [
 ]
 
 const KAT_COLORS: Record<string, string> = {
-  bryst:'#00c8ff', rygg:'#b44eff', bein:'#00ff88', skuldre:'#ff8c00',
-  bicep:'#ff4488', tricep:'#ff6600', core:'#ffcc00', cardio:'#00ff88', fullkropp:'#00f5ff',
+  bryst:'#D8BD85', rygg:'#B8BEC6', bein:'#9DC496', skuldre:'#E07A4F',
+  bicep:'#D98A9A', tricep:'#D9663F', core:'#E3C68C', cardio:'#9DC496', fullkropp:'#C9A96E',
 }
 const VANSKELIG_COLOR: Record<string, string> = {
-  Nybegynner:'var(--green)', Middels:'var(--orange)', Avansert:'#ff4444',
+  Nybegynner:'var(--green)', Middels:'var(--orange)', Avansert:'#E0614F',
 }
 
 type AnimType2 = AnimType
 function AnimSVG({ type }: { type: AnimType2 }) {
-  const c = 'rgba(0,245,255,0.85)'
-  const cB = 'rgba(0,245,255,0.3)'
+  const c = 'rgba(201,169,110,0.85)'
+  const cB = 'rgba(201,169,110,0.3)'
   const base = { width: 180, height: 180 }
 
   if (type === 'press') return (
@@ -712,14 +712,14 @@ export default function OvelseDetailPage({ params }: { params: { id: string } })
   if (!ov) return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'60vh', gap:'1.5rem', textAlign:'center' }}>
       <div style={{ fontSize:'3rem' }}>🔍</div>
-      <h2 style={{ fontFamily:'var(--font-display)', fontSize:'1.8rem', color:'#fff' }}>Øvelse ikke funnet</h2>
-      <p style={{ color:'rgba(255,255,255,0.4)', fontSize:'0.9rem' }}>ID <code style={{ color:'var(--cyan)' }}>{params.id}</code> finnes ikke i biblioteket</p>
+      <h2 style={{ fontFamily:'var(--font-display)', fontSize:'1.8rem', color:'#F2ECE1' }}>Øvelse ikke funnet</h2>
+      <p style={{ color:'rgba(242,236,225,0.4)', fontSize:'0.9rem' }}>ID <code style={{ color:'var(--cyan)' }}>{params.id}</code> finnes ikke i biblioteket</p>
       <button className="btn btn-primary" onClick={() => router.push('/ovelser')}>← Tilbake til øvelser</button>
     </div>
   )
 
   const katFarge = KAT_COLORS[ov.kategori] ?? 'var(--cyan)'
-  const vFarge   = VANSKELIG_COLOR[ov.vanskelighet] ?? 'rgba(255,255,255,0.4)'
+  const vFarge   = VANSKELIG_COLOR[ov.vanskelighet] ?? 'rgba(242,236,225,0.4)'
 
   return (
     <div className="ovd-page anim-fade-up">
@@ -735,10 +735,10 @@ export default function OvelseDetailPage({ params }: { params: { id: string } })
           <div className="ovd-meta">
             <span className="ovd-badge" style={{ background:`${katFarge}18`, borderColor:`${katFarge}35`, color:katFarge }}>{ov.muskelgruppe}</span>
             <span className="ovd-badge" style={{ background:`${vFarge}12`, borderColor:`${vFarge}30`, color:vFarge }}>{ov.vanskelighet}</span>
-            <span className="ovd-badge" style={{ background:'rgba(255,255,255,0.05)', borderColor:'rgba(255,255,255,0.1)', color:'rgba(255,255,255,0.45)' }}>
+            <span className="ovd-badge" style={{ background:'rgba(242,236,225,0.05)', borderColor:'rgba(242,236,225,0.1)', color:'rgba(242,236,225,0.45)' }}>
               {ov.sted === 'begge' ? '🌍 Gym & Hjemme' : ov.sted === 'gym' ? '🏋️ Gym' : '🏠 Hjemme'}
             </span>
-            <span className="ovd-badge" style={{ background:'rgba(255,255,255,0.05)', borderColor:'rgba(255,255,255,0.1)', color:'rgba(255,255,255,0.45)' }}>🔧 {ov.utstyr}</span>
+            <span className="ovd-badge" style={{ background:'rgba(242,236,225,0.05)', borderColor:'rgba(242,236,225,0.1)', color:'rgba(242,236,225,0.45)' }}>🔧 {ov.utstyr}</span>
           </div>
           <div className="ovd-stats">
             {[['Sett', ov.sett], ['Reps', ov.reps], ['Hvile', ov.hvile]].map(([l, v]) => (
@@ -784,29 +784,29 @@ export default function OvelseDetailPage({ params }: { params: { id: string } })
 
       <style>{`
         .ovd-page { max-width: 900px; }
-        .ovd-back { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.82rem; cursor: pointer; font-family: var(--font-body); margin-bottom: 1.5rem; transition: all 0.15s; display: inline-block; }
-        .ovd-back:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .ovd-back { background: rgba(242,236,225,0.05); border: 1px solid rgba(242,236,225,0.1); color: rgba(242,236,225,0.5); border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.82rem; cursor: pointer; font-family: var(--font-body); margin-bottom: 1.5rem; transition: all 0.15s; display: inline-block; }
+        .ovd-back:hover { background: rgba(242,236,225,0.1); color: #F2ECE1; }
         .ovd-hero { display: flex; gap: 2rem; padding: 2rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
-        .ovd-anim { width: 180px; height: 180px; flex-shrink: 0; background: rgba(0,245,255,0.04); border: 1px solid rgba(0,245,255,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; }
+        .ovd-anim { width: 180px; height: 180px; flex-shrink: 0; background: rgba(201,169,110,0.04); border: 1px solid rgba(201,169,110,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; }
         .ovd-hero-info { flex: 1; min-width: 250px; }
         .ovd-kategori { font-size: 0.68rem; letter-spacing: 0.12em; font-weight: 700; margin-bottom: 0.5rem; }
-        .ovd-navn { font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 0.75rem; }
+        .ovd-navn { font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: #F2ECE1; margin-bottom: 0.75rem; }
         .ovd-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.25rem; }
         .ovd-badge { padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; border: 1px solid; }
         .ovd-stats { display: flex; gap: 1.5rem; }
         .ovd-stat { text-align: center; }
         .ovd-stat-val { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; }
-        .ovd-stat-lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.3); }
+        .ovd-stat-lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(242,236,225,0.3); }
         .ovd-body { display: flex; flex-direction: column; gap: 1rem; }
         .ovd-card { padding: 1.5rem; }
-        .ovd-section-title { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 1rem; }
-        .ovd-tekst { font-size: 0.9rem; color: rgba(255,255,255,0.65); line-height: 1.8; margin: 0; }
+        .ovd-section-title { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: #F2ECE1; margin-bottom: 1rem; }
+        .ovd-tekst { font-size: 0.9rem; color: rgba(242,236,225,0.65); line-height: 1.8; margin: 0; }
         .ovd-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
         .ovd-step { display: flex; align-items: flex-start; gap: 12px; }
         .ovd-step-num { width: 26px; height: 26px; border-radius: 50%; font-size: 0.72rem; font-weight: 700; border: 1px solid; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-        .ovd-step span:last-child { font-size: 0.88rem; color: rgba(255,255,255,0.68); line-height: 1.6; }
+        .ovd-step span:last-child { font-size: 0.88rem; color: rgba(242,236,225,0.68); line-height: 1.6; }
         .ovd-tips { display: flex; flex-direction: column; gap: 8px; }
-        .ovd-tip { display: flex; align-items: flex-start; gap: 10px; font-size: 0.88rem; color: rgba(255,255,255,0.65); line-height: 1.5; }
+        .ovd-tip { display: flex; align-items: flex-start; gap: 10px; font-size: 0.88rem; color: rgba(242,236,225,0.65); line-height: 1.5; }
         .ovd-tip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
         @media(max-width: 600px) {
           .ovd-hero { padding: 1.25rem; }

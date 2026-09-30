@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { format, subWeeks, startOfWeek, endOfWeek } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
+import { AtelierTooltip, TikkSoyle, AKSE, RUTENETT, MARKOR, PLATINA } from '@/components/atelier/chart'
 
 const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
 const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false })
@@ -13,20 +14,6 @@ const XAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: fa
 const YAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false })
 const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false })
 const Tooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false })
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background:'rgba(5,5,18,0.95)', border:'1px solid rgba(0,245,255,0.2)', borderRadius:10, padding:'8px 14px' }}>
-      <div style={{ color:'rgba(255,255,255,0.5)', fontSize:'0.72rem', marginBottom:4 }}>{label}</div>
-      {payload.map((p: any) => (
-        <div key={p.dataKey} style={{ color:p.color, fontSize:'0.85rem', fontWeight:600 }}>
-          {p.name}: {p.value.toLocaleString('no')} kg
-        </div>
-      ))}
-    </div>
-  )
-}
 
 export default function Volumgraf({ userId }: { userId: string }) {
   const [data, setData] = useState<{ uke: string; kg: number }[]>([])
@@ -74,22 +61,21 @@ export default function Volumgraf({ userId }: { userId: string }) {
   }, [userId])
 
   if (laster) {
-    return <div className="glass-card st-chart-card"><div className="st-chart-title">📊 Treningsvolum <span className="st-mal-badge">Laster...</span></div></div>
+    return <div className="glass-card st-chart-card"><div className="st-chart-title">Volum per uke</div><div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span className="spinner-lg" /></div></div>
   }
 
   return (
     <div className="glass-card st-chart-card">
       <div className="st-chart-title">
-        📊 Treningsvolum (kg per uke)
-        <span className="st-mal-badge">Totalt løftet</span>
+        Volum per uke <span style={{ marginLeft: 'auto' }}>kg × reps</span>
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top:5, right:10, bottom:0, left:-20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-          <XAxis dataKey="uke" tick={{ fill:'rgba(255,255,255,0.35)', fontSize:11 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill:'rgba(255,255,255,0.35)', fontSize:11 }} axisLine={false} tickLine={false} />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="kg" name="Løftet" fill="var(--green)" radius={[4,4,0,0]} fillOpacity={0.8} />
+          <CartesianGrid {...RUTENETT} vertical={false} />
+          <XAxis dataKey="uke" {...AKSE} />
+          <YAxis {...AKSE} tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)} />
+          <Tooltip content={<AtelierTooltip enhet="kg" />} cursor={MARKOR} />
+          <Bar dataKey="kg" name="Løftet" fill={PLATINA} shape={<TikkSoyle />} />
         </BarChart>
       </ResponsiveContainer>
     </div>

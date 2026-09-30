@@ -264,8 +264,8 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
                 style={{
                   padding: '0.25rem 0.75rem',
                   borderRadius: '999px',
-                  background: valgtKategori === kategori ? 'var(--cyan)' : 'rgba(255,255,255,0.1)',
-                  color: valgtKategori === kategori ? '#000' : '#fff',
+                  background: valgtKategori === kategori ? 'var(--cyan)' : 'rgba(242,236,225,0.1)',
+                  color: valgtKategori === kategori ? '#000' : '#F2ECE1',
                   border: 'none',
                   cursor: 'pointer',
                   fontSize: '0.8rem'
@@ -289,8 +289,8 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
                     gap: '0.75rem',
                     padding: '0.75rem',
                     borderRadius: '8px',
-                    background: erValgt ? 'rgba(0,245,255,0.1)' : 'transparent',
-                    border: erValgt ? '1px solid var(--cyan)' : '1px solid rgba(255,255,255,0.1)',
+                    background: erValgt ? 'rgba(201,169,110,0.1)' : 'transparent',
+                    border: erValgt ? '1px solid var(--cyan)' : '1px solid rgba(242,236,225,0.1)',
                     marginBottom: '0.5rem',
                     cursor: 'pointer'
                   }}
@@ -298,7 +298,7 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
                   <span style={{ fontSize: '1.5rem' }}>{ovelse.emoji}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{ovelse.navn}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)' }}>
                       {ovelse.muskelgruppe} • {ovelse.vanskelighet} • {ovelse.utstyr}
                     </div>
                   </div>
@@ -314,7 +314,7 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
           <h3 style={{ marginBottom: '1rem' }}>📋 Din økt ({midlertidigValgte.length})</h3>
           
           {midlertidigValgte.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(255,255,255,0.3)' }}>
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(242,236,225,0.3)' }}>
               Velg øvelser fra venstre
             </div>
           ) : (
@@ -324,7 +324,7 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
                   key={ovelse.id}
                   style={{
                     padding: '0.75rem',
-                    borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    borderBottom: '1px solid rgba(242,236,225,0.1)',
                     marginBottom: '0.5rem'
                   }}
                 >
@@ -333,7 +333,7 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
                     <span style={{ fontWeight: 600, flex: 1 }}>{ovelse.navn}</span>
                     <button
                       onClick={() => fjernOvelse(ovelse.id)}
-                      style={{ background: 'none', border: 'none', color: '#ff5555', cursor: 'pointer', fontSize: '1rem' }}
+                      style={{ background: 'none', border: 'none', color: '#E0614F', cursor: 'pointer', fontSize: '1rem' }}
                     >
                       ✕
                     </button>
@@ -341,7 +341,7 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
                   
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <div>
-                      <label style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>Sett</label>
+                      <label style={{ fontSize: '0.7rem', color: 'rgba(242,236,225,0.5)' }}>Sett</label>
                       <input
                         type="number"
                         min="1"
@@ -353,7 +353,7 @@ export default function OvelsesVelger({ onSelect, valgteOvelser = [] }: Props) {
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>Reps</label>
+                      <label style={{ fontSize: '0.7rem', color: 'rgba(242,236,225,0.5)' }}>Reps</label>
                       <input
                         type="text"
                         value={ovelse.reps}
@@ -469,7 +469,7 @@ function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovel
         <h3 style={{ marginBottom: '1.5rem' }}>➕ Opprett ny øvelse</h3>
         
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Navn *</label>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)', display: 'block', marginBottom: '0.25rem' }}>Navn *</label>
           <input
             className="input"
             placeholder="f.eks. Kabel face pull med rotering"
@@ -480,7 +480,7 @@ function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovel
         </div>
         
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Kategori *</label>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)', display: 'block', marginBottom: '0.25rem' }}>Kategori *</label>
           <input
             className="input"
             placeholder="f.eks. skuldre, rygg, bryst"
@@ -491,7 +491,7 @@ function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovel
         </div>
         
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Muskelgruppe</label>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)', display: 'block', marginBottom: '0.25rem' }}>Muskelgruppe</label>
           <input
             className="input"
             placeholder="f.eks. Bakre deltoid, rotator cuff"
@@ -502,7 +502,7 @@ function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovel
         </div>
         
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Beskrivelse</label>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)', display: 'block', marginBottom: '0.25rem' }}>Beskrivelse</label>
           <textarea
             className="input"
             placeholder="Kort beskrivelse av øvelsen..."
@@ -513,7 +513,7 @@ function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovel
         </div>
         
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Utstyr</label>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)', display: 'block', marginBottom: '0.25rem' }}>Utstyr</label>
           <input
             className="input"
             placeholder="f.eks. Kabelmaskin, hantler"
@@ -525,7 +525,7 @@ function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovel
         
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Sett</label>
+            <label style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)', display: 'block', marginBottom: '0.25rem' }}>Sett</label>
             <input
               type="number"
               min="1"
@@ -536,7 +536,7 @@ function NyOvelseModal({ onClose, onSave }: { onClose: () => void; onSave: (ovel
             />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>Reps</label>
+            <label style={{ fontSize: '0.8rem', color: 'rgba(242,236,225,0.5)', display: 'block', marginBottom: '0.25rem' }}>Reps</label>
             <input
               className="input"
               value={reps}

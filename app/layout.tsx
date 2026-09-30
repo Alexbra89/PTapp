@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor:   '#030308',
+  themeColor:   '#0B0A09',
   width:        'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -49,62 +49,46 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             box-sizing: border-box;
           }
           html, body {
-            background-color: #030308 !important;
-            background: #030308 !important;
-            color: #fff;
+            background-color: #0B0A09 !important;
+            background: #0B0A09 !important;
+            color: #F2ECE1;
             min-height: 100vh;
           }
           #splash-screen {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #030308 0%, #0a0a18 100%);
+            inset: 0;
+            background: radial-gradient(900px 500px at 50% 0%, rgba(201,169,110,0.10), transparent 60%), #0B0A09;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 999999;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.5s ease;
             pointer-events: none;
           }
-          .splash-logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #00f5ff, #b44eff);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            box-shadow: 0 0 40px rgba(0,245,255,0.3);
-            animation: logoFloat 1.2s ease-in-out infinite alternate;
+          .splash-ring {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 1px solid rgba(242,236,225,0.12);
+            border-top-color: #C9A96E;
+            animation: spin 1.4s cubic-bezier(0.6,0.1,0.4,0.9) infinite;
           }
           .splash-title {
-            font-family: system-ui, -apple-system, 'Syne', sans-serif;
-            font-size: 1.6rem;
-            font-weight: 800;
-            margin-top: 1rem;
-            background: linear-gradient(135deg, #fff, #00f5ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-style: italic;
+            font-size: 2.4rem;
+            letter-spacing: -0.02em;
+            color: #C9A96E;
+            margin-top: 1.6rem;
           }
           .splash-sub {
-            font-family: system-ui, -apple-system, 'DM Sans', sans-serif;
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.4);
-            margin-top: 0.25rem;
-          }
-          .splash-spinner {
-            margin-top: 1.5rem;
-            width: 32px;
-            height: 32px;
-            border: 2px solid rgba(0,245,255,0.1);
-            border-top: 2px solid #00f5ff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            font-family: ui-monospace, 'SF Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.26em;
+            text-transform: uppercase;
+            color: rgba(242,236,225,0.34);
+            margin-top: 0.6rem;
           }
           @keyframes logoFloat {
             from { transform: translateY(0px); }
@@ -117,19 +101,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         `}} />
       </head>
       {/* ⭐ VIKTIG: Inline style direkte på body for umiddelbar effekt */}
-      <body style={{ backgroundColor: '#030308', margin: 0, padding: 0, minHeight: '100vh' }}>
+      <body style={{ backgroundColor: '#0B0A09', margin: 0, padding: 0, minHeight: '100vh' }}>
         {/* Splash screen – fjernes når React er klar */}
         <div id="splash-screen">
-          <div className="splash-logo">
-            💪
-          </div>
-          <div className="splash-title">
-            Treningsapp
-          </div>
-          <div className="splash-sub">
-            Din personlige treningspartner
-          </div>
-          <div className="splash-spinner" />
+          <div className="splash-ring" />
+          <div className="splash-title">Atelier</div>
+          <div className="splash-sub">Privat treningsklubb</div>
         </div>
         
         {/* Script for å fjerne splash-screen når React er klar */}

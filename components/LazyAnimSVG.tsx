@@ -6,7 +6,7 @@
  *
  * Eksempel:
  *   import { LazyAnimSVG } from '@/components/LazyAnimSVG'
- *   <LazyAnimSVG type="press" color="#00f5ff" size={60} />
+ *   <LazyAnimSVG type="press" color="#C9A96E" size={60} />
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -23,7 +23,7 @@ interface Props {
 }
 
 // ─── SVG-animasjoner (identisk med ovelser/page.tsx) ────────────────────────
-function AnimasjonSVG({ type, color = '#00f5ff', size = 80 }: Props) {
+function AnimasjonSVG({ type, color = '#C9A96E', size = 80 }: Props) {
   const s = size
   const c = color
 
@@ -176,7 +176,7 @@ function AnimasjonSVG({ type, color = '#00f5ff', size = 80 }: Props) {
 }
 
 // ─── Lazy wrapper – animerer kun synlige kort ───────────────────────────────
-export function LazyAnimSVG({ type, color = '#00f5ff', size = 80 }: Props) {
+export function LazyAnimSVG({ type, color = '#C9A96E', size = 80 }: Props) {
   const ref        = useRef<HTMLDivElement>(null)
   const [synlig, setSynlig] = useState(false)
 

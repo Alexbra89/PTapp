@@ -41,7 +41,7 @@ export function StatCard({
   return (
     <div className="stat-card">
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-        <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>
+        <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(242,236,225,0.35)', fontWeight: 600 }}>
           {label}
         </span>
         {icon && (
@@ -62,7 +62,7 @@ export function StatCard({
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
+        <div style={{ fontSize: '0.78rem', color: 'rgba(242,236,225,0.35)', marginTop: '4px' }}>
           {sub}
         </div>
       )}
@@ -150,7 +150,7 @@ export function Input({
         <label style={{
           display: 'block', fontSize: '0.72rem', fontWeight: 600,
           textTransform: 'uppercase', letterSpacing: '0.08em',
-          color: 'rgba(255,255,255,0.4)', marginBottom: '0.45rem',
+          color: 'rgba(242,236,225,0.4)', marginBottom: '0.45rem',
         }}>
           {label}
         </label>
@@ -159,7 +159,7 @@ export function Input({
         {icon && (
           <span style={{
             position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-            color: 'rgba(0,245,255,0.4)', pointerEvents: 'none',
+            color: 'rgba(201,169,110,0.4)', pointerEvents: 'none',
           }}>
             {icon}
           </span>

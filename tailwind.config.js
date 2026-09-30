@@ -7,14 +7,25 @@ module.exports = {
   ],
   theme: {
     extend: {
-      animation: {
-        'gradient': 'gradient 10s ease infinite',
+      colors: {
+        obsidian: { DEFAULT: '#0B0A09', 800: '#121110', 700: '#151412', 600: '#1B1A17' },
+        bone:     { DEFAULT: '#F2ECE1', 60: 'rgba(242,236,225,0.60)', 34: 'rgba(242,236,225,0.34)' },
+        gold:     { DEFAULT: '#C9A96E', hi: '#E3C68C', lo: '#8E7443' },
+        platinum: '#B8BEC6',
+        sage:     '#9DC496',
+        ember:    '#E07A4F',
       },
-      keyframes: {
-        gradient: {
-          '0%, 100%': { opacity: '0.3' },
-          '50%': { opacity: '0.6' },
-        },
+      fontFamily: {
+        sans:  ['Schibsted Grotesk', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        serif: ['Instrument Serif', 'Times New Roman', 'serif'],
+        mono:  ['JetBrains Mono', 'ui-monospace', 'monospace'],
+      },
+      borderColor: {
+        hair:   'rgba(242,236,225,0.08)',
+        strong: 'rgba(242,236,225,0.16)',
+      },
+      transitionTimingFunction: {
+        atelier: 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

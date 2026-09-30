@@ -20,7 +20,7 @@ function bmiKategori(bmi: number) {
   if (bmi < 18.5) return { label: 'Undervekt', color: 'var(--cyan)' }
   if (bmi < 25)   return { label: 'Normal',    color: 'var(--green)' }
   if (bmi < 30)   return { label: 'Overvekt',  color: 'var(--orange)' }
-  return             { label: 'Fedme',        color: '#ff4444' }
+  return             { label: 'Fedme',        color: '#E0614F' }
 }
 
 export default function ProfilPage() {
@@ -192,7 +192,7 @@ export default function ProfilPage() {
           {
             label: 'BMI',
             value: lagretBmi ?? '–',
-            color: lagretBmiK?.color ?? 'rgba(255,255,255,0.4)',
+            color: lagretBmiK?.color ?? 'rgba(242,236,225,0.4)',
             icon:  '📊',
             sub:   lagretBmiK?.label,
           },
@@ -232,7 +232,7 @@ export default function ProfilPage() {
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, color }}>
                   {profil.onsket_vekt} kg
                 </div>
-                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Målvekt</div>
+                <div style={{ fontSize: '0.65rem', color: 'rgba(242,236,225,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Målvekt</div>
               </div>
             </div>
             <div className="pr-maal-bar-bg">
@@ -359,7 +359,7 @@ export default function ProfilPage() {
                   <div style={{ color: malMeta.color, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem' }}>
                     {malMeta.label}
                   </div>
-                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem', marginTop: 3 }}>
+                  <div style={{ color: 'rgba(242,236,225,0.35)', fontSize: '0.78rem', marginTop: 3 }}>
                     Ditt nåværende treningsmål
                   </div>
                 </div>
@@ -388,21 +388,21 @@ export default function ProfilPage() {
       <style>{`
         .pr-page { max-width: 900px; }
 
-        .pr-melding { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.25); color: var(--green); border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; }
-        .pr-feil    { background: rgba(255,50,50,0.1);  border: 1px solid rgba(255,50,50,0.25);  color: #ff6060;  border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }
+        .pr-melding { background: rgba(157,196,150,0.1); border: 1px solid rgba(157,196,150,0.25); color: var(--green); border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; }
+        .pr-feil    { background: rgba(224,97,79,0.1);  border: 1px solid rgba(224,97,79,0.25);  color: #E0614F;  border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }
 
         .pr-hero { padding: 0; overflow: hidden; margin-bottom: 1.25rem; }
-        .pr-hero-shine { height: 1px; background: linear-gradient(90deg, transparent, rgba(0,245,255,0.3), transparent); }
+        .pr-hero-shine { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,169,110,0.3), transparent); }
         .pr-hero-inner { display: flex; align-items: center; gap: 1.5rem; padding: 1.75rem 2rem; flex-wrap: wrap; }
 
         .pr-avatar-wrap { position: relative; flex-shrink: 0; }
-        .pr-avatar { width: 72px; height: 72px; border-radius: 50%; position: relative; z-index: 1; background: linear-gradient(135deg, rgba(0,245,255,0.3), rgba(180,78,255,0.3)); border: 2px solid rgba(0,245,255,0.3); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: #fff; }
+        .pr-avatar { width: 72px; height: 72px; border-radius: 50%; position: relative; z-index: 1; background: linear-gradient(135deg, rgba(201,169,110,0.3), rgba(184,190,198,0.3)); border: 2px solid rgba(201,169,110,0.3); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: #F2ECE1; }
         .pr-avatar-ring { position: absolute; inset: -6px; border-radius: 50%; background: conic-gradient(var(--cyan), var(--purple), var(--cyan)); opacity: 0.2; animation: pr-spin 8s linear infinite; }
         @keyframes pr-spin { to { transform: rotate(360deg); } }
 
         .pr-hero-info { flex: 1; min-width: 0; }
-        .pr-navn  { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pr-epost { font-size: 0.82rem; color: rgba(255,255,255,0.35); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pr-navn  { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; color: #F2ECE1; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pr-epost { font-size: 0.82rem; color: rgba(242,236,225,0.35); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .pr-mal-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 500; border: 1px solid; }
         .pr-edit-btn { flex-shrink: 0; }
 
@@ -412,24 +412,24 @@ export default function ProfilPage() {
         .pr-stat-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
         .pr-stat-val  { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
         .pr-stat-sub  { font-size: 0.68rem; font-weight: 600; margin-bottom: 2px; }
-        .pr-stat-lbl  { font-size: 0.68rem; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.08em; }
+        .pr-stat-lbl  { font-size: 0.68rem; color: rgba(242,236,225,0.3); text-transform: uppercase; letter-spacing: 0.08em; }
 
         .pr-maal-kort { padding: 1.25rem; margin-bottom: 1.25rem; }
         .pr-maal-top  { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
-        .pr-maal-tittel { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
-        .pr-maal-sub    { font-size: 0.78rem; color: rgba(255,255,255,0.45); }
-        .pr-maal-bar-bg   { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; margin-bottom: 6px; }
+        .pr-maal-tittel { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: #F2ECE1; margin-bottom: 4px; }
+        .pr-maal-sub    { font-size: 0.78rem; color: rgba(242,236,225,0.45); }
+        .pr-maal-bar-bg   { height: 8px; border-radius: 999px; background: rgba(242,236,225,0.07); overflow: hidden; margin-bottom: 6px; }
         .pr-maal-bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s ease; }
-        .pr-maal-etiketter { display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.3); }
+        .pr-maal-etiketter { display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(242,236,225,0.3); }
 
         .pr-form { padding: 1.5rem; margin-bottom: 1.25rem; }
-        .pr-form-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 1.25rem; }
+        .pr-form-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: #F2ECE1; margin-bottom: 1.25rem; }
         .pr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
         @media(max-width: 600px) { .pr-form-grid { grid-template-columns: 1fr; } }
         .pr-form-full { grid-column: 1 / -1; }
         .pr-form-field { display: flex; flex-direction: column; gap: 0.4rem; }
-        .pr-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.35); font-weight: 600; }
-        .pr-form-footer { display: flex; gap: 10px; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.07); }
+        .pr-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(242,236,225,0.35); font-weight: 600; }
+        .pr-form-footer { display: flex; gap: 10px; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid rgba(242,236,225,0.07); }
 
         .pr-bmi-display { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid; }
         .pr-bmi-tall { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; }
@@ -437,19 +437,19 @@ export default function ProfilPage() {
 
         .pr-mal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
         @media(max-width: 600px) { .pr-mal-grid { grid-template-columns: 1fr 1fr; } }
-        .pr-mal-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.15s; font-family: var(--font-body); font-size: 0.78rem; color: rgba(255,255,255,0.5); }
-        .pr-mal-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.8); }
+        .pr-mal-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(242,236,225,0.1); background: rgba(242,236,225,0.03); cursor: pointer; transition: all 0.15s; font-family: var(--font-body); font-size: 0.78rem; color: rgba(242,236,225,0.5); }
+        .pr-mal-btn:hover { background: rgba(242,236,225,0.07); color: rgba(242,236,225,0.8); }
 
         .pr-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
         @media(max-width: 600px) { .pr-info-grid { grid-template-columns: 1fr; } }
         .pr-card { padding: 1.25rem; }
-        .pr-card-title { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 1rem; }
+        .pr-card-title { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: #F2ECE1; margin-bottom: 1rem; }
         .pr-info-rows { display: flex; flex-direction: column; gap: 8px; }
-        .pr-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.03); }
-        .pr-info-lbl { font-size: 0.75rem; color: rgba(255,255,255,0.35); }
-        .pr-info-val { font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 500; }
+        .pr-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; background: rgba(242,236,225,0.03); }
+        .pr-info-lbl { font-size: 0.75rem; color: rgba(242,236,225,0.35); }
+        .pr-info-val { font-size: 0.85rem; color: rgba(242,236,225,0.75); font-weight: 500; }
         .pr-mal-vis { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 14px; border: 1px solid; }
-        .pr-empty { font-size: 0.82rem; color: rgba(255,255,255,0.3); text-align: center; padding: 1rem 0; }
+        .pr-empty { font-size: 0.82rem; color: rgba(242,236,225,0.3); text-align: center; padding: 1rem 0; }
       `}</style>
     </div>
   )

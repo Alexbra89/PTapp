@@ -15,7 +15,7 @@ interface Ovelse {
 }
 
 // ── Lazy SVG: animerer KUN når synlig i viewport ─────────────────────────────
-function AnimasjonSVG({ type, color = '#00f5ff', size = 80 }: { type: AnimType; color?: string; size?: number }) {
+function AnimasjonSVG({ type, color = '#C9A96E', size = 80 }: { type: AnimType; color?: string; size?: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
 
@@ -293,11 +293,11 @@ const OVELSER: Ovelse[] = [
 const KATEGORIER = ['alle', 'bryst', 'rygg', 'bein', 'skuldre', 'bicep', 'tricep', 'core', 'cardio', 'fullkropp', 'tabata', 'styrkeløft']
 const STEDER = ['alle', 'gym', 'hjemme']
 const KAT_COLORS: Record<string, string> = {
-  bryst:'#00c8ff', rygg:'#b44eff', bein:'#00ff88', skuldre:'#ff8c00',
-  bicep:'#ff4488', tricep:'#ff6600', core:'#ffcc00', cardio:'#00ff88', 
-  fullkropp:'#00f5ff', tabata:'#ffaa00', styrkeløft:'#ff4444'
+  bryst:'#D8BD85', rygg:'#B8BEC6', bein:'#9DC496', skuldre:'#E07A4F',
+  bicep:'#D98A9A', tricep:'#D9663F', core:'#E3C68C', cardio:'#9DC496', 
+  fullkropp:'#C9A96E', tabata:'#D9A45B', styrkeløft:'#E0614F'
 }
-const VANSKELIG_COLOR = { Nybegynner:'var(--green)', Middels:'var(--orange)', Avansert:'#ff4444' }
+const VANSKELIG_COLOR = { Nybegynner:'var(--green)', Middels:'var(--orange)', Avansert:'#E0614F' }
 const KAT_EMOJI: Record<string, string> = {
   bryst:'💎', rygg:'🔙', bein:'🦵', skuldre:'🔼', bicep:'💪',
   tricep:'💀', core:'🎯', cardio:'🏃', fullkropp:'⚡', tabata:'⏱️', styrkeløft:'🏆'
@@ -344,7 +344,7 @@ function OvGruppe({ kat, ovelser, valgt, setValgt }: {
                 <div className="ov-card-tags">
                   <span className="ov-card-tag">{o.sett}×{o.reps}</span>
                   <span className="ov-card-tag" style={{ color: VANSKELIG_COLOR[o.vanskelighet] }}>{o.vanskelighet}</span>
-                  <span className="ov-card-tag" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  <span className="ov-card-tag" style={{ color: 'rgba(242,236,225,0.3)' }}>
                     {o.sted === 'begge' ? '🌍' : o.sted === 'gym' ? '🏋️' : '🏠'}
                   </span>
                 </div>
@@ -458,7 +458,7 @@ export default function OvelsesPage() {
               <div className="ov-detail-badges">
                 <span className="ov-detail-badge" style={{ background:`${KAT_COLORS[valgt.kategori]}18`, borderColor:`${KAT_COLORS[valgt.kategori]}35`, color:KAT_COLORS[valgt.kategori] }}>{valgt.kategori}</span>
                 <span className="ov-detail-badge" style={{ color:VANSKELIG_COLOR[valgt.vanskelighet], background:`${VANSKELIG_COLOR[valgt.vanskelighet]}12`, borderColor:`${VANSKELIG_COLOR[valgt.vanskelighet]}25` }}>{valgt.vanskelighet}</span>
-                <span className="ov-detail-badge" style={{ background:'rgba(255,255,255,0.05)', borderColor:'rgba(255,255,255,0.1)', color:'rgba(255,255,255,0.5)' }}>
+                <span className="ov-detail-badge" style={{ background:'rgba(242,236,225,0.05)', borderColor:'rgba(242,236,225,0.1)', color:'rgba(242,236,225,0.5)' }}>
                   {valgt.sted === 'begge' ? '🌍 Gym & Hjemme' : valgt.sted === 'gym' ? '🏋️ Gym' : '🏠 Hjemme'}
                 </span>
               </div>

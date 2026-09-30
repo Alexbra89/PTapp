@@ -383,7 +383,7 @@ const brukProgram = async (program: any) => {
                   <div key={okt.id} className="kal-okt glass-card"
                     style={{
                       borderColor: `${meta.color}25`,
-                      backgroundColor: okt.fullfort ? 'rgba(0,255,136,0.03)' : 'transparent',
+                      backgroundColor: okt.fullfort ? 'rgba(157,196,150,0.03)' : 'transparent',
                       borderLeft: okt.fullfort ? '4px solid var(--green)' : 'none'
                     }}>
                     <div className="kal-okt-topp"
@@ -400,7 +400,7 @@ const brukProgram = async (program: any) => {
                               marginLeft: '8px',
                               color: 'var(--green)',
                               fontSize: '0.7rem',
-                              background: 'rgba(0,255,136,0.1)',
+                              background: 'rgba(157,196,150,0.1)',
                               padding: '2px 6px',
                               borderRadius: '999px',
                               display: 'inline-block'
@@ -577,109 +577,109 @@ const brukProgram = async (program: any) => {
         @media(max-width:820px){.kal-layout{grid-template-columns:1fr}}
         .kal-venstre{display:flex;flex-direction:column;gap:.75rem}
         .kal-nav{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem}
-        .kal-nav-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;transition:all .15s;display:flex;align-items:center;justify-content:center}
-        .kal-nav-btn:hover{background:rgba(255,255,255,.12);color:#fff}
-        .kal-nav-tittel{font-family:var(--font-display,sans-serif);font-size:1rem;font-weight:700;color:#fff;text-transform:capitalize;display:flex;align-items:center;gap:8px}
+        .kal-nav-btn{background:rgba(242,236,225,.06);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.5);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;transition:all .15s;display:flex;align-items:center;justify-content:center}
+        .kal-nav-btn:hover{background:rgba(242,236,225,.12);color:#F2ECE1}
+        .kal-nav-tittel{font-family:var(--font-display,sans-serif);font-size:1rem;font-weight:700;color:#F2ECE1;text-transform:capitalize;display:flex;align-items:center;gap:8px}
         .kal-sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:kal-pulse .8s ease-in-out infinite}
         @keyframes kal-pulse{0%,100%{opacity:.3}50%{opacity:1}}
         .kal-grid{padding:.875rem}
         .kal-ukedager{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
-        .kal-ukd{text-align:center;font-size:.62rem;font-weight:700;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
+        .kal-ukd{text-align:center;font-size:.62rem;font-weight:700;color:rgba(242,236,225,.25);text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
         .kal-dager{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
         .kal-dag{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;border:1px solid transparent;gap:2px}
-        .kal-dag:hover{background:rgba(255,255,255,.06)}
+        .kal-dag:hover{background:rgba(242,236,225,.06)}
         .kal-tom{cursor:default}
-        .kal-dag-nr{font-size:.78rem;color:rgba(255,255,255,.5);line-height:1}
-        .kal-idag{background:rgba(0,245,255,.08);border-color:rgba(0,245,255,.22)!important}
-        .kal-idag .kal-dag-nr{color:var(--cyan,#00f5ff);font-weight:700}
-        .kal-valgt{background:rgba(0,245,255,.14)!important;border-color:rgba(0,245,255,.45)!important}
-        .kal-valgt .kal-dag-nr{color:var(--cyan,#00f5ff)!important;font-weight:700}
+        .kal-dag-nr{font-size:.78rem;color:rgba(242,236,225,.5);line-height:1}
+        .kal-idag{background:rgba(201,169,110,.08);border-color:rgba(201,169,110,.22)!important}
+        .kal-idag .kal-dag-nr{color:var(--cyan,#C9A96E);font-weight:700}
+        .kal-valgt{background:rgba(201,169,110,.14)!important;border-color:rgba(201,169,110,.45)!important}
+        .kal-valgt .kal-dag-nr{color:var(--cyan,#C9A96E)!important;font-weight:700}
         .kal-prikker{display:flex;gap:2px;justify-content:center}
         .kal-prikk{width:4px;height:4px;border-radius:50%;box-shadow:0 0 4px currentColor}
         .kal-legend{display:flex;justify-content:space-around;padding:.6rem .875rem;flex-wrap:wrap;gap:6px}
-        .kal-leg-item{display:flex;align-items:center;gap:5px;font-size:.68rem;color:rgba(255,255,255,.38)}
+        .kal-leg-item{display:flex;align-items:center;gap:5px;font-size:.68rem;color:rgba(242,236,225,.38)}
         .kal-leg-prikk{width:7px;height:7px;border-radius:50%}
         .kal-hoeyre{display:flex;flex-direction:column;gap:.75rem;min-width:0}
         .kal-dag-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;gap:1rem;flex-wrap:wrap}
-        .kal-dag-tittel{font-family:var(--font-display,sans-serif);font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:2px}
-        .kal-dag-sub{font-size:.75rem;color:rgba(255,255,255,.3)}
+        .kal-dag-tittel{font-family:var(--font-display,sans-serif);font-size:1.1rem;font-weight:700;color:#F2ECE1;margin-bottom:2px}
+        .kal-dag-sub{font-size:.75rem;color:rgba(242,236,225,.3)}
         .kal-legg-btn{font-size:.82rem!important;padding:.5rem 1rem!important}
         .kal-ingen{display:flex;flex-direction:column;align-items:center;text-align:center;padding:2.5rem 1.5rem}
-        .kal-ingen-t{font-family:var(--font-display,sans-serif);font-size:.9rem;font-weight:700;color:#fff;margin-bottom:4px}
-        .kal-ingen-s{font-size:.78rem;color:rgba(255,255,255,.3)}
+        .kal-ingen-t{font-family:var(--font-display,sans-serif);font-size:.9rem;font-weight:700;color:#F2ECE1;margin-bottom:4px}
+        .kal-ingen-s{font-size:.78rem;color:rgba(242,236,225,.3)}
         .kal-okter-liste{display:flex;flex-direction:column;gap:.75rem}
         .kal-okt{overflow:hidden;transition:border-color .2s}
         .kal-okt-topp{display:flex;align-items:center;gap:12px;padding:1rem 1.25rem;cursor:pointer;transition:background .12s}
-        .kal-okt-topp:hover{background:rgba(255,255,255,.02)}
+        .kal-okt-topp:hover{background:rgba(242,236,225,.02)}
         .kal-okt-icon{width:40px;height:40px;border-radius:10px;border:1px solid;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
         .kal-okt-info{flex:1;min-width:0}
-        .kal-okt-navn{font-family:var(--font-display,sans-serif);font-size:.95rem;font-weight:700;color:#fff;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .kal-okt-navn{font-family:var(--font-display,sans-serif);font-size:.95rem;font-weight:700;color:#F2ECE1;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .kal-okt-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
         .kal-badge{padding:2px 8px;border-radius:999px;font-size:.65rem;font-weight:600;border:1px solid}
-        .kal-meta-txt{font-size:.7rem;color:rgba(255,255,255,.3)}
+        .kal-meta-txt{font-size:.7rem;color:rgba(242,236,225,.3)}
         .kal-okt-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
         .kal-edit-btn,.kal-del-btn{background:none;border:none;cursor:pointer;font-size:.85rem;padding:4px 6px;border-radius:6px;transition:background .12s}
-        .kal-edit-btn:hover{background:rgba(255,255,255,.08)}
-        .kal-del-btn:hover{background:rgba(255,50,50,.12)}
-        .kal-slett-ja{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(255,50,50,.15);border:1px solid rgba(255,50,50,.3);color:#ff5555;transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-slett-ja:hover{background:rgba(255,50,50,.28);border-color:rgba(255,50,50,.5)}
-        .kal-slett-nei{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-slett-nei:hover{background:rgba(255,255,255,.1);color:#fff}
-        .kal-toggle{font-size:.6rem;color:rgba(255,255,255,.22);margin-left:4px}
-        .kal-okt-detalj{padding:0 1.25rem 1.25rem;border-top:1px solid rgba(255,255,255,.05);display:flex;flex-direction:column;gap:.75rem}
-        .kal-notater{font-size:.78rem;color:rgba(255,255,255,.4);padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-top:.75rem}
+        .kal-edit-btn:hover{background:rgba(242,236,225,.08)}
+        .kal-del-btn:hover{background:rgba(224,97,79,.12)}
+        .kal-slett-ja{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(224,97,79,.15);border:1px solid rgba(224,97,79,.3);color:#E0614F;transition:all .12s;font-family:var(--font-body,sans-serif)}
+        .kal-slett-ja:hover{background:rgba(224,97,79,.28);border-color:rgba(224,97,79,.5)}
+        .kal-slett-nei{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(242,236,225,.05);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);transition:all .12s;font-family:var(--font-body,sans-serif)}
+        .kal-slett-nei:hover{background:rgba(242,236,225,.1);color:#F2ECE1}
+        .kal-toggle{font-size:.6rem;color:rgba(242,236,225,.22);margin-left:4px}
+        .kal-okt-detalj{padding:0 1.25rem 1.25rem;border-top:1px solid rgba(242,236,225,.05);display:flex;flex-direction:column;gap:.75rem}
+        .kal-notater{font-size:.78rem;color:rgba(242,236,225,.4);padding:8px 10px;background:rgba(242,236,225,.03);border-radius:8px;margin-top:.75rem}
         .kal-ov-liste{display:flex;flex-direction:column;gap:0;margin-top:.5rem}
-        .kal-ov-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.25);font-weight:700;margin-bottom:8px}
+        .kal-ov-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(242,236,225,.25);font-weight:700;margin-bottom:8px}
         .kal-ov-lbl-preview{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-        .kal-ov-lbl-preview>span:first-child{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan,#00f5ff);font-weight:700}
-        .kal-ov-lbl-hint{font-size:.6rem;color:rgba(255,255,255,.2);font-style:italic}
-        .kal-ov-preview{background:rgba(0,245,255,0.02);border-radius:8px;border:1px solid rgba(0,245,255,0.06);margin-bottom:3px}
-        .kal-ov-preview:hover{background:rgba(0,245,255,0.05)!important;border-color:rgba(0,245,255,0.12)!important}
-        .kal-ov-tall-preview{color:var(--cyan,#00f5ff);opacity:.7;font-weight:600}
-        .kal-preview-note{font-size:.65rem;color:rgba(255,255,255,.2);text-align:center;padding:8px;margin-top:4px;border-top:1px solid rgba(255,255,255,.04)}
+        .kal-ov-lbl-preview>span:first-child{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan,#C9A96E);font-weight:700}
+        .kal-ov-lbl-hint{font-size:.6rem;color:rgba(242,236,225,.2);font-style:italic}
+        .kal-ov-preview{background:rgba(201,169,110,0.02);border-radius:8px;border:1px solid rgba(201,169,110,0.06);margin-bottom:3px}
+        .kal-ov-preview:hover{background:rgba(201,169,110,0.05)!important;border-color:rgba(201,169,110,0.12)!important}
+        .kal-ov-tall-preview{color:var(--cyan,#C9A96E);opacity:.7;font-weight:600}
+        .kal-preview-note{font-size:.65rem;color:rgba(242,236,225,.2);text-align:center;padding:8px;margin-top:4px;border-top:1px solid rgba(242,236,225,.04)}
         .kal-ov-rad{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;transition:background .1s}
-        .kal-ov-rad:hover{background:rgba(255,255,255,.03)}
+        .kal-ov-rad:hover{background:rgba(242,236,225,.03)}
         .kal-ov-em{font-size:1.1rem;flex-shrink:0}
         .kal-ov-info{flex:1;min-width:0}
-        .kal-ov-navn{font-size:.82rem;color:rgba(255,255,255,.75);font-weight:500}
-        .kal-ov-musk{font-size:.65rem;color:rgba(255,255,255,.3);margin-top:1px}
-        .kal-ov-tall{font-size:.7rem;color:rgba(255,255,255,.3);flex-shrink:0;white-space:nowrap}
-        .kal-ingen-ov{font-size:.78rem;color:rgba(255,255,255,.28);text-align:center;padding:12px;background:rgba(255,255,255,.02);border-radius:8px;border:1px dashed rgba(255,255,255,.08);margin-top:.5rem}
-        .kal-start-btn{width:100%;padding:.75rem;border-radius:10px;background:rgba(0,245,255,.07);border:1px solid rgba(0,245,255,.25);color:var(--cyan,#00f5ff);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-body,sans-serif);letter-spacing:.02em}
-        .kal-start-btn:hover{background:rgba(0,245,255,.14);border-color:rgba(0,245,255,.45);box-shadow:0 0 20px rgba(0,245,255,.1)}
+        .kal-ov-navn{font-size:.82rem;color:rgba(242,236,225,.75);font-weight:500}
+        .kal-ov-musk{font-size:.65rem;color:rgba(242,236,225,.3);margin-top:1px}
+        .kal-ov-tall{font-size:.7rem;color:rgba(242,236,225,.3);flex-shrink:0;white-space:nowrap}
+        .kal-ingen-ov{font-size:.78rem;color:rgba(242,236,225,.28);text-align:center;padding:12px;background:rgba(242,236,225,.02);border-radius:8px;border:1px dashed rgba(242,236,225,.08);margin-top:.5rem}
+        .kal-start-btn{width:100%;padding:.75rem;border-radius:10px;background:rgba(201,169,110,.07);border:1px solid rgba(201,169,110,.25);color:var(--cyan,#C9A96E);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-body,sans-serif);letter-spacing:.02em}
+        .kal-start-btn:hover{background:rgba(201,169,110,.14);border-color:rgba(201,169,110,.45);box-shadow:0 0 20px rgba(201,169,110,.1)}
         .kal-modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem}
         .kal-modal{width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:0}
-        .kal-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,.07)}
-        .kal-modal-header h3{font-family:var(--font-display,sans-serif);font-size:1rem;font-weight:700;color:#fff}
-        .kal-modal-x{background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:.85rem;padding:4px 8px;border-radius:6px;transition:all .12s}
-        .kal-modal-x:hover{background:rgba(255,255,255,.08);color:#fff}
+        .kal-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(242,236,225,.07)}
+        .kal-modal-header h3{font-family:var(--font-display,sans-serif);font-size:1rem;font-weight:700;color:#F2ECE1}
+        .kal-modal-x{background:none;border:none;color:rgba(242,236,225,.3);cursor:pointer;font-size:.85rem;padding:4px 8px;border-radius:6px;transition:all .12s}
+        .kal-modal-x:hover{background:rgba(242,236,225,.08);color:#F2ECE1}
         .kal-modal-body{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:.875rem}
-        .kal-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);font-weight:700;margin-bottom:-6px}
+        .kal-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(242,236,225,.3);font-weight:700;margin-bottom:-6px}
         .kal-type-rad{display:flex;gap:6px;flex-wrap:wrap}
-        .kal-type-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-type-btn.on{background:rgba(0,245,255,.1);border-color:rgba(0,245,255,.3);color:var(--cyan,#00f5ff)}
+        .kal-type-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(242,236,225,.04);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
+        .kal-type-btn.on{background:rgba(201,169,110,.1);border-color:rgba(201,169,110,.3);color:var(--cyan,#C9A96E)}
         .kal-var-rad{display:flex;gap:6px;flex-wrap:wrap}
-        .kal-var-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-var-btn.on{background:rgba(0,245,255,.1);border-color:rgba(0,245,255,.3);color:var(--cyan,#00f5ff)}
-        .kal-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid rgba(255,255,255,.07)}
+        .kal-var-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(242,236,225,.04);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
+        .kal-var-btn.on{background:rgba(201,169,110,.1);border-color:rgba(201,169,110,.3);color:var(--cyan,#C9A96E)}
+        .kal-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid rgba(242,236,225,.07)}
         @media(max-width:600px){.kal-dag-header{flex-direction:column;align-items:flex-start}.kal-legg-btn{width:100%;justify-content:center}}
-        .btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);padding:0.5rem 1rem;border-radius:8px;cursor:pointer;transition:all 0.15s;font-size:0.82rem}
-        .btn-ghost:hover{background:rgba(255,255,255,0.1);color:#fff}
-        .pr-kat-btn{padding:4px 12px;border-radius:8px;font-size:.75rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body)}
-        .pr-kat-btn.on{background:rgba(180,78,255,.12);border-color:rgba(180,78,255,.35);color:var(--purple)}
-        .pr-kort{padding:1rem;cursor:pointer;transition:all .15s;border:1px solid rgba(255,255,255,.07)!important;border-radius:12px}
-        .pr-kort:hover{background:rgba(255,255,255,.04)!important;border-color:rgba(180,78,255,.25)!important;transform:translateY(-2px)}
-        .pr-kort-navn{font-family:var(--font-display);font-size:.85rem;font-weight:700;color:#fff;margin-bottom:.25rem}
-        .pr-kort-reps{font-size:.7rem;color:rgba(255,255,255,.4)}
-        .pr-kort-dato{font-size:.6rem;color:rgba(255,255,255,.2);margin-top:4px}
+        .btn-ghost{background:rgba(242,236,225,0.05);border:1px solid rgba(242,236,225,0.1);color:rgba(242,236,225,0.6);padding:0.5rem 1rem;border-radius:8px;cursor:pointer;transition:all 0.15s;font-size:0.82rem}
+        .btn-ghost:hover{background:rgba(242,236,225,0.1);color:#F2ECE1}
+        .pr-kat-btn{padding:4px 12px;border-radius:8px;font-size:.75rem;background:rgba(242,236,225,.04);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body)}
+        .pr-kat-btn.on{background:rgba(184,190,198,.12);border-color:rgba(184,190,198,.35);color:var(--purple)}
+        .pr-kort{padding:1rem;cursor:pointer;transition:all .15s;border:1px solid rgba(242,236,225,.07)!important;border-radius:12px}
+        .pr-kort:hover{background:rgba(242,236,225,.04)!important;border-color:rgba(184,190,198,.25)!important;transform:translateY(-2px)}
+        .pr-kort-navn{font-family:var(--font-display);font-size:.85rem;font-weight:700;color:#F2ECE1;margin-bottom:.25rem}
+        .pr-kort-reps{font-size:.7rem;color:rgba(242,236,225,.4)}
+        .pr-kort-dato{font-size:.6rem;color:rgba(242,236,225,.2);margin-top:4px}
         .pr-kort-topp{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
         .pr-kort-em{font-size:1.2rem}
         .pr-modal-bg{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem}
-        .pr-modal{width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:0;background:rgba(10,10,20,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:20px}
-        .pr-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,.07)}
-        .pr-modal-tittel{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#fff}
+        .pr-modal{width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:0;background:rgba(20,19,17,0.98);border:1px solid rgba(242,236,225,0.1);border-radius:20px}
+        .pr-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(242,236,225,.07)}
+        .pr-modal-tittel{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#F2ECE1}
         .pr-modal-body{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem}
-        .spinner-lg{width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite}
+        .spinner-lg{width:32px;height:32px;border:3px solid rgba(242,236,225,0.1);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
     </div>

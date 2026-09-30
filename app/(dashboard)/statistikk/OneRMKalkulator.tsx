@@ -76,40 +76,45 @@ export default function OneRMKalkulator({ userId }: { userId: string }) {
   }, [userId])
 
   if (laster) {
-    return <div className="st-chart-title">🏆 Estimert 1RM <span className="st-mal-badge">Laster...</span></div>
+    return null
   }
 
   if (data.length === 0) {
     return (
       <div className="glass-card st-chart-card">
-        <div className="st-chart-title">🏆 Estimert 1RM</div>
-        <div className="st-tip-row" style={{ textAlign: 'center' }}>
-          Logg tunge sett for å se estimert maksstyrke
-        </div>
+        <div className="st-chart-title">Estimert maks · 1RM</div>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Logg noen tunge sett, så regner vi ut hva du klarer på én repetisjon.</p>
       </div>
     )
   }
 
   return (
-    <div className="glass-card st-chart-card">
+    <div className="glass-card st-chart-card" style={{ marginBottom: '1rem' }}>
       <div className="st-chart-title">
-        🏆 Estimert 1RM (One Rep Max)
-        <span className="st-mal-badge">Brzycki-formel</span>
+        Estimert maks · 1RM <span style={{ marginLeft: 'auto' }}>Brzycki</span>
       </div>
-      <div className="pr-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
-        {data.map((item) => (
-          <div key={item.ovelse_navn} className="pr-kort" style={{ textAlign: 'center' }}>
-            <div className="pr-kort-navn">{item.ovelse_navn}</div>
-            <div className="pr-kort-kg" style={{ fontSize: '1.2rem' }}>
-              {item.estimated_1rm} <span className="pr-kort-kglbl">kg</span>
+      <div className="rm-liste">
+        {data.map((item, i) => (
+          <div key={item.ovelse_navn} className="rm-rad">
+            <span className="rm-nr">{String(i + 1).padStart(2, '0')}</span>
+            <div className="rm-info">
+              <div className="rm-navn">{item.ovelse_navn}</div>
+              <div className="rm-basis">{item.kg} kg × {item.reps} · {item.dato}</div>
             </div>
-            <div className="pr-kort-reps" style={{ fontSize: '0.65rem' }}>
-              Basert på {item.kg} kg × {item.reps} reps
-            </div>
-            <div className="pr-kort-dato">{item.dato}</div>
+            <div className="rm-kg num-monument">{item.estimated_1rm}<small>kg</small></div>
           </div>
         ))}
       </div>
+      <style>{`
+        .rm-liste { border-top: 1px solid var(--line); }
+        .rm-rad { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 12px; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+        .rm-rad:last-child { border-bottom: none; }
+        .rm-nr { font-family: var(--font-mono); font-size: 0.64rem; color: var(--gold); }
+        .rm-navn { font-size: 0.95rem; color: var(--ink); }
+        .rm-basis { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.06em; color: var(--text-muted); margin-top: 4px; }
+        .rm-kg { font-size: 2.4rem; color: var(--ink); display: flex; align-items: baseline; gap: 5px; }
+        .rm-kg small { font-family: var(--font-mono); font-size: 0.58rem; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; }
+      `}</style>
     </div>
   )
 }
