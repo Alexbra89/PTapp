@@ -275,7 +275,7 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 }
 
 /* ─── KEYFRAMES ──────────────────────────────────────── */
-@keyframes fadeUp   { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: translateY(0); } }
+@keyframes fadeUp   { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: none; } } /* none – ellers blir siden containing block for position: fixed (modaler havnet utenfor skjermen) */
 @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
 @keyframes spin     { to { transform: rotate(360deg); } }
 @keyframes pulse    { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
@@ -1253,3 +1253,108 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 
 .kal-modal-bg, .pr-modal-bg { background: rgba(5,5,4,0.7) !important; backdrop-filter: blur(8px) !important; }
 .offline-banner { background: rgba(22,21,19,0.9); border-color: rgba(224,122,79,0.4); font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   ØVELSESBIBLIOTEK  (bib-*)  og  DETALJSIDE  (ovd-*)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.bib-page { max-width: 1100px; }
+.bib-verktoy { display: flex; gap: 10px; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.bib-sok { position: relative; flex: 1; min-width: 240px; display: flex; align-items: center; color: var(--text-muted); }
+.bib-sok > svg { position: absolute; left: 16px; pointer-events: none; }
+.bib-sok .input { padding-left: 2.75rem; padding-right: 2.5rem; border-radius: 999px; }
+.bib-sok button { position: absolute; right: 10px; width: 26px; height: 26px; border-radius: 50%; border: none; background: rgba(242,236,225,0.06); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.bib-sted { display: flex; padding: 4px; border: 1px solid var(--line); border-radius: 999px; }
+.bib-sted button { position: relative; isolation: isolate; padding: 0.55rem 1.05rem; border: none; background: none; border-radius: 999px; color: var(--text-secondary); font-size: 0.84rem; cursor: pointer; transition: color 0.3s; }
+.bib-sted button.on { color: #0B0A09; font-weight: 500; }
+.bib-sted-bg { position: absolute; inset: 0; z-index: -1; border-radius: 999px; background: var(--ink); }
+
+.bib-kategorier { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 2.5rem; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); mask-image: linear-gradient(90deg, #000 90%, transparent); }
+.bib-kategorier::-webkit-scrollbar { display: none; }
+.bib-kat { flex-shrink: 0; padding: 7px 15px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--text-secondary); font-size: 0.82rem; cursor: pointer; transition: all 0.25s var(--ease-out); }
+.bib-kat:hover { color: var(--ink); border-color: var(--line-strong); }
+.bib-kat.on { background: var(--ink); border-color: var(--ink); color: #0B0A09; }
+
+.bib-grupper { display: flex; flex-direction: column; gap: 3rem; }
+.bib-gruppe-hode { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 0.9rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.bib-gruppe-tittel { font-family: var(--font-serif); font-weight: 400; font-size: 2rem; letter-spacing: -0.02em; line-height: 1; }
+.bib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .bib-grid { grid-template-columns: 1fr; } }
+
+.bib-kort { display: flex; align-items: stretch; gap: 16px; padding: 10px 16px 10px 10px; border-radius: 20px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.bib-kort:hover { border-color: rgba(201,169,110,0.35); transform: translateY(-2px); }
+.bib-kort:active { transform: scale(0.985); }
+.bib-kort-kart { flex-shrink: 0; width: 76px; display: flex; align-items: center; justify-content: center; border-radius: 14px; background: radial-gradient(circle at 50% 40%, rgba(201,169,110,0.08), rgba(242,236,225,0.015) 70%); border: 1px solid var(--line); padding: 6px 0; }
+.bib-kort-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 4px 0; }
+.bib-kort-muskel { font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bib-kort-navn { font-family: var(--font-serif); font-size: 1.45rem; line-height: 1.05; letter-spacing: -0.01em; color: var(--ink); }
+.bib-kort-meta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bib-utstyr { display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--text-muted); }
+.bib-niva { display: inline-flex; gap: 3px; align-items: center; }
+.bib-niva i { width: 2px; height: 10px; background: rgba(242,236,225,0.18); }
+.bib-niva i.on { background: var(--gold); }
+.bib-mer { margin-top: 10px; width: 100%; padding: 0.8rem; border-radius: 999px; border: 1px dashed var(--line-strong); background: none; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; transition: all 0.25s; }
+.bib-mer:hover { color: var(--gold-hi); border-color: var(--gold); border-style: solid; }
+.bib-tom { padding: 4rem 0; text-align: center; display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--line); }
+.bib-tom .serif { font-size: 2.4rem; }
+
+/* Detaljark */
+.bib-ark {
+  position: fixed; z-index: 61; left: 0; right: 0; bottom: 0; max-height: 92vh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 0.75rem 1.5rem calc(1.75rem + env(safe-area-inset-bottom));
+  border-radius: 28px 28px 0 0; border: 1px solid var(--line-strong); border-bottom: none;
+  background: linear-gradient(180deg, #1A1916, #121110 30%);
+}
+@media (min-width: 900px) {
+  .bib-ark { left: 50%; right: auto; bottom: 4vh; width: 640px; margin-left: -320px; max-height: 92vh; border-radius: 28px; border-bottom: 1px solid var(--line-strong); padding-top: 1.25rem; }
+  .bib-ark .sheet-grip { display: none; }
+}
+.bib-ark-hode { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.bib-ark-navn { font-family: var(--font-serif); font-weight: 400; font-size: clamp(2.2rem, 7vw, 3rem); line-height: 0.95; letter-spacing: -0.025em; margin-top: 0.6rem; }
+.bib-ark-kart { display: flex; align-items: center; gap: 1.5rem; padding: 1.25rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.bib-ark-kart svg { flex-shrink: 0; max-width: 60%; height: auto; }
+@media (max-width: 520px) { .bib-ark-kart { flex-direction: column; align-items: stretch; } .bib-ark-kart svg { max-width: 100%; margin: 0 auto; } }
+.bib-legende { display: flex; flex-direction: column; gap: 1.1rem; }
+.bib-legende p { margin-top: 6px; font-size: 0.92rem; color: var(--ink); line-height: 1.4; }
+.bib-prikk { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.bib-prikk.primaer { background: var(--gold); }
+.bib-prikk.sekundaer { background: rgba(201,169,110,0.35); }
+.bib-tall { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+.bib-tall > div { padding: 1.1rem 0.75rem; display: flex; flex-direction: column; gap: 10px; }
+.bib-tall > div + div { border-left: 1px solid var(--line); }
+.bib-tall strong { font-size: 1.9rem; font-weight: 400; color: var(--ink); line-height: 1; white-space: nowrap; }
+.bib-tall-niva { display: flex !important; align-items: center; gap: 8px; font-family: var(--font-body) !important; font-size: 0.86rem !important; color: var(--text-secondary) !important; }
+@media (max-width: 520px) { .bib-tall { grid-template-columns: 1fr 1fr; } .bib-tall > div:nth-child(3) { border-left: none; } .bib-tall > div:nth-child(n+3) { border-top: 1px solid var(--line); } }
+.bib-besk { margin: 1.25rem 0; color: var(--text-secondary); line-height: 1.7; font-size: 0.95rem; max-width: 62ch; }
+.bib-utstyr-rad { display: flex; align-items: center; gap: 10px; padding: 0.9rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink); font-size: 0.88rem; }
+.bib-utstyr-rad svg { color: var(--gold); }
+.bib-tips { list-style: none; margin-top: 0.5rem; }
+.bib-tips li { display: grid; grid-template-columns: 36px 1fr; gap: 6px; padding: 0.85rem 0; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
+.bib-tips-nr { font-family: var(--font-mono); font-size: 0.62rem; color: var(--gold); padding-top: 3px; }
+
+/* Detaljside */
+.ovd { max-width: 920px; display: flex; flex-direction: column; gap: 2.5rem; }
+.ovd-hode { display: flex; flex-direction: column; gap: 1rem; }
+.ovd-navn { font-family: var(--font-serif); font-weight: 400; font-size: clamp(3rem, 9vw, 5.2rem); line-height: 0.9; letter-spacing: -0.035em; }
+.ovd-ingress { color: var(--text-secondary); font-size: 1.02rem; line-height: 1.65; max-width: 60ch; }
+.ovd-hero { display: grid; grid-template-columns: auto 1fr; gap: 2rem; padding: 2rem; align-items: center; }
+@media (max-width: 760px) { .ovd-hero { grid-template-columns: 1fr; padding: 1.5rem 1.1rem; } }
+.ovd-kart { display: flex; justify-content: center; }
+.ovd-kart svg { max-width: 100%; height: auto; }
+.ovd-fakta { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.ovd-muskler { display: flex; flex-direction: column; gap: 1.1rem; }
+.ovd-muskel-navn { font-family: var(--font-serif); font-size: 1.7rem; line-height: 1.1; margin-top: 6px; }
+.ovd-muskel-navn.dempet { color: var(--text-secondary); font-size: 1.35rem; }
+.ovd-tall { grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+@media (max-width: 520px) { .ovd-tall { grid-template-columns: repeat(3, 1fr); } .ovd-tall > div:nth-child(3) { border-left: 1px solid var(--line); } .ovd-tall > div:nth-child(n+3) { border-top: none; } }
+.ovd-seksjon .hq-section-title { margin-bottom: 1.25rem; }
+.ovd-seksjon .hq-section-title em { font-style: italic; color: var(--gold); }
+.ovd-steg { list-style: none; position: relative; }
+.ovd-steg::before { content: ''; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 1px; background: linear-gradient(180deg, var(--gold), rgba(201,169,110,0.1)); }
+.ovd-steg li { position: relative; display: grid; grid-template-columns: 36px 1fr; gap: 18px; padding: 0.7rem 0; align-items: start; }
+.ovd-steg-nr { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-base); border: 1px solid rgba(201,169,110,0.5); color: var(--gold-hi); font-family: var(--font-mono); font-size: 0.66rem; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
+.ovd-steg p { padding-top: 7px; color: var(--ink); line-height: 1.6; font-size: 0.96rem; }
+.ovd-tom { min-height: 55vh; display: flex; flex-direction: column; justify-content: center; gap: 1.25rem; max-width: 520px; }
+.ovd-tom p { color: var(--text-secondary); }
+.ovd-tom .btn { align-self: flex-start; }
