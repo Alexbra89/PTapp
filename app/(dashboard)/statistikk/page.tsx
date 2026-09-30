@@ -11,6 +11,7 @@ import OneRMKalkulator from './OneRMKalkulator'
 import Volumgraf from './Volumgraf'
 import { BarChart3, Trophy, Scale, Plus, X, Download, Droplet, ArrowUpRight } from 'lucide-react'
 import { MuskelGlyph } from '@/components/atelier/Glyph'
+import { TelleTall } from '@/components/atelier/TelleTall'
 import { AtelierTooltip, TikkSoyle, TikkSoyleH, AKSE, RUTENETT, MARKOR, GULL } from '@/components/atelier/chart'
 import { lokalDato } from '@/lib/dato'
 
@@ -335,14 +336,14 @@ export default function StatistikkPage() {
         <>
           <div className="hq-figures st-figurer">
             {[
-              { label:'Økter',          val: (stats?.totalOkter ?? 0).toLocaleString('nb-NO'), enhet: '',   sub: 'totalt logget' },
-              { label:'Tonnasje',       val: (stats?.totalKg ?? 0).toLocaleString('nb-NO'),    enhet: 'kg', sub: 'løftet totalt' },
-              { label:'Rekke',          val: stats?.streak ?? 0,                               enhet: 'dager', sub: 'på rad' },
-              { label:'Denne uken',     val: (stats?.ukeKg ?? 0).toLocaleString('nb-NO'),      enhet: 'kg', sub: 'løftet siden mandag' },
-            ].map(f => (
+              { label:'Økter',          val: stats?.totalOkter ?? 0, enhet: '',      sub: 'totalt logget' },
+              { label:'Tonnasje',       val: stats?.totalKg ?? 0,    enhet: 'kg',    sub: 'løftet totalt' },
+              { label:'Rekke',          val: stats?.streak ?? 0,     enhet: 'dager', sub: 'på rad' },
+              { label:'Denne uken',     val: stats?.ukeKg ?? 0,      enhet: 'kg',    sub: 'løftet siden mandag' },
+            ].map((f, i) => (
               <div key={f.label} className="hq-figure">
                 <span className="eyebrow">{f.label}</span>
-                <div className="hq-figure-val num-monument">{f.val}{f.enhet && <small>{f.enhet}</small>}</div>
+                <div className="hq-figure-val num-monument"><TelleTall verdi={f.val} forsinkelse={0.1 + i * 0.08} />{f.enhet && <small>{f.enhet}</small>}</div>
                 <div className="hq-figure-sub">{f.sub}</div>
               </div>
             ))}

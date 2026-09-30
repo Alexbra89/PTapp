@@ -7,6 +7,7 @@ import { nb } from 'date-fns/locale'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { useUser, useProfil, useDagensOkter, useStats, useAktivitet } from '@/hooks/useSupabaseQuery'
 import { TickRing } from '@/components/atelier/Dial'
+import { TelleTall } from '@/components/atelier/TelleTall'
 import { lokalDato } from '@/lib/dato'
 
 const UKEMAL = 4
@@ -27,12 +28,10 @@ const REGISTER = [
   { href: '/profiler',     label: 'Profil',       sub: 'Innstillinger' },
 ]
 
-const fmt = (n: number) => new Intl.NumberFormat('nb-NO').format(n)
-
 // Tonnasje over 10 000 kg vises i tonn for å holde tallet monumentalt, men lesbart
 function tonnasje(kg: number) {
-  if (kg >= 10000) return { val: (kg / 1000).toLocaleString('nb-NO', { maximumFractionDigits: 1 }), unit: 'tonn' }
-  return { val: fmt(kg), unit: 'kg' }
+  if (kg >= 10000) return { tall: Math.round(kg / 100) / 10, desimaler: 1, unit: 'tonn' }
+  return { tall: kg, desimaler: 0, unit: 'kg' }
 }
 
 const rise: Variants = {
@@ -88,7 +87,7 @@ export default function DashboardPage() {
           <div>
             <span className="eyebrow eyebrow-gold">Løftet denne uken</span>
             <div className="hq-tonnage num-monument">
-              {ukeT.val}<span className="unit">{ukeT.unit}</span>
+              <TelleTall verdi={ukeT.tall} desimaler={ukeT.desimaler} forsinkelse={0.2} /><span className="unit">{ukeT.unit}</span>
             </div>
             <p className="hq-caption">
               {ukeOkter === 0
@@ -133,17 +132,17 @@ export default function DashboardPage() {
       <motion.section variants={rise} custom={2} className="hq-figures">
         <div className="hq-figure">
           <span className="eyebrow">Rekke</span>
-          <div className="hq-figure-val num-monument">{stats?.streak ?? 0}<small>dager</small></div>
+          <div className="hq-figure-val num-monument"><TelleTall verdi={stats?.streak ?? 0} forsinkelse={0.35} /><small>dager</small></div>
           <div className="hq-figure-sub">på rad med trening</div>
         </div>
         <div className="hq-figure">
           <span className="eyebrow">Økter totalt</span>
-          <div className="hq-figure-val num-monument">{fmt(stats?.totalOkter ?? 0)}</div>
+          <div className="hq-figure-val num-monument"><TelleTall verdi={stats?.totalOkter ?? 0} forsinkelse={0.45} /></div>
           <div className="hq-figure-sub">siden du startet</div>
         </div>
         <div className="hq-figure">
           <span className="eyebrow">Samlet tonnasje</span>
-          <div className="hq-figure-val num-monument">{totalT.val}<small>{totalT.unit}</small></div>
+          <div className="hq-figure-val num-monument"><TelleTall verdi={totalT.tall} desimaler={totalT.desimaler} forsinkelse={0.55} /><small>{totalT.unit}</small></div>
           <div className="hq-figure-sub">flyttet jern, totalt</div>
         </div>
       </motion.section>

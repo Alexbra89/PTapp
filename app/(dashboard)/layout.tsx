@@ -11,6 +11,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { Dial } from '@/components/atelier/Dial'
 import { BRAND } from '@/lib/brand'
+import { SideSkjelett } from '@/components/atelier/Skjelett'
 
 const NAV = [
   { href: '/',             icon: LayoutGrid,   label: 'Oversikt' },
@@ -36,6 +37,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null)
   const [loggingUt, setLoggingUt] = useState(false)
   const [visMer, setVisMer] = useState(false)
+  // Innholdet er innloggings- og tidsavhengig (dato, hilsen, «i dag», brukerdata) og hentes uansett
+  // i nettleseren. Å rendre det først etter mount fjerner hydreringsfeil fra forhåndsrendring.
+  const [klar, setKlar] = useState(false)
+  useEffect(() => { setKlar(true) }, [])
 
   useEffect(() => {
     const sjekkInnlogging = async () => {
@@ -154,7 +159,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         <div className="dash-content">
-          {children}
+          {klar ? (
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          ) : (
+            <SideSkjelett variant={erForside ? 'oversikt' : 'standard'} />
+          )}
         </div>
 
         {!erForside && (

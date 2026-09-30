@@ -1358,3 +1358,55 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .ovd-tom { min-height: 55vh; display: flex; flex-direction: column; justify-content: center; gap: 1.25rem; max-width: 520px; }
 .ovd-tom p { color: var(--text-secondary); }
 .ovd-tom .btn { align-self: flex-start; }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   LASTEBILDER (skj-*)
+   ═══════════════════════════════════════════════════════════════════ */
+.skj {
+  display: block; flex-shrink: 0; max-width: 100%;
+  background: linear-gradient(100deg, rgba(242,236,225,0.035) 30%, rgba(242,236,225,0.085) 50%, rgba(242,236,225,0.035) 70%);
+  background-size: 300% 100%;
+  animation: skimmer 1.8s var(--ease-out) infinite;
+}
+@keyframes skimmer { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+.skj-side { animation: fadeIn 0.4s ease both; max-width: 1000px; }
+.skj-kort { display: flex; gap: 16px; padding: 14px; border-radius: 20px; }
+.skj-rad { display: flex; gap: 6px; margin: 1rem 0 0; overflow: hidden; }
+.skj-kalender { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   ØVELSESVELGER  (velger-*)
+   ═══════════════════════════════════════════════════════════════════ */
+.velger { display: grid; grid-template-columns: 1.3fr 1fr; gap: 1.5rem; padding: 1.5rem; }
+@media (max-width: 760px) { .velger { grid-template-columns: 1fr; padding: 1.1rem; } }
+.velger-sokrad { display: flex; gap: 8px; margin-bottom: 0.9rem; }
+.velger-sokrad .bib-sok { min-width: 0; }
+.velger-ny { padding: 0.6rem 1rem !important; font-size: 0.8rem !important; gap: 6px !important; }
+.velger-liste { list-style: none; max-height: 440px; overflow-y: auto; border-top: 1px solid var(--line); -webkit-mask-image: linear-gradient(180deg, #000 92%, transparent); mask-image: linear-gradient(180deg, #000 92%, transparent); }
+.velger-rad { width: 100%; display: flex; align-items: center; gap: 12px; padding: 0.55rem 0.25rem; border: none; border-bottom: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 0.2s, padding 0.3s var(--ease-out); }
+.velger-rad:hover { background: rgba(242,236,225,0.025); padding-left: 0.6rem; }
+.velger-rad.on { background: linear-gradient(90deg, rgba(201,169,110,0.1), transparent); }
+.velger-kart { width: 34px; height: 46px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.velger-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.velger-navn { font-family: var(--font-serif); font-size: 1.2rem; line-height: 1.1; color: var(--ink); }
+.velger-meta { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.velger-knapp { width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: all 0.3s var(--ease-out); }
+.velger-rad.on .velger-knapp { background: var(--gold); border-color: var(--gold); color: #17130C; }
+.velger-tom { padding: 1.5rem 0; color: var(--text-muted); font-size: 0.88rem; }
+.velger-okt { border-left: 1px solid var(--line); padding-left: 1.5rem; }
+@media (max-width: 760px) { .velger-okt { border-left: none; padding-left: 0; border-top: 1px solid var(--line); padding-top: 1.25rem; } }
+.velger-okt-hode { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.75rem; }
+.velger-okt-hode em { font-style: italic; color: var(--gold); }
+.velger-valgte { list-style: none; border-top: 1px solid var(--line); }
+.velger-valgte li { display: grid; grid-template-columns: 26px 1fr auto 58px 24px; align-items: center; gap: 8px; padding: 0.6rem 0; border-bottom: 1px solid var(--line); overflow: hidden; }
+.velger-nr { font-family: var(--font-mono); font-size: 0.62rem; color: var(--gold); }
+.velger-valgt-navn { font-size: 0.9rem; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.velger-stepper { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.velger-stepper button { width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(242,236,225,0.05); color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.velger-stepper .mono { font-size: 0.72rem; min-width: 22px; text-align: center; }
+.velger-reps { padding: 0.35rem 0.4rem !important; text-align: center; font-family: var(--font-mono); font-size: 0.78rem !important; border-radius: 10px !important; }
+.velger-fjern { background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; opacity: 0.6; }
+.velger-fjern:hover { color: var(--danger); opacity: 1; }
+.velger-felt { display: flex; flex-direction: column; gap: 6px; }

@@ -4,13 +4,14 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import ovelserData from '@/data/ovelser.json'
+import { OVELSER as BIBLIOTEK } from '@/data/ovelsesbibliotek'
 import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from '../../kalender/ProgramMal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame } from 'lucide-react'
 import { Dial } from '@/components/atelier/Dial'
 import { OppvarmingIkon } from '@/components/atelier/Glyph'
+import { TelleTall } from '@/components/atelier/TelleTall'
 import { lokalDato } from '@/lib/dato'
 
 
@@ -298,6 +299,9 @@ function OktInner() {
           const match = alle.find(e => norm(e.navn) === norm(o.navn || ''))
           const sett = o.sett || 3; const reps = o.reps || '10'
           if (match) return { ...match, sett, reps, expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: 0, fullfort: false })) }
+          // Øvelser valgt fra biblioteket: hent beskrivelse, tips og hvile derfra
+          const bib = BIBLIOTEK.find(b => b.id === o.id || norm(b.navn) === norm(o.navn || ''))
+          if (bib) return { navn: bib.navn, sett, reps: String(reps), hvile: bib.hvile, utstyr: bib.utstyr, emoji: '', muskler: bib.muskelgruppe, beskrivelse: bib.beskrivelse, tips: bib.tips[0] ?? '', expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(String(reps).split('-')[0])||10, kg: 0, fullfort: false })) }
           return { navn: o.navn||'Ukjent', sett, reps, hvile:'75s', utstyr:'–', emoji:'⚡', muskler:'–', beskrivelse:'', tips:'–', expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: 0, fullfort: false })) }
         })
         const { data: { user: u } } = await supabase.auth.getUser()
@@ -690,10 +694,10 @@ function OktInner() {
                 {[
                   { v: feiring.sett, l: 'Sett' },
                   { v: feiring.ovelser, l: 'Øvelser' },
-                  { v: new Intl.NumberFormat('nb-NO').format(feiring.kg), l: 'Kg løftet' },
+                  { v: feiring.kg, l: 'Kg løftet' },
                 ].map((t, i) => (
                   <motion.div key={t.l} className="feiring-tall-kol" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 + i * 0.12, duration: 0.8, ease: [0.16,1,0.3,1] }}>
-                    <div className="num-monument">{t.v}</div>
+                    <div className="num-monument"><TelleTall verdi={t.v} forsinkelse={0.8 + i * 0.12} /></div>
                     <span className="eyebrow">{t.l}</span>
                   </motion.div>
                 ))}
