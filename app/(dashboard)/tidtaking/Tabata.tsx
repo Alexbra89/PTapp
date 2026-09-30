@@ -1,274 +1,160 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Activity } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Minus, Plus } from 'lucide-react'
+import { lyd } from '@/lib/lyd'
 
+type Fase = 'klar' | 'arbeid' | 'hvile' | 'ferdig'
+
+const fmt = (ms: number) => {
+  const s = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+// Tidsstempelbasert: gjenværende tid regnes fra et sluttidspunkt, ikke ved å telle
+// intervaller. Da driver ikke klokka når fanen er i bakgrunnen eller telefonen låses.
 export default function Tabata() {
-  const [aktiv, setAktiv] = useState(false)
-  const [arbeidTid, setArbeidTid] = useState(20) // 20 sekunder
-  const [hvileTid, setHvileTid] = useState(10) // 10 sekunder
+  const [arbeid, setArbeid] = useState(20)
+  const [hvile, setHvile]   = useState(10)
   const [runder, setRunder] = useState(8)
-  const [gjeldendeRunde, setGjeldendeRunde] = useState(1)
-  const [sekunder, setSekunder] = useState(20)
-  const [erArbeid, setErArbeid] = useState(true)
-  const [lyd, setLyd] = useState(true)
-  const [fullforteRunder, setFullforteRunder] = useState<number[]>([])
+  const [fase, setFase]     = useState<Fase>('klar')
+  const [runde, setRunde]   = useState(1)
+  const [aktiv, setAktiv]   = useState(false)
+  const [igjen, setIgjen]   = useState(20_000)
+  const [medLyd, setMedLyd] = useState(true)
+  const slutt = useRef(0)
+  const sistTikk = useRef(-1)
+
+  const fasensLengde = (f: Fase) => (f === 'hvile' ? hvile : arbeid) * 1000
+
+  const nesteFase = useCallback((naa: number, fra: { fase: Fase; runde: number }) => {
+    if (fra.fase === 'arbeid' && fra.runde >= runder) {
+      setFase('ferdig'); setAktiv(false); setIgjen(0)
+      if (medLyd) lyd.ferdig()
+      return null
+    }
+    const ny = fra.fase === 'arbeid'
+      ? { fase: 'hvile' as Fase, runde: fra.runde }
+      : { fase: 'arbeid' as Fase, runde: fra.runde + 1 }
+    setFase(ny.fase); setRunde(ny.runde)
+    if (medLyd) (ny.fase === 'arbeid' ? lyd.arbeid : lyd.hvile)()
+    slutt.current = naa + fasensLengde(ny.fase)
+    return ny
+  }, [runder, medLyd, arbeid, hvile]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
-
-    if (aktiv) {
-      interval = setInterval(() => {
-        setSekunder(prev => {
-          if (prev <= 1) {
-            // Bytt mellom arbeid og hvile
-            if (erArbeid) {
-              // Gå til hvile
-              setErArbeid(false)
-              if (lyd) new Audio('/beep.mp3').play().catch(() => {})
-              return hvileTid
-            } else {
-              // Ny runde
-              if (gjeldendeRunde < runder) {
-                setGjeldendeRunde(prev => prev + 1)
-                setErArbeid(true)
-                setFullforteRunder(prev => [...prev, gjeldendeRunde])
-                if (lyd) new Audio('/beep.mp3').play().catch(() => {})
-                return arbeidTid
-              } else {
-                // Ferdig!
-                setAktiv(false)
-                setFullforteRunder(prev => [...prev, gjeldendeRunde])
-                if (lyd) new Audio('/complete.mp3').play().catch(() => {})
-                return 0
-              }
-            }
-          }
-          return prev - 1
-        })
-      }, 1000)
-    }
-
-    return () => clearInterval(interval)
-  }, [aktiv, erArbeid, gjeldendeRunde, runder, arbeidTid, hvileTid, lyd])
-
-  const reset = () => {
-    setAktiv(false)
-    setGjeldendeRunde(1)
-    setErArbeid(true)
-    setSekunder(arbeidTid)
-    setFullforteRunder([])
-  }
-
-  const neste = () => {
-    if (erArbeid) {
-      setErArbeid(false)
-      setSekunder(hvileTid)
-    } else {
-      if (gjeldendeRunde < runder) {
-        setGjeldendeRunde(prev => prev + 1)
-        setErArbeid(true)
-        setSekunder(arbeidTid)
-        setFullforteRunder(prev => [...prev, gjeldendeRunde])
+    if (!aktiv) return
+    let naaFase = { fase, runde }
+    const id = setInterval(() => {
+      const naa = Date.now()
+      let rest = slutt.current - naa
+      // Ta igjen faser som passerte mens fanen sov
+      while (rest <= 0) {
+        const ny = nesteFase(naa + rest, naaFase)
+        if (!ny) return
+        naaFase = ny
+        rest = slutt.current - naa
       }
-    }
+      const sek = Math.ceil(rest / 1000)
+      if (medLyd && sek <= 3 && sek !== sistTikk.current) lyd.tikk()
+      sistTikk.current = sek
+      setIgjen(rest)
+    }, 100)
+    return () => clearInterval(id)
+  }, [aktiv]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startPause = () => {
+    lyd.klargjor()
+    if (aktiv) { setAktiv(false); return }
+    if (fase === 'ferdig') { nullstill(); return }
+    if (fase === 'klar') { setFase('arbeid'); if (medLyd) lyd.arbeid() }
+    slutt.current = Date.now() + (fase === 'klar' ? arbeid * 1000 : igjen)
+    setAktiv(true)
   }
 
-  const formatTime = (seconds: number) => {
-    return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`
+  const nullstill = () => { setAktiv(false); setFase('klar'); setRunde(1); setIgjen(arbeid * 1000) }
+
+  const hopp = () => {
+    if (fase === 'klar' || fase === 'ferdig') return
+    const ny = nesteFase(Date.now(), { fase, runde })
+    if (ny) setIgjen(fasensLengde(ny.fase))
   }
 
-  const justerVerdi = (
-    type: 'arbeid' | 'hvile' | 'runder', 
-    økning: boolean
-  ) => {
-    if (type === 'arbeid') {
-      const ny = økning ? arbeidTid + 5 : Math.max(5, arbeidTid - 5)
-      setArbeidTid(ny)
-      if (!aktiv && erArbeid) setSekunder(ny)
-    } else if (type === 'hvile') {
-      const ny = økning ? hvileTid + 5 : Math.max(5, hvileTid - 5)
-      setHvileTid(ny)
-      if (!aktiv && !erArbeid) setSekunder(ny)
-    } else {
-      setRunder(økning ? runder + 1 : Math.max(1, runder - 1))
-    }
+  const juster = (hva: 'arbeid' | 'hvile' | 'runder', d: number) => {
+    if (hva === 'arbeid') { const v = Math.max(5, Math.min(300, arbeid + d)); setArbeid(v); if (fase === 'klar') setIgjen(v * 1000) }
+    if (hva === 'hvile') setHvile(v => Math.max(5, Math.min(300, v + d)))
+    if (hva === 'runder') setRunder(v => Math.max(1, Math.min(30, v + d)))
   }
+
+  const lengde = fase === 'klar' ? arbeid * 1000 : fasensLengde(fase)
+  const andel = fase === 'ferdig' ? 1 : 1 - igjen / lengde
+  const R = 46, O = 2 * Math.PI * R
+  const erHvile = fase === 'hvile'
+  const fullforte = fase === 'ferdig' ? runder : runde - 1 + (erHvile ? 1 : 0)
+  const total = (arbeid + hvile) * runder - hvile
 
   return (
-    <div className="card">
-      {/* Header med lydkontroll */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <Activity className="text-purple-500" />
-          Tabata
-        </h2>
-        <button
-          onClick={() => setLyd(!lyd)}
-          className="p-2 hover:bg-gray-100 rounded-full"
-        >
-          {lyd ? <Volume2 size={20} /> : <VolumeX size={20} />}
+    <div className="tid-kort glass-card">
+      <div className="tid-hode">
+        <span className="eyebrow eyebrow-gold">Tabata · {runder} runder</span>
+        <button className="tid-ikonknapp" onClick={() => setMedLyd(v => !v)} aria-label={medLyd ? 'Slå av lyd' : 'Slå på lyd'}>
+          {medLyd ? <Volume2 size={15} strokeWidth={1.5} /> : <VolumeX size={15} strokeWidth={1.5} />}
         </button>
       </div>
 
-      {/* Innstillinger */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="text-center">
-          <label className="text-sm text-gray-500">Arbeid</label>
-          <div className="flex items-center justify-center gap-1 mt-1">
-            <button
-              onClick={() => justerVerdi('arbeid', false)}
-              className="w-8 h-8 rounded bg-gray-100 hover:bg-gray-200"
-              disabled={aktiv}
-            >
-              -
-            </button>
-            <span className="font-bold w-12">{arbeidTid}s</span>
-            <button
-              onClick={() => justerVerdi('arbeid', true)}
-              className="w-8 h-8 rounded bg-gray-100 hover:bg-gray-200"
-              disabled={aktiv}
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        <div className="text-center">
-          <label className="text-sm text-gray-500">Hvile</label>
-          <div className="flex items-center justify-center gap-1 mt-1">
-            <button
-              onClick={() => justerVerdi('hvile', false)}
-              className="w-8 h-8 rounded bg-gray-100 hover:bg-gray-200"
-              disabled={aktiv}
-            >
-              -
-            </button>
-            <span className="font-bold w-12">{hvileTid}s</span>
-            <button
-              onClick={() => justerVerdi('hvile', true)}
-              className="w-8 h-8 rounded bg-gray-100 hover:bg-gray-200"
-              disabled={aktiv}
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        <div className="text-center">
-          <label className="text-sm text-gray-500">Runder</label>
-          <div className="flex items-center justify-center gap-1 mt-1">
-            <button
-              onClick={() => justerVerdi('runder', false)}
-              className="w-8 h-8 rounded bg-gray-100 hover:bg-gray-200"
-              disabled={aktiv}
-            >
-              -
-            </button>
-            <span className="font-bold w-12">{runder}</span>
-            <button
-              onClick={() => justerVerdi('runder', true)}
-              className="w-8 h-8 rounded bg-gray-100 hover:bg-gray-200"
-              disabled={aktiv}
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stor timer */}
-      <div className="text-center mb-6">
-        <div className="text-8xl font-bold font-mono mb-2">
-          {formatTime(sekunder)}
-        </div>
-        <div className="text-xl font-medium">
-          {erArbeid ? '💪 ARBEID' : '😮‍💨 HVILE'}
-        </div>
-        <div className="text-gray-500 mt-1">
-          Runde {gjeldendeRunde} / {runder}
-        </div>
-      </div>
-
-      {/* Kontroller */}
-      <div className="flex justify-center gap-4 mb-8">
-        <button
-          onClick={() => setAktiv(!aktiv)}
-          className={`
-            w-16 h-16 rounded-full flex items-center justify-center
-            ${aktiv 
-              ? 'bg-yellow-500 hover:bg-yellow-600' 
-              : 'bg-green-500 hover:bg-green-600'
-            } text-white transition transform hover:scale-105
-          `}
-        >
-          {aktiv ? <Pause size={30} /> : <Play size={30} />}
-        </button>
-
-        <button
-          onClick={reset}
-          className="w-16 h-16 rounded-full bg-gray-500 hover:bg-gray-600 text-white transition transform hover:scale-105 flex items-center justify-center"
-        >
-          <RotateCcw size={24} />
-        </button>
-
-        <button
-          onClick={neste}
-          disabled={!aktiv}
-          className={`
-            w-16 h-16 rounded-full flex items-center justify-center
-            ${aktiv 
-              ? 'bg-blue-500 hover:bg-blue-600' 
-              : 'bg-gray-300 cursor-not-allowed'
-            } text-white transition transform hover:scale-105
-          `}
-        >
-          <SkipForward size={24} />
-        </button>
-      </div>
-
-      {/* Fremdrift */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span>Fremdrift</span>
-          <span>{fullforteRunder.length} / {runder} runder</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-3">
-          <div 
-            className="bg-purple-500 h-3 rounded-full transition-all"
-            style={{ width: `${(fullforteRunder.length / runder) * 100}%` }}
+      <div className="tid-urskive">
+        <svg viewBox="0 0 100 100" className="tid-ring" aria-hidden>
+          {Array.from({ length: 60 }).map((_, i) => {
+            const a = (i / 60) * Math.PI * 2
+            return <line key={i} x1={50 + Math.sin(a) * 49} y1={50 - Math.cos(a) * 49} x2={50 + Math.sin(a) * (i % 5 ? 47.6 : 46.6)} y2={50 - Math.cos(a) * (i % 5 ? 47.6 : 46.6)} stroke="rgba(242,236,225,0.18)" strokeWidth={0.4} />
+          })}
+          <circle cx="50" cy="50" r={R - 3} fill="none" stroke="rgba(242,236,225,0.06)" strokeWidth="1.2" />
+          <circle
+            cx="50" cy="50" r={R - 3} fill="none"
+            stroke={erHvile ? '#B8BEC6' : '#C9A96E'} strokeWidth="1.2" strokeLinecap="round"
+            strokeDasharray={2 * Math.PI * (R - 3)} strokeDashoffset={2 * Math.PI * (R - 3) * (1 - andel)}
+            transform="rotate(-90 50 50)" style={{ transition: 'stroke 0.4s' }}
           />
-        </div>
-
-        {/* Runde-indikatorer */}
-        <div className="flex gap-1 mt-3">
-          {Array.from({ length: runder }).map((_, i) => (
-            <div
-              key={i}
-              className={`
-                flex-1 h-2 rounded-full
-                ${i < fullforteRunder.length 
-                  ? 'bg-green-500' 
-                  : i === gjeldendeRunde - 1 && aktiv
-                  ? 'bg-purple-500 animate-pulse'
-                  : 'bg-gray-200'
-                }
-              `}
-            />
-          ))}
+        </svg>
+        <div className="tid-senter">
+          <AnimatePresence mode="wait">
+            <motion.span key={fase} className={`tid-fase ${fase}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
+              {fase === 'klar' ? 'Klar' : fase === 'arbeid' ? 'Arbeid' : fase === 'hvile' ? 'Hvile' : 'Fullført'}
+            </motion.span>
+          </AnimatePresence>
+          <span className="tid-tall">{fase === 'ferdig' ? fmt(total * 1000) : fmt(igjen)}</span>
+          <span className="eyebrow">Runde {Math.min(runde, runder)} av {runder}</span>
         </div>
       </div>
 
-      {/* Instruksjoner */}
-      <div className="mt-6 p-3 bg-purple-50 rounded-lg text-sm">
-        <p className="font-medium mb-1">💪 Slik gjør du:</p>
-        <ul className="text-gray-600 space-y-1 list-disc list-inside">
-          <li>{arbeidTid} sekunder maksimal innsats</li>
-          <li>{hvileTid} sekunder hvile</li>
-          <li>Gjenta i {runder} runder</li>
-          <li>Total tid: {formatTime((arbeidTid + hvileTid) * runder)}</li>
-        </ul>
+      <div className="tid-runder" aria-label="Runder">
+        {Array.from({ length: runder }).map((_, i) => (
+          <span key={i} className={i < fullforte ? 'ferdig' : i === runde - 1 && fase !== 'klar' && fase !== 'ferdig' ? 'na' : ''} />
+        ))}
       </div>
+
+      <div className="tid-kontroller">
+        <button className="tid-ikonknapp stor" onClick={nullstill} aria-label="Nullstill"><RotateCcw size={18} strokeWidth={1.5} /></button>
+        <button className={`tid-spill${aktiv ? ' aktiv' : ''}`} onClick={startPause} aria-label={aktiv ? 'Pause' : 'Start'}>
+          {aktiv ? <Pause size={26} strokeWidth={1.5} fill="currentColor" /> : <Play size={26} strokeWidth={1.5} fill="currentColor" />}
+        </button>
+        <button className="tid-ikonknapp stor" onClick={hopp} disabled={!aktiv} aria-label="Neste fase"><SkipForward size={18} strokeWidth={1.5} /></button>
+      </div>
+
+      <div className="tid-innstillinger">
+        {([['arbeid', 'Arbeid', `${arbeid}s`, 5], ['hvile', 'Hvile', `${hvile}s`, 5], ['runder', 'Runder', `${runder}`, 1]] as const).map(([k, l, v, steg]) => (
+          <div key={k}>
+            <span className="eyebrow">{l}</span>
+            <div className="velger-stepper tid-stepper">
+              <button onClick={() => juster(k, -steg)} disabled={aktiv} aria-label={`Mindre ${l}`}><Minus size={12} /></button>
+              <span className="mono">{v}</span>
+              <button onClick={() => juster(k, steg)} disabled={aktiv} aria-label={`Mer ${l}`}><Plus size={12} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="tid-fot">Total tid {fmt(total * 1000)} · de tre siste sekundene i hver fase markeres med et tikk</p>
     </div>
   )
 }

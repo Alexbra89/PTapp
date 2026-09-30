@@ -67,7 +67,7 @@ export function useProfil(userId?: string) {
     queryFn:  async () => {
       const { data } = await supabase
         .from('profiler')
-        .select('id, epost, navn, vekt, hoyde, mal, onsket_vekt')
+        .select('id, epost, navn, vekt, hoyde, mal, onsket_vekt, fodselsar')
         .eq('id', userId!)
         .single()
       return data

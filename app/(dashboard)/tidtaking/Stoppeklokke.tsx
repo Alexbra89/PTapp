@@ -1,223 +1,157 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Play, Pause, RotateCcw, Flag, Clock } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Play, Pause, RotateCcw, Flag, Minus, Plus } from 'lucide-react'
+import { lyd } from '@/lib/lyd'
 
-interface Runde {
-  nummer: number
-  tid: number
-  diff: number
+type Modus = 'opp' | 'ned'
+
+// mm:ss,hh – hundredeler gir stoppeklokka presisjon; nedtelling vises i hele sekunder
+const fmtOpp = (ms: number) => {
+  const t = Math.floor(ms / 3_600_000), m = Math.floor(ms / 60_000) % 60, s = Math.floor(ms / 1000) % 60, h = Math.floor(ms / 10) % 100
+  return `${t ? `${t}:` : ''}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(h).padStart(2, '0')}`
+}
+const fmtNed = (ms: number) => {
+  const s = Math.max(0, Math.ceil(ms / 1000))
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function Stoppeklokke() {
-  const [aktiv, setAktiv] = useState(false)
-  const [tid, setTid] = useState(0) // i sekunder
-  const [runder, setRunder] = useState<Runde[]>([])
-  const [startTid, setStartTid] = useState<number | null>(null)
+export default function Stoppeklokke({ synlig = true }: { synlig?: boolean }) {
+  const [modus, setModus]   = useState<Modus>('opp')
+  const [aktiv, setAktiv]   = useState(false)
+  const [visning, setVisning] = useState(0)          // ms som vises
+  const [runder, setRunder] = useState<number[]>([]) // rundetider (ms per runde)
+  const [nedMin, setNedMin] = useState(3)
+  const [alarm, setAlarm]   = useState(false)
+  // Tidsstempler i stedet for teller: presis og uten drift i bakgrunnen
+  const start = useRef(0)       // når klokka sist ble startet
+  const lagret = useRef(0)      // akkumulert tid før siste start (opp) / gjenstående ved pause (ned)
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    if (!aktiv) return
+    const id = setInterval(() => {
+      const gaatt = Date.now() - start.current
+      if (modus === 'opp') { setVisning(lagret.current + gaatt); return }
+      const rest = lagret.current - gaatt
+      if (rest <= 0) { setVisning(0); setAktiv(false); setAlarm(true); lyd.ferdig(); return }
+      setVisning(rest)
+    }, modus === 'opp' ? 31 : 200)
+    return () => clearInterval(id)
+  }, [aktiv, modus])
 
+  const startPause = useCallback(() => {
+    lyd.klargjor()
+    setAlarm(false)
     if (aktiv) {
-      interval = setInterval(() => {
-        setTid(prev => prev + 1)
-      }, 1000)
+      const gaatt = Date.now() - start.current
+      lagret.current = modus === 'opp' ? lagret.current + gaatt : Math.max(0, lagret.current - gaatt)
+      setAktiv(false)
+      return
     }
+    if (modus === 'ned' && lagret.current <= 0) lagret.current = nedMin * 60_000
+    start.current = Date.now()
+    setAktiv(true)
+  }, [aktiv, modus, nedMin])
 
-    return () => clearInterval(interval)
-  }, [aktiv])
+  const nullstill = useCallback(() => {
+    setAktiv(false); setAlarm(false); setRunder([])
+    lagret.current = modus === 'ned' ? nedMin * 60_000 : 0
+    setVisning(lagret.current)
+  }, [modus, nedMin])
 
-  const startPause = () => {
-    if (!aktiv && tid === 0) {
-      setStartTid(Date.now())
-    }
-    setAktiv(!aktiv)
+  const runde = useCallback(() => {
+    if (modus !== 'opp' || visning === 0) return
+    const tidligere = runder.reduce((a, b) => a + b, 0)
+    setRunder(r => [...r, visning - tidligere])
+  }, [modus, visning, runder])
+
+  const byttModus = (m: Modus) => {
+    setModus(m); setAktiv(false); setAlarm(false); setRunder([])
+    lagret.current = m === 'ned' ? nedMin * 60_000 : 0
+    setVisning(lagret.current)
+  }
+  const settNed = (min: number) => {
+    const v = Math.max(1, Math.min(120, min))
+    setNedMin(v); setAktiv(false); setAlarm(false)
+    lagret.current = v * 60_000; setVisning(lagret.current)
   }
 
-  const reset = () => {
-    setAktiv(false)
-    setTid(0)
-    setRunder([])
-    setStartTid(null)
-  }
-
-  const taRunde = () => {
-    const forrigeTid = runder.length > 0 ? runder[runder.length - 1].tid : 0
-    const nyRunde = {
-      nummer: runder.length + 1,
-      tid: tid,
-      diff: tid - forrigeTid
-    }
-    setRunder([...runder, nyRunde])
-  }
-
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-    
-    if (hrs > 0) {
-      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const formatDiff = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `+${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  // Keyboard shortcuts
+  // Tastatur: mellomrom = start/pause, Enter = runde, R = nullstill (ikke mens man skriver i et felt)
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        e.preventDefault()
-        startPause()
-      } else if (e.code === 'KeyR') {
-        reset()
-      } else if (e.code === 'Enter') {
-        if (aktiv || tid > 0) taRunde()
-      }
+    if (!synlig) return
+    const tast = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest('input, textarea, select')) return
+      if (e.code === 'Space') { e.preventDefault(); startPause() }
+      else if (e.code === 'Enter') runde()
+      else if (e.code === 'KeyR') nullstill()
     }
+    window.addEventListener('keydown', tast)
+    return () => window.removeEventListener('keydown', tast)
+  }, [startPause, runde, nullstill, synlig])
 
-    window.addEventListener('keydown', handleKeyPress)
-    return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [aktiv, tid])
+  const beste = runder.length > 1 ? Math.min(...runder) : -1
+  const verste = runder.length > 1 ? Math.max(...runder) : -1
+  const nedAndel = modus === 'ned' ? 1 - visning / (nedMin * 60_000) : 0
 
   return (
-    <div className="card">
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-        <Clock className="text-blue-500" />
-        Stoppeklokke
-      </h2>
-
-      {/* Stor timer */}
-      <div className="text-center mb-8">
-        <div className="text-8xl font-bold font-mono mb-2">
-          {formatTime(tid)}
-        </div>
-        <div className="text-gray-500">
-          {aktiv ? '⏱️ Løper...' : tid > 0 ? '⏸️ Pauset' : '⏱️ Klar til start'}
+    <div className={`tid-kort glass-card${alarm ? ' tid-alarm' : ''}`}>
+      <div className="tid-hode">
+        <div className="tid-modus" role="tablist">
+          {([['opp', 'Stoppeklokke'], ['ned', 'Nedtelling']] as const).map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={modus === k} className={modus === k ? 'on' : ''} onClick={() => byttModus(k)}>
+              {modus === k && <motion.span layoutId="tid-modus" className="tid-modus-bg" transition={{ type: 'spring', stiffness: 400, damping: 34 }} />}
+              {l}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Hovedkontroller */}
-      <div className="flex justify-center gap-4 mb-8">
-        <button
-          onClick={startPause}
-          className={`
-            w-20 h-20 rounded-full flex items-center justify-center
-            ${aktiv 
-              ? 'bg-yellow-500 hover:bg-yellow-600' 
-              : 'bg-green-500 hover:bg-green-600'
-            } text-white transition transform hover:scale-105 shadow-lg
-          `}
-        >
-          {aktiv ? <Pause size={36} /> : <Play size={36} />}
-        </button>
-
-        <button
-          onClick={reset}
-          className="w-20 h-20 rounded-full bg-gray-500 hover:bg-gray-600 text-white transition transform hover:scale-105 shadow-lg flex items-center justify-center"
-        >
-          <RotateCcw size={28} />
-        </button>
-
-        <button
-          onClick={taRunde}
-          disabled={!aktiv && tid === 0}
-          className={`
-            w-20 h-20 rounded-full flex items-center justify-center
-            ${(!aktiv && tid === 0)
-              ? 'bg-gray-300 cursor-not-allowed'
-              : 'bg-purple-500 hover:bg-purple-600'
-            } text-white transition transform hover:scale-105 shadow-lg
-          `}
-        >
-          <Flag size={28} />
-        </button>
+      <div className="tid-display">
+        <span className="eyebrow">{alarm ? 'Tiden er ute' : aktiv ? (modus === 'opp' ? 'Løper' : 'Teller ned') : visning > 0 && visning !== nedMin * 60_000 ? 'Pauset' : 'Klar'}</span>
+        <span className={`tid-tall stor${alarm ? ' alarm' : ''}`}>{modus === 'opp' ? fmtOpp(visning) : fmtNed(visning)}</span>
+        {modus === 'ned' && (
+          <div className="tick-track" style={{ marginTop: 18 }}><div className="tick-fill" style={{ width: `${Math.max(0, Math.min(1, nedAndel)) * 100}%` }} /></div>
+        )}
       </div>
 
-      {/* Runder */}
-      {runder.length > 0 && (
-        <div className="mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Runder</h3>
-            <span className="text-sm text-gray-500">
-              Siste runde: {formatDiff(runder[runder.length - 1].diff)}
-            </span>
+      {modus === 'ned' && !aktiv && (
+        <div className="tid-hurtig">
+          <div className="velger-stepper tid-stepper">
+            <button onClick={() => settNed(nedMin - 1)} aria-label="Ett minutt mindre"><Minus size={12} /></button>
+            <span className="mono">{nedMin} min</span>
+            <button onClick={() => settNed(nedMin + 1)} aria-label="Ett minutt mer"><Plus size={12} /></button>
           </div>
-          <div className="bg-gray-50 rounded-lg max-h-60 overflow-y-auto">
-            {runder.map((runde, index) => (
-              <div 
-                key={runde.nummer}
-                className={`
-                  flex items-center justify-between p-3
-                  ${index !== runder.length - 1 ? 'border-b' : ''}
-                  ${index === runder.length - 1 ? 'bg-purple-50' : ''}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`
-                    w-6 h-6 rounded-full flex items-center justify-center text-xs
-                    ${index === runder.length - 1 
-                      ? 'bg-purple-500 text-white' 
-                      : 'bg-gray-200'
-                    }
-                  `}>
-                    {runde.nummer}
-                  </span>
-                  <span className="font-mono">{formatTime(runde.tid)}</span>
-                </div>
-                {runde.nummer > 1 && (
-                  <span className="text-sm text-gray-500 font-mono">
-                    {formatDiff(runde.diff)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+          {[1, 2, 3, 5, 10].map(m => (
+            <button key={m} className={`bib-kat${nedMin === m ? ' on' : ''}`} onClick={() => settNed(m)}>{m} min</button>
+          ))}
         </div>
       )}
 
-      {/* Hurtigstarter */}
-      <div className="mt-6 grid grid-cols-3 gap-2">
-        <button
-          onClick={() => {
-            reset()
-            setTid(60)
-          }}
-          className="py-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium"
-        >
-          1:00
+      <div className="tid-kontroller">
+        <button className="tid-ikonknapp stor" onClick={nullstill} aria-label="Nullstill"><RotateCcw size={18} strokeWidth={1.5} /></button>
+        <button className={`tid-spill${aktiv ? ' aktiv' : ''}`} onClick={startPause} aria-label={aktiv ? 'Pause' : 'Start'}>
+          {aktiv ? <Pause size={26} strokeWidth={1.5} fill="currentColor" /> : <Play size={26} strokeWidth={1.5} fill="currentColor" />}
         </button>
-        <button
-          onClick={() => {
-            reset()
-            setTid(180)
-          }}
-          className="py-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium"
-        >
-          3:00
-        </button>
-        <button
-          onClick={() => {
-            reset()
-            setTid(300)
-          }}
-          className="py-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium"
-        >
-          5:00
-        </button>
+        <button className="tid-ikonknapp stor" onClick={runde} disabled={modus !== 'opp' || visning === 0} aria-label="Ny runde"><Flag size={17} strokeWidth={1.5} /></button>
       </div>
 
-      {/* Keyboard shortcuts */}
-      <div className="mt-4 text-xs text-gray-400 text-center">
-        <kbd className="px-2 py-1 bg-gray-100 rounded">Space</kbd> start/pause • 
-        <kbd className="px-2 py-1 bg-gray-100 rounded ml-1">R</kbd> nullstill • 
-        <kbd className="px-2 py-1 bg-gray-100 rounded ml-1">Enter</kbd> ny runde
-      </div>
+      {modus === 'opp' && runder.length > 0 && (
+        <ol className="tid-rundeliste">
+          <AnimatePresence initial={false}>
+            {runder.map((ms, i) => ({ ms, i })).reverse().map(({ ms, i }) => (
+              <motion.li key={i} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                <span className="velger-nr">Runde {String(i + 1).padStart(2, '0')}</span>
+                {ms === beste && <span className="tid-merke gull">Raskest</span>}
+                {ms === verste && <span className="tid-merke">Tregest</span>}
+                <span className="mono tid-rundetid">{fmtOpp(ms)}</span>
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ol>
+      )}
+
+      <p className="tid-fot">Mellomrom starter og pauser · Enter tar runde · R nullstiller</p>
     </div>
   )
 }

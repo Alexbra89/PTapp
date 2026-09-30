@@ -1,247 +1,89 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Dumbbell, Flame, Clock, Target, TrendingUp } from 'lucide-react'
+import { useState } from 'react'
 import type { BrukerProfil } from '@/types'
+import { TelleTall } from '@/components/atelier/TelleTall'
 
-interface Props {
-  profil: BrukerProfil
-}
+interface Props { profil: BrukerProfil }
 
 export default function AnbefaltOpplegg({ profil }: Props) {
-  const [uker, setUker] = useState(1)
+  const [uker, setUker] = useState(4)
+  const mal = profil.mal as string
 
-  const beregnProtein = () => {
-    if (profil.mal === 'bygge_muskler') return (profil.vekt * 2).toFixed(0)
-    if (profil.mal === 'ned_i_vekt') return (profil.vekt * 2.2).toFixed(0)
-    return (profil.vekt * 1.6).toFixed(0)
-  }
-
-  const beregnKalorier = () => {
-    const vekt = profil.vekt
-    const hoyde = profil.hoyde
+  const protein = Math.round(profil.vekt * (mal === 'ned_i_vekt' ? 2.2 : mal === 'bygge_muskler' ? 2 : 1.6))
+  const kalorier = (() => {
     const alder = new Date().getFullYear() - (profil.fodselsar || 1990)
-    
-    // Mifflin-St Jeor formel for menn (forenklet, antar mann)
-    const bmr = 10 * vekt + 6.25 * hoyde - 5 * alder + 5
-    
-    if (profil.mal === 'ned_i_vekt') return Math.round(bmr * 1.2 - 500)
-    if (profil.mal === 'bygge_muskler') return Math.round(bmr * 1.2 + 300)
-    return Math.round(bmr * 1.2)
-  }
+    const bmr = 10 * profil.vekt + 6.25 * profil.hoyde - 5 * alder + 5
+    return Math.round(bmr * 1.2 + (mal === 'ned_i_vekt' ? -500 : mal === 'bygge_muskler' ? 300 : 0))
+  })()
+  const vann = Math.round(profil.vekt * 0.033 * 10) / 10
 
-  const getUkentligVolum = () => {
-    if (profil.mal === 'bygge_muskler') return '10-20 sett per muskelgruppe'
-    if (profil.mal === 'ned_i_vekt') return '15-25 sett per muskelgruppe (høyere volum)'
-    return '8-15 sett per muskelgruppe'
-  }
-
-  const getHviletid = () => {
-    if (profil.mal === 'bygge_muskler') return '60-90 sekunder'
-    if (profil.mal === 'ned_i_vekt') return '30-60 sekunder'
-    return '60-90 sekunder'
-  }
-
-  const getRepsRange = () => {
-    if (profil.mal === 'bygge_muskler') return '8-12 reps'
-    if (profil.mal === 'ned_i_vekt') return '12-15 reps'
-    return '8-15 reps'
-  }
+  const styrke = [
+    ['Økter per uke', mal === 'bygge_muskler' ? '4–5' : '3–4'],
+    ['Reps per sett', mal === 'bygge_muskler' ? '8–12' : mal === 'ned_i_vekt' ? '12–15' : '8–15'],
+    ['Sett per øvelse', '3–4'],
+    ['Ukentlig volum', mal === 'bygge_muskler' ? '10–20 sett per muskel' : mal === 'ned_i_vekt' ? '15–25 sett per muskel' : '8–15 sett per muskel'],
+    ['Hvile', mal === 'ned_i_vekt' ? '30–60 sek' : '60–90 sek'],
+  ]
+  const kondisjon = [
+    ['Kondisjonsøkter', mal === 'ned_i_vekt' || mal === 'kondisjon' ? '3–4' : '2–3'],
+    ['Intensitet', mal === 'ned_i_vekt' ? 'Moderat til høy' : mal === 'kondisjon' ? 'Mest sone 2' : 'Moderat'],
+    ['Oppvarming', '10–15 min'],
+    ['Nedtrapping', '5–10 min'],
+    ['Tid per uke', '4–6 timer'],
+  ]
+  const faser = [['Uke 1', 'Base', 'Finn riktig vekt'], ['Uke 2', 'Flere reps', '+2 reps per sett'], ['Uke 3', 'Mer vekt', '+2,5–5 kg'], ['Uke 4', 'Toppuke', 'Test ny maks']]
+  const forventetVekt = mal === 'ned_i_vekt' ? profil.vekt - uker * 0.5 : mal === 'bygge_muskler' ? profil.vekt + uker * 0.2 : profil.vekt
 
   return (
-    <div className="space-y-4">
-      {/* Hovedkort med anbefalinger */}
-      <div className="card bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Target size={20} />
-          Ditt anbefalte opplegg
-        </h2>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div>
-            <p className="text-purple-100 text-sm">Daglige kalorier</p>
-            <p className="text-2xl font-bold">{beregnKalorier()}</p>
-            <p className="text-xs text-purple-200">kcal</p>
-          </div>
-          <div>
-            <p className="text-purple-100 text-sm">Protein</p>
-            <p className="text-2xl font-bold">{beregnProtein()}g</p>
-            <p className="text-xs text-purple-200">per dag</p>
-          </div>
-          <div>
-            <p className="text-purple-100 text-sm">Vann</p>
-            <p className="text-2xl font-bold">{(profil.vekt * 0.033).toFixed(1)}L</p>
-            <p className="text-xs text-purple-200">per dag</p>
-          </div>
-          <div>
-            <p className="text-purple-100 text-sm">Søvn</p>
-            <p className="text-2xl font-bold">7-9t</p>
-            <p className="text-xs text-purple-200">per natt</p>
-          </div>
-        </div>
+    <>
+      <section className="hq-figures prg-tall">
+        <div className="hq-figure"><span className="eyebrow">Kalorier</span><div className="hq-figure-val num-monument"><TelleTall verdi={kalorier} /><small>kcal</small></div><div className="hq-figure-sub">per dag</div></div>
+        <div className="hq-figure"><span className="eyebrow">Protein</span><div className="hq-figure-val num-monument"><TelleTall verdi={protein} forsinkelse={0.1} /><small>g</small></div><div className="hq-figure-sub">per dag</div></div>
+        <div className="hq-figure"><span className="eyebrow">Vann</span><div className="hq-figure-val num-monument"><TelleTall verdi={vann} desimaler={1} forsinkelse={0.2} /><small>l</small></div><div className="hq-figure-sub">per dag</div></div>
+        <div className="hq-figure"><span className="eyebrow">Søvn</span><div className="hq-figure-val num-monument">7–9<small>t</small></div><div className="hq-figure-sub">per natt</div></div>
+      </section>
 
-        {/* Progress bar for ukentlig fremgang */}
-        <div className="bg-white/20 rounded-lg p-3">
-          <div className="flex items-center justify-between text-sm mb-1">
-            <span>Ukentlig fremgang</span>
-            <span>{uker} uke</span>
+      <section className="pf-to">
+        {([['Styrke', styrke], ['Kondisjon og oppvarming', kondisjon]] as const).map(([tittel, rader]) => (
+          <div key={tittel} className="pf-seksjon glass-card">
+            <span className="eyebrow">{tittel}</span>
+            <dl className="pf-ledger">{rader.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
           </div>
-          <input
-            type="range"
-            min="1"
-            max="12"
-            value={uker}
-            onChange={(e) => setUker(parseInt(e.target.value))}
-            className="w-full"
-          />
-          <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-            <div>
-              <p className="text-purple-200">Forventet vekt</p>
-              <p className="font-semibold">
-                {profil.mal === 'ned_i_vekt' && (profil.vekt - uker * 0.5).toFixed(1)} kg
-                {profil.mal === 'bygge_muskler' && (profil.vekt + uker * 0.2).toFixed(1)} kg
-                {profil.mal === 'vedlikehold' && profil.vekt + ' kg'}
-              </p>
-            </div>
-            <div>
-              <p className="text-purple-200">Styrkeøkning</p>
-              <p className="font-semibold">+{uker * 5}%</p>
-            </div>
-            <div>
-              <p className="text-purple-200">Forbrente kalorier</p>
-              <p className="font-semibold">~{uker * 3500} kcal</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        ))}
+      </section>
 
-      {/* Detaljerte anbefalinger */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Dumbbell size={18} className="text-blue-500" />
-            Styrketrening
-          </h3>
-          <ul className="space-y-2 text-sm">
-            <li className="flex justify-between">
-              <span className="text-gray-600">Økter per uke:</span>
-              <span className="font-medium">{profil.mal === 'bygge_muskler' ? '4-5' : '3-4'}</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Reps per sett:</span>
-              <span className="font-medium">{getRepsRange()}</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Sett per øvelse:</span>
-              <span className="font-medium">3-4</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Ukentlig volum:</span>
-              <span className="font-medium">{getUkentligVolum()}</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Hviletid:</span>
-              <span className="font-medium">{getHviletid()}</span>
-            </li>
-          </ul>
-        </div>
+      <section className="pf-seksjon glass-card">
+        <span className="eyebrow">Progresjon · neste fire uker</span>
+        <ol className="prg-faser">
+          {faser.map(([u, n, t], i) => (
+            <li key={u}><span className="prg-fase-nr">{String(i + 1).padStart(2, '0')}</span><span className="eyebrow">{u}</span><strong>{n}</strong><span className="pf-dempet">{t}</span></li>
+          ))}
+        </ol>
+      </section>
 
-        <div className="card">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Flame size={18} className="text-orange-500" />
-            Kondisjon & Oppvarming
-          </h3>
-          <ul className="space-y-2 text-sm">
-            <li className="flex justify-between">
-              <span className="text-gray-600">Kondisjonsøkter:</span>
-              <span className="font-medium">{profil.mal === 'ned_i_vekt' ? '3-4' : '2-3'}</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Intensitet:</span>
-              <span className="font-medium">
-                {profil.mal === 'ned_i_vekt' ? 'Moderat-Høy' : 'Moderat'}
-              </span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Oppvarming:</span>
-              <span className="font-medium">10-15 min</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Nedtrapping:</span>
-              <span className="font-medium">5-10 min</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-gray-600">Ukentlig tidsbruk:</span>
-              <span className="font-medium">4-6 timer</span>
-            </li>
-          </ul>
-        </div>
-
-        <div className="card md:col-span-2">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <TrendingUp size={18} className="text-green-500" />
-            Progresjonsplan (neste 4 uker)
-          </h3>
-          <div className="grid grid-cols-4 gap-2">
-            <div className="text-center p-2 bg-gray-50 rounded">
-              <p className="text-xs text-gray-500">Uke 1</p>
-              <p className="font-semibold">Base</p>
-              <p className="text-xs">Finn riktig vekt</p>
-            </div>
-            <div className="text-center p-2 bg-gray-50 rounded">
-              <p className="text-xs text-gray-500">Uke 2</p>
-              <p className="font-semibold">Øk reps</p>
-              <p className="text-xs">+2 reps per sett</p>
-            </div>
-            <div className="text-center p-2 bg-gray-50 rounded">
-              <p className="text-xs text-gray-500">Uke 3</p>
-              <p className="font-semibold">Øk vekt</p>
-              <p className="text-xs">+2.5-5 kg</p>
-            </div>
-            <div className="text-center p-2 bg-gray-50 rounded">
-              <p className="text-xs text-gray-500">Uke 4</p>
-              <p className="font-semibold">Topp uke</p>
-              <p className="text-xs">Prøv ny max</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Ukemeny forslag */}
-      <div className="card">
-        <h3 className="font-semibold mb-3">🍽️ Forslag til ukemeny</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      <section className="pf-seksjon glass-card">
+        <div className="pf-seksjon-hode">
           <div>
-            <p className="font-medium text-blue-600 mb-1">Frokost</p>
-            <p className="text-gray-600">Havregrøt med bær</p>
-            <p className="text-gray-600">Proteinpannekaker</p>
-            <p className="text-gray-600">Eggerøre og kalkun</p>
+            <span className="eyebrow">Anslag · ikke en garanti</span>
+            <h3 className="hq-section-title" style={{ marginTop: 8 }}>Om <em>{uker} {uker === 1 ? 'uke' : 'uker'}</em></h3>
           </div>
-          <div>
-            <p className="font-medium text-green-600 mb-1">Lunsj</p>
-            <p className="text-gray-600">Kyllingsalat</p>
-            <p className="text-gray-600">Tunfiskwraps</p>
-            <p className="text-gray-600">Kalkunbrød</p>
-          </div>
-          <div>
-            <p className="font-medium text-purple-600 mb-1">Middag</p>
-            <p className="text-gray-600">Laks og grønnsaker</p>
-            <p className="text-gray-600">Kylling og ris</p>
-            <p className="text-gray-600">Magert kjøttdeig</p>
-          </div>
+          <div className="pf-prosent num-monument">{forventetVekt.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}<span> kg</span></div>
         </div>
-      </div>
-
-      {/* Motivasjon */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-sm text-yellow-800">
-          💡 <span className="font-semibold">Motivasjonstips:</span> {profil.mal === 'ned_i_vekt' 
-            ? 'Husk at 80% er kosthold, 20% er trening. Du klarer dette!' 
-            : profil.mal === 'bygge_muskler' 
-            ? 'Progresiv overbelastning er nøkkelen. Øk vekt eller reps hver uke!'
-            : 'Det viktigste er å være konsistent. Fortsett å møte opp!'}
+        <input type="range" className="utf-slider" style={{ width: '100%' }} min={1} max={12} value={uker} onChange={e => setUker(parseInt(e.target.value))} aria-label="Antall uker" />
+        <p className="pf-dempet" style={{ marginTop: 12 }}>
+          {mal === 'ned_i_vekt' ? 'Rundt 0,5 kg per uke er et bærekraftig tempo.' : mal === 'bygge_muskler' ? 'Rundt 0,2 kg per uke holder fettøkningen lav.' : 'Målet er stabil vekt og jevn fremgang i løftene.'}
         </p>
-      </div>
-    </div>
+      </section>
+
+      <section className="pf-seksjon glass-card">
+        <span className="eyebrow">Forslag til ukemeny</span>
+        <div className="prg-meny">
+          {([['Frokost', ['Havregrøt med bær', 'Proteinpannekaker', 'Eggerøre og kalkun']], ['Lunsj', ['Kyllingsalat', 'Tunfiskwraps', 'Kalkunbrød']], ['Middag', ['Laks og grønnsaker', 'Kylling og ris', 'Magert kjøttdeig']]] as const).map(([m, retter]) => (
+            <div key={m}><h4 className="prg-meny-tittel">{m}</h4>{retter.map(r => <p key={r}>{r}</p>)}</div>
+          ))}
+        </div>
+      </section>
+    </>
   )
 }

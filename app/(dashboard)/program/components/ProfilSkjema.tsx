@@ -1,217 +1,93 @@
 'use client'
 
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { TrendingDown, Dumbbell, Scale, HeartPulse } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { Scale, Ruler, Target, User, Calendar as CalendarIcon } from 'lucide-react'
+import { QK } from '@/hooks/useSupabaseQuery'
+
+type Mal = 'ned_i_vekt' | 'bygge_muskler' | 'vedlikehold' | 'kondisjon'
+
+const MAL: { key: Mal; label: string; ikon: typeof Scale }[] = [
+  { key: 'ned_i_vekt',    label: 'Ned i vekt',      ikon: TrendingDown },
+  { key: 'bygge_muskler', label: 'Bygge muskler',   ikon: Dumbbell },
+  { key: 'vedlikehold',   label: 'Vedlikehold',     ikon: Scale },
+  { key: 'kondisjon',     label: 'Bedre kondisjon', ikon: HeartPulse },
+]
 
 interface Props {
   onSave: () => void
+  onAvbryt?: () => void
+  // Eksisterende profil fylles inn – tidligere startet skjemaet alltid på 70 kg / 170 cm
+  // og overskrev den ekte profilen ved lagring.
+  profil?: { navn?: string; vekt?: number; hoyde?: number; fodselsar?: number; mal?: string } | null
 }
 
-export default function ProfilSkjema({ onSave }: Props) {
-  const [navn, setNavn] = useState('')
-  const [vekt, setVekt] = useState('70')
-  const [hoyde, setHoyde] = useState('170')
-  const [fodselsar, setFodselsar] = useState('1990')
-  const [mal, setMal] = useState<'ned_i_vekt' | 'bygge_muskler' | 'vedlikehold'>('vedlikehold')
+export default function ProfilSkjema({ onSave, onAvbryt, profil }: Props) {
+  const [navn, setNavn] = useState(profil?.navn ?? '')
+  const [vekt, setVekt] = useState(String(profil?.vekt || 70))
+  const [hoyde, setHoyde] = useState(String(profil?.hoyde || 170))
+  const [fodselsar, setFodselsar] = useState(String(profil?.fodselsar || 1990))
+  const [mal, setMal] = useState<Mal>((profil?.mal as Mal) ?? 'vedlikehold')
   const [laster, setLaster] = useState(false)
+  const [feil, setFeil] = useState('')
   const supabase = createClient()
-  const router = useRouter()
+  const qc = useQueryClient()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const lagre = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLaster(true)
-
+    setLaster(true); setFeil('')
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { error } = await supabase
-      .from('profiler')
-      .upsert({
-        id: user.id,
-        navn,
-        vekt: parseFloat(vekt),
-        hoyde: parseInt(hoyde),
-        fodselsar: parseInt(fodselsar),
-        mal,
-        epost: user.email,
-        can_share_with: []
-      })
-
-    if (!error) {
-      onSave()
-    }
-
+    if (!user) { setLaster(false); setFeil('Du må være logget inn.'); return }
+    const { error } = await supabase.from('profiler').upsert({
+      id: user.id, navn, vekt: parseFloat(vekt), hoyde: parseInt(hoyde), fodselsar: parseInt(fodselsar),
+      mal, epost: user.email,
+    })
     setLaster(false)
+    if (error) { setFeil(`Kunne ikke lagre: ${error.message}`); return }
+    qc.invalidateQueries({ queryKey: QK.profil(user.id) })
+    onSave()
   }
 
-  const beregnAnbefaltKalorier = () => {
-    const vektNum = parseFloat(vekt) || 70
-    const hoydeNum = parseInt(hoyde) || 170
+  const kalorier = (() => {
     const alder = new Date().getFullYear() - (parseInt(fodselsar) || 1990)
-    
-    // Mifflin-St Jeor formel for menn (forenklet)
-    const bmr = 10 * vektNum + 6.25 * hoydeNum - 5 * alder + 5
-    
-    if (mal === 'ned_i_vekt') return Math.round(bmr * 1.2 - 500)
-    if (mal === 'bygge_muskler') return Math.round(bmr * 1.2 + 300)
-    return Math.round(bmr * 1.2)
-  }
+    const bmr = 10 * (parseFloat(vekt) || 70) + 6.25 * (parseInt(hoyde) || 170) - 5 * alder + 5
+    return Math.round(bmr * 1.2 + (mal === 'ned_i_vekt' ? -500 : mal === 'bygge_muskler' ? 300 : 0))
+  })()
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="card">
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <User className="text-blue-500" />
-          Fortell om deg selv
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Navn */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Ditt navn
-            </label>
-            <input
-              type="text"
-              value={navn}
-              onChange={(e) => setNavn(e.target.value)}
-              className="input"
-              placeholder="Ola Nordmann"
-              required
-            />
-          </div>
-
-          {/* Vekt og høyde */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 flex items-center gap-1">
-                <Scale size={16} />
-                Vekt (kg)
-              </label>
-              <input
-                type="number"
-                value={vekt}
-                onChange={(e) => setVekt(e.target.value)}
-                className="input"
-                step="0.1"
-                min="30"
-                max="200"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 flex items-center gap-1">
-                <Ruler size={16} />
-                Høyde (cm)
-              </label>
-              <input
-                type="number"
-                value={hoyde}
-                onChange={(e) => setHoyde(e.target.value)}
-                className="input"
-                min="100"
-                max="250"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Fødselsår */}
-          <div>
-            <label className="block text-sm font-medium mb-1 flex items-center gap-1">
-              <CalendarIcon size={16} />
-              Fødselsår
-            </label>
-            <input
-              type="number"
-              value={fodselsar}
-              onChange={(e) => setFodselsar(e.target.value)}
-              className="input"
-              min="1900"
-              max={new Date().getFullYear()}
-              required
-            />
-          </div>
-
-          {/* Mål */}
-          <div>
-            <label className="block text-sm font-medium mb-1 flex items-center gap-1">
-              <Target size={16} />
-              Hva er ditt hovedmål?
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setMal('ned_i_vekt')}
-                className={`
-                  p-3 rounded-lg border-2 transition text-center
-                  ${mal === 'ned_i_vekt' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                  }
-                `}
-              >
-                <span className="text-2xl mb-1 block">⬇️</span>
-                <span className="text-sm font-medium">Ned i vekt</span>
+    <form onSubmit={lagre} className="pf-seksjon glass-card prg-skjema">
+      <span className="eyebrow eyebrow-gold">Ditt utgangspunkt</span>
+      <h2 className="hq-section-title" style={{ margin: '0.6rem 0 1.5rem' }}>Fortell om <em>deg selv</em></h2>
+      <div className="pf-skjema">
+        <label className="pf-felt pf-full"><span className="eyebrow">Navn</span>
+          <input className="input" value={navn} onChange={e => setNavn(e.target.value)} placeholder="Ola Nordmann" required /></label>
+        <label className="pf-felt"><span className="eyebrow">Vekt (kg)</span>
+          <input className="input" type="number" inputMode="decimal" step="0.1" min="30" max="250" value={vekt} onChange={e => setVekt(e.target.value)} required /></label>
+        <label className="pf-felt"><span className="eyebrow">Høyde (cm)</span>
+          <input className="input" type="number" inputMode="numeric" min="100" max="250" value={hoyde} onChange={e => setHoyde(e.target.value)} required /></label>
+        <label className="pf-felt pf-full"><span className="eyebrow">Fødselsår</span>
+          <input className="input" type="number" inputMode="numeric" min="1900" max={new Date().getFullYear()} value={fodselsar} onChange={e => setFodselsar(e.target.value)} required /></label>
+        <div className="pf-felt pf-full"><span className="eyebrow">Hovedmål</span>
+          <div className="pf-mal-grid">
+            {MAL.map(m => (
+              <button type="button" key={m.key} className={`pf-mal${mal === m.key ? ' on' : ''}`} onClick={() => setMal(m.key)}>
+                <m.ikon size={18} strokeWidth={1.3} />
+                <span className="pf-mal-navn">{m.label}</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setMal('bygge_muskler')}
-                className={`
-                  p-3 rounded-lg border-2 transition text-center
-                  ${mal === 'bygge_muskler' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                  }
-                `}
-              >
-                <span className="text-2xl mb-1 block">💪</span>
-                <span className="text-sm font-medium">Bygge muskler</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMal('vedlikehold')}
-                className={`
-                  p-3 rounded-lg border-2 transition text-center
-                  ${mal === 'vedlikehold' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                  }
-                `}
-              >
-                <span className="text-2xl mb-1 block">⚖️</span>
-                <span className="text-sm font-medium">Vedlikehold</span>
-              </button>
-            </div>
+            ))}
           </div>
-
-          {/* Anbefaling basert på valg */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-2">📊 Din anbefaling</h3>
-            <p className="text-sm text-gray-700">
-              Basert på din profil anbefaler vi:
-            </p>
-            <ul className="text-sm text-gray-700 mt-2 space-y-1 list-disc list-inside">
-              <li>Ca. {beregnAnbefaltKalorier()} kalorier per dag</li>
-              <li>{mal === 'ned_i_vekt' ? '3-4' : mal === 'bygge_muskler' ? '4-5' : '3'} styrkeøkter per uke</li>
-              <li>{mal === 'ned_i_vekt' ? '2' : mal === 'bygge_muskler' ? '1-2' : '1-2'} kondisjonsøkter</li>
-              <li>Fokuser på {mal === 'ned_i_vekt' ? 'sammensatte øvelser og høy intensitet' : 
-                               mal === 'bygge_muskler' ? 'progressiv overbelastning' : 
-                               'balansert trening'}</li>
-            </ul>
-          </div>
-
-          <button
-            type="submit"
-            disabled={laster}
-            className="w-full btn-primary disabled:opacity-50"
-          >
-            {laster ? 'Lagrer...' : 'Lagre profil og få ditt program'}
-          </button>
-        </form>
+        </div>
       </div>
-    </div>
+      <div className="prg-forhandsvis">
+        <span className="eyebrow">Anslått dagsbehov</span>
+        <span className="num-monument">{kalorier.toLocaleString('nb-NO')}<small> kcal</small></span>
+      </div>
+      {feil && <div className="login-error-box" style={{ marginTop: '1rem' }}><span className="login-error-text">{feil}</span></div>}
+      <div className="pf-knapper">
+        {onAvbryt && <button type="button" className="btn btn-ghost" onClick={onAvbryt}>Avbryt</button>}
+        <button type="submit" className="btn btn-primary" disabled={laster}>{laster ? 'Lagrer …' : 'Lagre og vis programmet'}</button>
+      </div>
+    </form>
   )
 }
