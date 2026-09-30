@@ -112,6 +112,7 @@ export default function ProgresjonOvelse({ userId }: Props) {
     }
 
     hentData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kjøres bevisst kun ved oppstart
   }, [userId, valgtOvelse, tidsrom])
 
   const valgtOvelseData = ALLE_OVELSER.find(o => o.id === valgtOvelse)

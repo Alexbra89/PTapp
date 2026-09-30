@@ -46,6 +46,7 @@ function PRTracker({ userId, supabase: sb }: { userId?: string; supabase: any })
     if (!userId) return
     sb.from('pr_rekorder').select('*').eq('bruker_id', userId)
       .then(({ data }: any) => { setPrs(data ?? []); setLaster(false) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kjøres bevisst kun ved oppstart
   }, [userId])
 
   const lagrePR = async () => {

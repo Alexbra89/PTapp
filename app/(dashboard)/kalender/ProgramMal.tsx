@@ -70,6 +70,7 @@ export default function ProgramMal({
 
   useEffect(() => {
     hentData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kjøres bevisst kun ved oppstart
   }, [userId])
 
   const hentData = async () => {

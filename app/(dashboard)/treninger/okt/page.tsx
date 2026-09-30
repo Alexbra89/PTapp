@@ -203,6 +203,7 @@ function OktInner() {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user?.id) setUserId(data.user.id)
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kjøres bevisst kun ved oppstart
   }, [])
 
   useEffect(() => {
@@ -222,6 +223,7 @@ function OktInner() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [kjoerer, klokkeMode])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kjøres bevisst kun ved oppstart
   useEffect(() => { bygg() }, [])
 
   useEffect(() => {

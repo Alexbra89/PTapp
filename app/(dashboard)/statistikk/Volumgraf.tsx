@@ -58,6 +58,7 @@ export default function Volumgraf({ userId }: { userId: string }) {
     }
 
     hentVolum()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kjøres bevisst kun ved oppstart
   }, [userId])
 
   if (laster) {

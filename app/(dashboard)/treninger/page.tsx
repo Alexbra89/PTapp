@@ -222,6 +222,7 @@ function KonfigInner() {
 
   const tilgjOpp = OPPVARMING.filter(o => o.sted.includes(sted))
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kjøres bevisst kun ved oppstart
   useEffect(() => { if (oktId) router.push(`/treninger/okt?okt=${oktId}`) }, [oktId])
 
   return (
