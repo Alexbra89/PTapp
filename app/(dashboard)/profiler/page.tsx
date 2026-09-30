@@ -1,14 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useUser, useProfil, useLagreProfil } from '@/hooks/useSupabaseQuery'
-import { createClient } from '@/lib/supabase/client'
+import { useState } from 'react'
+import { format } from 'date-fns'
+import { nb } from 'date-fns/locale'
+import { motion, AnimatePresence } from 'framer-motion'
+import { TrendingDown, Dumbbell, Scale, HeartPulse, Pencil, X, Check } from 'lucide-react'
+import { useUser, useProfil, useLagreProfil, useStats, useVektlogg } from '@/hooks/useSupabaseQuery'
+import { TelleTall } from '@/components/atelier/TelleTall'
+import { BRAND } from '@/lib/brand'
 
 const MAL_OPTIONS = [
-  { key: 'ned_i_vekt',    label: 'Ned i vekt',      emoji: '⬇️', color: 'var(--cyan)'   },
-  { key: 'bygge_muskler', label: 'Bygge muskler',   emoji: '💪', color: 'var(--purple)' },
-  { key: 'vedlikehold',   label: 'Vedlikehold',     emoji: '⚖️', color: 'var(--green)'  },
-  { key: 'kondisjon',     label: 'Bedre kondisjon', emoji: '🏃', color: 'var(--orange)' },
+  { key: 'ned_i_vekt',    label: 'Ned i vekt',      ikon: TrendingDown, tekst: 'Kaloriunderskudd, bevar muskelmassen.' },
+  { key: 'bygge_muskler', label: 'Bygge muskler',   ikon: Dumbbell,     tekst: 'Progressiv belastning og nok protein.' },
+  { key: 'vedlikehold',   label: 'Vedlikehold',     ikon: Scale,        tekst: 'Jevn innsats, uke etter uke.' },
+  { key: 'kondisjon',     label: 'Bedre kondisjon', ikon: HeartPulse,   tekst: 'Mest sone 2, litt intervall.' },
 ]
 
 function beregnBMI(vekt: number, hoyde: number) {
@@ -17,14 +22,13 @@ function beregnBMI(vekt: number, hoyde: number) {
 }
 
 function bmiKategori(bmi: number) {
-  if (bmi < 18.5) return { label: 'Undervekt', color: 'var(--cyan)' }
-  if (bmi < 25)   return { label: 'Normal',    color: 'var(--green)' }
-  if (bmi < 30)   return { label: 'Overvekt',  color: 'var(--orange)' }
-  return             { label: 'Fedme',        color: '#E0614F' }
+  if (bmi < 18.5) return { label: 'Undervekt', color: 'var(--platinum)' }
+  if (bmi < 25)   return { label: 'Normalvekt', color: 'var(--sage)' }
+  if (bmi < 30)   return { label: 'Overvekt',  color: 'var(--ember)' }
+  return             { label: 'Fedme',        color: 'var(--danger)' }
 }
 
 export default function ProfilPage() {
-  const supabase = createClient()
   const { data: user,   isLoading: userLaster } = useUser()
   const { data: profil, isLoading: profilLaster } = useProfil(user?.id)
   const lagreMut = useLagreProfil()
@@ -41,51 +45,9 @@ export default function ProfilPage() {
   const [mal,        setMal]        = useState('bygge_muskler')
   const [onsketVekt, setOnsketVekt] = useState<number|''>('')
 
-  // Stats – henter fra databasen
-  const [stats, setStats] = useState({ okter: 0, kg: 0 })
-  const [lasterStats, setLasterStats] = useState(true)
-
-  // Hent statistikk fra databasen
-  useEffect(() => {
-    if (!user?.id) return
-
-    const hentStats = async () => {
-      setLasterStats(true)
-      
-      // Hent totalt antall økter
-      const { count: totalOkter } = await supabase
-        .from('okter')
-        .select('*', { count: 'exact', head: true })
-        .eq('bruker_id', user.id)
-
-      // Hent total kg fra treningslogger (alle sett)
-      const { data: logger } = await supabase
-        .from('treningslogger')
-        .select('sett')
-        .eq('bruker_id', user.id)
-
-      let totalKg = 0
-      if (logger) {
-        for (const logg of logger) {
-          if (logg.sett && Array.isArray(logg.sett)) {
-            for (const sett of logg.sett) {
-              const vekt = sett.vekt || sett.kg || 0
-              const reps = sett.reps || 0
-              totalKg += vekt * reps
-            }
-          }
-        }
-      }
-
-      setStats({
-        okter: totalOkter || 0,
-        kg: Math.round(totalKg)
-      })
-      setLasterStats(false)
-    }
-
-    hentStats()
-  }, [user?.id, supabase])
+  // Samme cachede tall som dashbordet – tidligere hadde profilen egne, dupliserte spørringer
+  const { data: stats, isLoading: lasterStats } = useStats(user?.id)
+  const { data: vektlogg = [] } = useVektlogg(user?.id, profil?.vekt)
 
   // Fyll inn form når profil laster
   const aapneRedigeringsform = () => {
@@ -119,7 +81,7 @@ export default function ProfilPage() {
         onsket_vekt: Number(onsketVekt)  || 0,
       })
       setRedigerer(false)
-      setMelding('Profil oppdatert! ✓')
+      setMelding('Profilen er oppdatert.')
       setTimeout(() => setMelding(''), 3000)
     } catch (e: any) {
       setFeil(`Kunne ikke lagre: ${e.message}`)
@@ -140,317 +102,168 @@ export default function ProfilPage() {
 
   const laster = userLaster || profilLaster
 
-  if (laster) return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-      <div className="spinner-lg" />
-    </div>
-  )
+  if (laster) return null
+
+  const startVekt = vektlogg[0]?.vekt ?? profil?.vekt ?? 0
+  const naVekt    = profil?.vekt ?? 0
+  const malVekt   = profil?.onsket_vekt ?? 0
+  const totalVei  = Math.abs(startVekt - malVekt)
+  const gjenstar  = Math.abs(naVekt - malVekt)
+  const vektPct   = totalVei > 0 ? Math.max(0, Math.min(100, Math.round((1 - gjenstar / totalVei) * 100))) : (gjenstar === 0 ? 100 : 0)
+  const medlemSiden = user?.created_at ? format(new Date(user.created_at), 'MMMM yyyy', { locale: nb }) : null
 
   return (
-    <div className="pr-page anim-fade-up">
+    <div className="pf-page">
       <div className="page-header">
-        <h1 className="page-title">Profil</h1>
-        <p className="page-subtitle">Din treningsprofil og innstillinger</p>
+        <h1 className="page-title">Profilen<em className="gold">.</em></h1>
+        <p className="page-subtitle">Kropp, mål og medlemskap</p>
       </div>
 
-      {melding && <div className="pr-melding">{melding}</div>}
-      {feil    && <div className="pr-feil">{feil}</div>}
+      <AnimatePresence>
+        {melding && (
+          <motion.div className="pf-melding" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <Check size={14} strokeWidth={2} /> {melding}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Hero-kort */}
-      <div className="pr-hero glass-card">
-        <div className="pr-hero-shine" />
-        <div className="pr-hero-inner">
-          <div className="pr-avatar-wrap">
-            <div className="pr-avatar">{initialer}</div>
-            <div className="pr-avatar-ring" />
-          </div>
-          <div className="pr-hero-info">
-            <div className="pr-navn">{profil?.navn || user?.email?.split('@')[0] || 'Legg til navn'}</div>
-            <div className="pr-epost">{profil?.epost ?? user?.email}</div>
-            {malMeta && !redigerer && (
-              <div className="pr-mal-badge"
-                style={{ background: `${malMeta.color}15`, borderColor: `${malMeta.color}30`, color: malMeta.color }}>
-                {malMeta.emoji} {malMeta.label}
-              </div>
-            )}
-          </div>
-          <button
-            className="btn btn-ghost pr-edit-btn"
-            onClick={redigerer ? avbrytRedigering : aapneRedigeringsform}
-          >
-            {redigerer ? '✕ Avbryt' : '✏️ Rediger'}
+      {/* Medlemskort */}
+      <section className="pf-kort glass-card crop">
+        <div className="pf-kort-glans" />
+        <div className="pf-kort-topp">
+          <span className="eyebrow eyebrow-gold">{BRAND.navn} · {BRAND.kort}</span>
+          <button className="btn btn-ghost pf-rediger" onClick={redigerer ? avbrytRedigering : aapneRedigeringsform}>
+            {redigerer ? <><X size={13} /> Avbryt</> : <><Pencil size={13} strokeWidth={1.5} /> Rediger</>}
           </button>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="pr-stats-grid">
-        {[
-          { label: 'Treningsøkter', value: lasterStats ? '...' : stats.okter,                           color: 'var(--cyan)',   icon: '📅' },
-          { label: 'Kg løftet',     value: lasterStats ? '...' : `${stats.kg.toLocaleString('no')} kg`, color: 'var(--green)',  icon: '🏋️' },
-          { label: 'Vekt',          value: profil?.vekt ? `${profil.vekt} kg` : '–', color: 'var(--purple)', icon: '⚖️' },
-          {
-            label: 'BMI',
-            value: lagretBmi ?? '–',
-            color: lagretBmiK?.color ?? 'rgba(242,236,225,0.4)',
-            icon:  '📊',
-            sub:   lagretBmiK?.label,
-          },
-        ].map(s => (
-          <div key={s.label} className="pr-stat glass-card">
-            <div className="pr-stat-icon">{s.icon}</div>
-            <div className="pr-stat-val" style={{ color: s.color }}>{s.value}</div>
-            {(s as any).sub && <div className="pr-stat-sub" style={{ color: s.color }}>{(s as any).sub}</div>}
-            <div className="pr-stat-lbl">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Vektmål-fremgang */}
-      {profil?.onsket_vekt && profil.onsket_vekt > 0 && profil.vekt > 0 && (() => {
-        const diff      = profil.vekt - profil.onsket_vekt
-        const absDiff   = Math.abs(diff).toFixed(1)
-        const erNedgang = diff > 0
-        const erMaal    = diff <= 0
-        const color     = erMaal ? 'var(--green)' : erNedgang ? 'var(--cyan)' : 'var(--orange)'
-        const pct       = erNedgang ? 0 : 100
-        return (
-          <div className="pr-maal-kort glass-card">
-            <div className="pr-maal-top">
-              <div>
-                <div className="pr-maal-tittel">🎯 Vektmål</div>
-                <div className="pr-maal-sub">
-                  {erMaal
-                    ? '🎉 Du har nådd målvekten!'
-                    : erNedgang
-                    ? `${absDiff} kg igjen til målvekt`
-                    : `${absDiff} kg over målvekt`
-                  }
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, color }}>
-                  {profil.onsket_vekt} kg
-                </div>
-                <div style={{ fontSize: '0.65rem', color: 'rgba(242,236,225,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Målvekt</div>
-              </div>
-            </div>
-            <div className="pr-maal-bar-bg">
-              <div className="pr-maal-bar-fill" style={{ width: `${pct}%`, background: color }} />
-            </div>
-            <div className="pr-maal-etiketter">
-              <span>{profil.vekt} kg (nå)</span>
-              <span>{profil.onsket_vekt} kg (mål)</span>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* ── REDIGERINGSFORM ── */}
-      {redigerer && (
-        <div className="pr-form glass-card">
-          <div className="pr-form-title">✏️ Rediger profil</div>
-          <div className="pr-form-grid">
-
-            <div className="pr-form-field">
-              <label className="pr-label">Navn</label>
-              <input className="input" placeholder="Ditt navn"
-                value={navn} onChange={e => setNavn(e.target.value)} />
-            </div>
-
-            <div className="pr-form-field">
-              <label className="pr-label">Vekt (kg)</label>
-              <input className="input" type="number" min={30} max={300}
-                value={vekt}
-                onChange={e => setVekt(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-            </div>
-
-            <div className="pr-form-field">
-              <label className="pr-label">Ønsket vekt (kg)</label>
-              <input className="input" type="number" min={30} max={300} step={0.5}
-                placeholder="f.eks. 80"
-                value={onsketVekt}
-                onChange={e => setOnsketVekt(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-            </div>
-
-            <div className="pr-form-field">
-              <label className="pr-label">Høyde (cm)</label>
-              <input className="input" type="number" min={100} max={250}
-                value={hoyde}
-                onChange={e => setHoyde(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-            </div>
-
-            {/* Live BMI */}
-            {liveBmi && liveBmiK && (
-              <div className="pr-form-field">
-                <label className="pr-label">BMI (live)</label>
-                <div className="pr-bmi-display"
-                  style={{ borderColor: `${liveBmiK.color}30`, background: `${liveBmiK.color}08` }}>
-                  <span className="pr-bmi-tall" style={{ color: liveBmiK.color }}>{liveBmi}</span>
-                  <span className="pr-bmi-kat"  style={{ color: liveBmiK.color }}>{liveBmiK.label}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="pr-form-field pr-form-full">
-              <label className="pr-label">Treningsmål</label>
-              <div className="pr-mal-grid">
-                {MAL_OPTIONS.map(m => (
-                  <button key={m.key}
-                    className="pr-mal-btn"
-                    style={mal === m.key ? {
-                      background: `${m.color}15`,
-                      borderColor: `${m.color}40`,
-                      color: m.color,
-                    } : {}}
-                    onClick={() => setMal(m.key)}>
-                    <span style={{ fontSize: '1.3rem' }}>{m.emoji}</span>
-                    <span>{m.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {feil && <div className="pr-feil" style={{ marginBottom: '1rem' }}>{feil}</div>}
-
-          <div className="pr-form-footer">
-            <button className="btn btn-ghost" onClick={avbrytRedigering}>Avbryt</button>
-            <button className="btn btn-primary" onClick={lagreProfil} disabled={lagreMut.isPending}>
-              {lagreMut.isPending
-                ? <span className="spinner" style={{ width: 16, height: 16 }} />
-                : '💾 Lagre profil'}
-            </button>
+        <div className="pf-kort-midt">
+          <div className="pf-monogram">{initialer}</div>
+          <div style={{ minWidth: 0 }}>
+            <h2 className="pf-navn">{profil?.navn || user?.email?.split('@')[0] || 'Legg til navn'}</h2>
+            <div className="pf-epost">{profil?.epost ?? user?.email}</div>
           </div>
         </div>
+        <div className="pf-kort-bunn">
+          <div><span className="eyebrow">Mål</span><span className="pf-kort-verdi">{malMeta?.label ?? 'Ikke satt'}</span></div>
+          {medlemSiden && <div><span className="eyebrow">Medlem siden</span><span className="pf-kort-verdi" style={{ textTransform: 'capitalize' }}>{medlemSiden}</span></div>}
+        </div>
+      </section>
+
+      {/* Nøkkeltall */}
+      <section className="hq-figures pf-tall">
+        <div className="hq-figure">
+          <span className="eyebrow">Økter</span>
+          <div className="hq-figure-val num-monument">{lasterStats ? '–' : <TelleTall verdi={stats?.totalOkter ?? 0} />}</div>
+          <div className="hq-figure-sub">totalt</div>
+        </div>
+        <div className="hq-figure">
+          <span className="eyebrow">Tonnasje</span>
+          <div className="hq-figure-val num-monument">{lasterStats ? '–' : <TelleTall verdi={stats?.totalKg ?? 0} forsinkelse={0.1} />}<small>kg</small></div>
+          <div className="hq-figure-sub">løftet totalt</div>
+        </div>
+        <div className="hq-figure">
+          <span className="eyebrow">Vekt</span>
+          <div className="hq-figure-val num-monument">{naVekt ? <TelleTall verdi={naVekt} desimaler={naVekt % 1 ? 1 : 0} forsinkelse={0.2} /> : '–'}<small>kg</small></div>
+          <div className="hq-figure-sub">{profil?.hoyde ? `${profil.hoyde} cm høy` : 'høyde ikke satt'}</div>
+        </div>
+        <div className="hq-figure">
+          <span className="eyebrow">BMI</span>
+          <div className="hq-figure-val num-monument">{lagretBmi ?? '–'}</div>
+          <div className="hq-figure-sub" style={{ color: lagretBmiK?.color }}>{lagretBmiK?.label ?? '–'}</div>
+        </div>
+      </section>
+
+      {/* Vektmål */}
+      {malVekt > 0 && naVekt > 0 && (
+        <section className="pf-seksjon glass-card">
+          <div className="pf-seksjon-hode">
+            <div>
+              <span className="eyebrow">Vektmål</span>
+              <h3 className="hq-section-title" style={{ marginTop: 8 }}>
+                {gjenstar === 0 ? <>Målet er <em>nådd.</em></> : <><TelleTall verdi={gjenstar} desimaler={gjenstar % 1 ? 1 : 0} /> kg <em>igjen</em></>}
+              </h3>
+            </div>
+            <div className="pf-prosent num-monument">{vektPct}<span>%</span></div>
+          </div>
+          <div className="tick-track"><div className="tick-fill" style={{ width: `${vektPct}%` }} /></div>
+          <div className="pf-skala">
+            <span>Start {startVekt} kg</span><span>Nå {naVekt} kg</span><span className="gold">Mål {malVekt} kg</span>
+          </div>
+        </section>
       )}
 
-      {/* ── VISNING (ikke redigeringsmodus) ── */}
+      {/* Redigering */}
+      <AnimatePresence initial={false}>
+        {redigerer && (
+          <motion.section
+            className="pf-seksjon glass-card"
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            style={{ overflow: 'hidden' }}
+          >
+            <h3 className="hq-section-title" style={{ marginBottom: '1.5rem' }}>Rediger <em>profil</em></h3>
+            <div className="pf-skjema">
+              <label className="pf-felt pf-full"><span className="eyebrow">Navn</span>
+                <input className="input" placeholder="Ditt navn" value={navn} onChange={e => setNavn(e.target.value)} /></label>
+              <label className="pf-felt"><span className="eyebrow">Vekt (kg)</span>
+                <input className="input" type="number" inputMode="decimal" min={30} max={300} value={vekt}
+                  onChange={e => setVekt(e.target.value === '' ? '' : parseFloat(e.target.value))} /></label>
+              <label className="pf-felt"><span className="eyebrow">Målvekt (kg)</span>
+                <input className="input" type="number" inputMode="decimal" min={30} max={300} step={0.5} placeholder="80" value={onsketVekt}
+                  onChange={e => setOnsketVekt(e.target.value === '' ? '' : parseFloat(e.target.value))} /></label>
+              <label className="pf-felt"><span className="eyebrow">Høyde (cm)</span>
+                <input className="input" type="number" inputMode="numeric" min={100} max={250} value={hoyde}
+                  onChange={e => setHoyde(e.target.value === '' ? '' : parseFloat(e.target.value))} /></label>
+              <div className="pf-felt"><span className="eyebrow">BMI</span>
+                <div className="pf-bmi">{liveBmi ? <><span className="num-monument">{liveBmi}</span><span style={{ color: liveBmiK?.color }}>{liveBmiK?.label}</span></> : <span className="pf-dempet">Fyll inn vekt og høyde</span>}</div>
+              </div>
+              <div className="pf-felt pf-full"><span className="eyebrow">Treningsmål</span>
+                <div className="pf-mal-grid">
+                  {MAL_OPTIONS.map(m => (
+                    <button key={m.key} className={`pf-mal${mal === m.key ? ' on' : ''}`} onClick={() => setMal(m.key)}>
+                      <m.ikon size={18} strokeWidth={1.3} />
+                      <span className="pf-mal-navn">{m.label}</span>
+                      <span className="pf-mal-tekst">{m.tekst}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {feil && <div className="login-error-box" style={{ marginTop: '1rem' }}><span className="login-error-text">{feil}</span></div>}
+            <div className="pf-knapper">
+              <button className="btn btn-ghost" onClick={avbrytRedigering}>Avbryt</button>
+              <button className="btn btn-primary" onClick={lagreProfil} disabled={lagreMut.isPending}>
+                {lagreMut.isPending ? <span className="spinner" /> : 'Lagre profil'}
+              </button>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* Mål og konto */}
       {!redigerer && (
-        <div className="pr-info-grid">
-          <div className="pr-card glass-card">
-            <div className="pr-card-title">🏋️ Kropp</div>
-            <div className="pr-info-rows">
-              {[
-                { label: 'Vekt',        value: profil?.vekt        ? `${profil.vekt} kg`        : '–' },
-                { label: 'Ønsket vekt', value: profil?.onsket_vekt ? `${profil.onsket_vekt} kg` : '–', color: profil?.onsket_vekt ? 'var(--cyan)' : undefined },
-                { label: 'Høyde',       value: profil?.hoyde       ? `${profil.hoyde} cm`       : '–' },
-                {
-                  label: 'BMI',
-                  value: lagretBmi ? `${lagretBmi} — ${lagretBmiK?.label}` : '–',
-                  color: lagretBmiK?.color,
-                },
-              ].map(r => (
-                <div key={r.label} className="pr-info-row">
-                  <span className="pr-info-lbl">{r.label}</span>
-                  <span className="pr-info-val" style={(r as any).color ? { color: (r as any).color } : {}}>{r.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="pr-card glass-card">
-            <div className="pr-card-title">🎯 Treningsmål</div>
+        <section className="pf-to">
+          <div className="pf-seksjon glass-card">
+            <span className="eyebrow">Treningsmål</span>
             {malMeta ? (
-              <div className="pr-mal-vis"
-                style={{ background: `${malMeta.color}08`, borderColor: `${malMeta.color}20` }}>
-                <span style={{ fontSize: '2rem' }}>{malMeta.emoji}</span>
+              <div className="pf-mal-vis">
+                <span className="pf-mal-ikon"><malMeta.ikon size={20} strokeWidth={1.3} /></span>
                 <div>
-                  <div style={{ color: malMeta.color, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem' }}>
-                    {malMeta.label}
-                  </div>
-                  <div style={{ color: 'rgba(242,236,225,0.35)', fontSize: '0.78rem', marginTop: 3 }}>
-                    Ditt nåværende treningsmål
-                  </div>
+                  <div className="pf-mal-vis-navn">{malMeta.label}</div>
+                  <div className="pf-dempet">{malMeta.tekst}</div>
                 </div>
               </div>
-            ) : (
-              <div className="pr-empty">Ingen mål satt — trykk ✏️ Rediger</div>
-            )}
+            ) : <p className="pf-dempet" style={{ marginTop: 12 }}>Ikke satt. Trykk «Rediger» for å velge.</p>}
           </div>
-
-          <div className="pr-card glass-card">
-            <div className="pr-card-title">🔐 Konto</div>
-            <div className="pr-info-rows">
-              <div className="pr-info-row">
-                <span className="pr-info-lbl">E-post</span>
-                <span className="pr-info-val" style={{ fontSize: '0.78rem' }}>{profil?.epost ?? user?.email}</span>
-              </div>
-              <div className="pr-info-row">
-                <span className="pr-info-lbl">Status</span>
-                <span className="pr-info-val" style={{ color: 'var(--green)' }}>● Aktiv</span>
-              </div>
-            </div>
+          <div className="pf-seksjon glass-card">
+            <span className="eyebrow">Konto</span>
+            <dl className="pf-ledger">
+              <div><dt>E-post</dt><dd>{profil?.epost ?? user?.email}</dd></div>
+              <div><dt>Status</dt><dd className="gold">Aktiv</dd></div>
+            </dl>
           </div>
-        </div>
+        </section>
       )}
-
-      <style>{`
-        .pr-page { max-width: 900px; }
-
-        .pr-melding { background: rgba(157,196,150,0.1); border: 1px solid rgba(157,196,150,0.25); color: var(--green); border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; }
-        .pr-feil    { background: rgba(224,97,79,0.1);  border: 1px solid rgba(224,97,79,0.25);  color: #E0614F;  border-radius: 12px; padding: 0.75rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }
-
-        .pr-hero { padding: 0; overflow: hidden; margin-bottom: 1.25rem; }
-        .pr-hero-shine { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,169,110,0.3), transparent); }
-        .pr-hero-inner { display: flex; align-items: center; gap: 1.5rem; padding: 1.75rem 2rem; flex-wrap: wrap; }
-
-        .pr-avatar-wrap { position: relative; flex-shrink: 0; }
-        .pr-avatar { width: 72px; height: 72px; border-radius: 50%; position: relative; z-index: 1; background: linear-gradient(135deg, rgba(201,169,110,0.3), rgba(184,190,198,0.3)); border: 2px solid rgba(201,169,110,0.3); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: #F2ECE1; }
-        .pr-avatar-ring { position: absolute; inset: -6px; border-radius: 50%; background: conic-gradient(var(--cyan), var(--purple), var(--cyan)); opacity: 0.2; animation: pr-spin 8s linear infinite; }
-        @keyframes pr-spin { to { transform: rotate(360deg); } }
-
-        .pr-hero-info { flex: 1; min-width: 0; }
-        .pr-navn  { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; color: #F2ECE1; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pr-epost { font-size: 0.82rem; color: rgba(242,236,225,0.35); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pr-mal-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 500; border: 1px solid; }
-        .pr-edit-btn { flex-shrink: 0; }
-
-        .pr-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem; }
-        @media(max-width: 700px) { .pr-stats-grid { grid-template-columns: repeat(2, 1fr); } }
-        .pr-stat { padding: 1.25rem; text-align: center; }
-        .pr-stat-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
-        .pr-stat-val  { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
-        .pr-stat-sub  { font-size: 0.68rem; font-weight: 600; margin-bottom: 2px; }
-        .pr-stat-lbl  { font-size: 0.68rem; color: rgba(242,236,225,0.3); text-transform: uppercase; letter-spacing: 0.08em; }
-
-        .pr-maal-kort { padding: 1.25rem; margin-bottom: 1.25rem; }
-        .pr-maal-top  { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
-        .pr-maal-tittel { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: #F2ECE1; margin-bottom: 4px; }
-        .pr-maal-sub    { font-size: 0.78rem; color: rgba(242,236,225,0.45); }
-        .pr-maal-bar-bg   { height: 8px; border-radius: 999px; background: rgba(242,236,225,0.07); overflow: hidden; margin-bottom: 6px; }
-        .pr-maal-bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s ease; }
-        .pr-maal-etiketter { display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(242,236,225,0.3); }
-
-        .pr-form { padding: 1.5rem; margin-bottom: 1.25rem; }
-        .pr-form-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: #F2ECE1; margin-bottom: 1.25rem; }
-        .pr-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
-        @media(max-width: 600px) { .pr-form-grid { grid-template-columns: 1fr; } }
-        .pr-form-full { grid-column: 1 / -1; }
-        .pr-form-field { display: flex; flex-direction: column; gap: 0.4rem; }
-        .pr-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(242,236,225,0.35); font-weight: 600; }
-        .pr-form-footer { display: flex; gap: 10px; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid rgba(242,236,225,0.07); }
-
-        .pr-bmi-display { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid; }
-        .pr-bmi-tall { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; }
-        .pr-bmi-kat  { font-size: 0.88rem; font-weight: 600; }
-
-        .pr-mal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        @media(max-width: 600px) { .pr-mal-grid { grid-template-columns: 1fr 1fr; } }
-        .pr-mal-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(242,236,225,0.1); background: rgba(242,236,225,0.03); cursor: pointer; transition: all 0.15s; font-family: var(--font-body); font-size: 0.78rem; color: rgba(242,236,225,0.5); }
-        .pr-mal-btn:hover { background: rgba(242,236,225,0.07); color: rgba(242,236,225,0.8); }
-
-        .pr-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-        @media(max-width: 600px) { .pr-info-grid { grid-template-columns: 1fr; } }
-        .pr-card { padding: 1.25rem; }
-        .pr-card-title { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: #F2ECE1; margin-bottom: 1rem; }
-        .pr-info-rows { display: flex; flex-direction: column; gap: 8px; }
-        .pr-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; background: rgba(242,236,225,0.03); }
-        .pr-info-lbl { font-size: 0.75rem; color: rgba(242,236,225,0.35); }
-        .pr-info-val { font-size: 0.85rem; color: rgba(242,236,225,0.75); font-weight: 500; }
-        .pr-mal-vis { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 14px; border: 1px solid; }
-        .pr-empty { font-size: 0.82rem; color: rgba(242,236,225,0.3); text-align: center; padding: 1rem 0; }
-      `}</style>
     </div>
   )
 }

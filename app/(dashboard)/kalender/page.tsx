@@ -11,6 +11,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useUser, useOkterManed, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from './ProgramMal'
+import { ChevronLeft, ChevronRight, Plus, FolderOpen, Dumbbell, Activity, Moon, Sparkles, Pencil, Trash2, ChevronDown, ArrowRight, Check, CalendarPlus, X } from 'lucide-react'
+import { OVELSER as BIBLIOTEK, muskler as musklerFor, visesBakfra, MUSKELNAVN } from '@/data/ovelsesbibliotek'
+import { MuskelkartMini } from '@/components/atelier/Muskelkart'
 
 type OktType = 'styrke' | 'cardio' | 'hvile' | 'annet'
 interface Okt {
@@ -19,22 +22,18 @@ interface Okt {
   ovelser?: { navn: string; sett: number; reps: string; kg?: number }[]
 }
 
-const OV_EMOJI: Record<string, string> = {
-  'benkpress':'🏋️','skråbenkpress':'📐','push-up':'💪','dips':'⬇️','pull-ups':'🤸',
-  'pull-up':'🤸','markløft':'⚡','lat pulldown':'⬇️','sittende kabelroing':'🚣',
-  'hantelroing':'💪','knebøy':'🦵','legpress':'🔧','rumensk markløft':'🍑',
-  'military press':'⬆️','sidehev':'🔼','face pull':'🎯','biceps curl':'💪',
-  'hammer curl':'🔨','planke':'🧘','burpees':'🔥','kettlebell swing':'🔔',
+// Slå opp øvelsen i biblioteket for muskelkart og muskelnavn
+const normNavn = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
+function OvelseMerke({ navn }: { navn: string }) {
+  const b = BIBLIOTEK.find(o => normNavn(o.navn) === normNavn(navn))
+  if (!b) return <span className="kal-ov-em"><Dumbbell size={14} strokeWidth={1.3} style={{ color: 'var(--text-muted)' }} /></span>
+  const m = musklerFor(b)
+  return <span className="kal-ov-em"><MuskelkartMini {...m} bakfra={visesBakfra(m.primaer)} hoyde={38} /></span>
 }
-const OV_MUSKLER: Record<string, string> = {
-  'benkpress':'Pecs, triceps','skråbenkpress':'Øvre pecs','push-up':'Pecs, core',
-  'pull-ups':'Lats, biceps','pull-up':'Lats, biceps','markløft':'Hel rygg, glutes',
-  'knebøy':'Quads, glutes','military press':'Alle deltoider','planke':'Hele core',
+const musklerTekst = (navn: string) => {
+  const b = BIBLIOTEK.find(o => normNavn(o.navn) === normNavn(navn))
+  return b ? musklerFor(b).primaer.slice(0, 2).map(x => MUSKELNAVN[x]).join(' · ') : ''
 }
-const finnOvInfo = (navn: string) => ({
-  emoji:   OV_EMOJI[navn.toLowerCase().trim()]   ?? '⚡',
-  muskler: OV_MUSKLER[navn.toLowerCase().trim()] ?? '',
-})
 
 const PREV_DB: Record<string, { navn: string; emoji: string; muskler: string; sett: number; reps: string }[]> = {
   bryst: [
@@ -159,11 +158,11 @@ function hentAnbefaltOvelser(tittel: string, dato: string): typeof PREV_DB[strin
   return resultat
 }
 
-const TYPE_META: Record<OktType, { color: string; emoji: string; label: string }> = {
-  styrke: { color: 'var(--cyan)',   emoji: '🏋️', label: 'Styrke' },
-  cardio: { color: 'var(--green)',  emoji: '🏃', label: 'Cardio' },
-  hvile:  { color: 'var(--purple)', emoji: '😴', label: 'Hvile'  },
-  annet:  { color: 'var(--orange)', emoji: '⚡', label: 'Annet'  },
+const TYPE_META: Record<OktType, { color: string; ikon: typeof Dumbbell; label: string }> = {
+  styrke: { color: 'var(--gold)',     ikon: Dumbbell, label: 'Styrke' },
+  cardio: { color: 'var(--sage)',     ikon: Activity, label: 'Cardio' },
+  hvile:  { color: 'var(--platinum)', ikon: Moon,     label: 'Hvile'  },
+  annet:  { color: 'var(--ember)',    ikon: Sparkles, label: 'Annet'  },
 }
 const UKEDAGER = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
 
@@ -298,19 +297,25 @@ const brukProgram = async (program: any) => {
   return (
     <div className="kal-page anim-fade-up">
       <div className="page-header" style={{ marginBottom: '1.25rem' }}>
-        <h1 className="page-title">Kalender</h1>
-        <p className="page-subtitle">Planlegg og klikk deg rett inn i treningsøkten</p>
+        <h1 className="page-title">Kalenderen<em className="gold">.</em></h1>
+        <p className="page-subtitle">Planlegg uken · trykk en økt for å starte den</p>
+      </div>
+
+      <div className="kal-maned-sum">
+        <div><span className="eyebrow">Økter i {format(maned, 'MMMM', { locale: nb })}</span><strong>{okterArr.length}</strong></div>
+        <div><span className="eyebrow">Fullført</span><strong className="gold">{okterArr.filter((o: Okt) => o.fullfort).length}</strong></div>
+        <div><span className="eyebrow">Minutter planlagt</span><strong>{okterArr.reduce((s: number, o: Okt) => s + (o.varighet_min || 0), 0).toLocaleString('nb-NO')}</strong></div>
       </div>
 
       <div className="kal-layout">
         <div className="kal-venstre">
           <div className="kal-nav glass-card">
-            <button className="kal-nav-btn" onClick={() => bytManed(-1)}>‹</button>
+            <button className="kal-nav-btn" onClick={() => bytManed(-1)} aria-label="Forrige måned"><ChevronLeft size={16} strokeWidth={1.5} /></button>
             <span className="kal-nav-tittel">
               {format(maned, 'MMMM yyyy', { locale: nb })}
               {isFetching && <span className="kal-sync-dot" />}
             </span>
-            <button className="kal-nav-btn" onClick={() => bytManed(1)}>›</button>
+            <button className="kal-nav-btn" onClick={() => bytManed(1)} aria-label="Neste måned"><ChevronRight size={16} strokeWidth={1.5} /></button>
           </div>
 
           <div className="kal-grid glass-card">
@@ -334,8 +339,8 @@ const brukProgram = async (program: any) => {
                     {events.length > 0 && (
                       <div className="kal-prikker">
                         {events.slice(0, 3).map((e, i) => (
-                          <span key={i} className="kal-prikk"
-                            style={{ background: TYPE_META[e.type].color }} />
+                          <span key={i} className={`kal-prikk${e.fullfort ? ' ferdig' : ''}`}
+                            style={{ background: e.fullfort ? 'var(--gold)' : TYPE_META[e.type]?.color ?? 'var(--gold)' }} />
                         ))}
                       </div>
                     )}
@@ -366,22 +371,19 @@ const brukProgram = async (program: any) => {
                   : `${dagensOkter.length} økt${dagensOkter.length > 1 ? 'er' : ''} planlagt`}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-ghost" onClick={() => setVisProgramMal(true)} style={{ fontSize: '0.8rem' }}>
-                📁 Programmer
-              </button>
-              <button className="btn btn-primary kal-legg-btn" onClick={åpnNy}>＋ Ny økt</button>
+            <div className="kal-dag-knapper">
+              <button className="btn btn-ghost" onClick={() => setVisProgramMal(true)}><FolderOpen size={14} strokeWidth={1.5} /> Program</button>
+              <button className="btn btn-primary" onClick={åpnNy}><Plus size={14} strokeWidth={1.6} /> Ny økt</button>
             </div>
           </div>
 
           {dagensOkter.length === 0 ? (
             <div className="kal-ingen glass-card">
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📅</div>
-              <div className="kal-ingen-t">Ingen økt planlagt</div>
-              <div className="kal-ingen-s">Trykk "Ny økt" for å planlegge</div>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '1rem' }}>
-                <button className="btn btn-primary" onClick={åpnNy}>＋ Planlegg treningsøkt</button>
-                <button className="btn btn-ghost" onClick={() => setVisProgramMal(true)}>📁 Bruk program</button>
+              <div className="kal-ingen-t">En ledig dag.</div>
+              <div className="kal-ingen-s">Planlegg en økt, eller hent et ferdig program.</div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+                <button className="btn btn-primary" onClick={åpnNy}><CalendarPlus size={14} strokeWidth={1.5} /> Planlegg økt</button>
+                <button className="btn btn-ghost" onClick={() => setVisProgramMal(true)}><FolderOpen size={14} strokeWidth={1.5} /> Bruk program</button>
               </div>
             </div>
           ) : (
@@ -392,42 +394,19 @@ const brukProgram = async (program: any) => {
                 const aapen = visDetalj === okt.id
                 const bekrefter = slettId === okt.id
                 return (
-                  <div key={okt.id} className="kal-okt glass-card"
-                    style={{
-                      borderColor: `${meta.color}25`,
-                      backgroundColor: okt.fullfort ? 'rgba(157,196,150,0.03)' : 'transparent',
-                      borderLeft: okt.fullfort ? '4px solid var(--green)' : 'none'
-                    }}>
+                  <div key={okt.id} className={`kal-okt glass-card${okt.fullfort ? ' ferdig' : ''}`}>
                     <div className="kal-okt-topp"
                       onClick={() => { if (!bekrefter) setVisDetalj(aapen ? null : okt.id) }}>
-                      <div className="kal-okt-icon"
-                        style={{ background: `${meta.color}12`, borderColor: `${meta.color}25` }}>
-                        {meta.emoji}
+                      <div className="kal-okt-icon" style={{ color: meta.color }}>
+                        {okt.fullfort ? <Check size={16} strokeWidth={2} /> : <meta.ikon size={16} strokeWidth={1.4} />}
                       </div>
                       <div className="kal-okt-info">
-                        <div className="kal-okt-navn">
-                          {okt.tittel}
-                          {okt.fullfort && (
-                            <span style={{
-                              marginLeft: '8px',
-                              color: 'var(--green)',
-                              fontSize: '0.7rem',
-                              background: 'rgba(157,196,150,0.1)',
-                              padding: '2px 6px',
-                              borderRadius: '999px',
-                              display: 'inline-block'
-                            }}>
-                              ✅ Fullført
-                            </span>
-                          )}
-                        </div>
+                        <div className="kal-okt-navn">{okt.tittel}</div>
                         <div className="kal-okt-meta">
-                          <span className="kal-badge"
-                            style={{ color: meta.color, borderColor: `${meta.color}30`, background: `${meta.color}10` }}>
-                            {meta.label}
-                          </span>
-                          <span className="kal-meta-txt">⏱ {okt.varighet_min} min</span>
-                          {ovList.length > 0 && <span className="kal-meta-txt">💪 {ovList.length} ovelser</span>}
+                          <span style={{ color: meta.color }}>{meta.label}</span>
+                          <span>{okt.varighet_min} min</span>
+                          {ovList.length > 0 && <span>{ovList.length} øvelser</span>}
+                          {okt.fullfort && <span className="kal-ferdig-merke">Fullført</span>}
                         </div>
                       </div>
                       <div className="kal-okt-ctrl">
@@ -444,11 +423,11 @@ const brukProgram = async (program: any) => {
                           </>
                         ) : (
                           <>
-                            <button className="kal-edit-btn"
-                              onClick={e => åpnRediger(okt, e)}>✏️</button>
-                            <button className="kal-del-btn"
-                              onClick={e => { e.stopPropagation(); setSlettId(okt.id) }}>🗑️</button>
-                            <span className="kal-toggle">{aapen ? '▲' : '▼'}</span>
+                            <button className="kal-ikon-btn" aria-label="Rediger"
+                              onClick={e => åpnRediger(okt, e)}><Pencil size={14} strokeWidth={1.4} /></button>
+                            <button className="kal-ikon-btn fare" aria-label="Slett"
+                              onClick={e => { e.stopPropagation(); setSlettId(okt.id) }}><Trash2 size={14} strokeWidth={1.4} /></button>
+                            <span className={`kal-toggle${aapen ? ' open' : ''}`}><ChevronDown size={16} strokeWidth={1.4} /></span>
                           </>
                         )}
                       </div>
@@ -456,18 +435,18 @@ const brukProgram = async (program: any) => {
 
                     {aapen && !bekrefter && (
                       <div className="kal-okt-detalj">
-                        {okt.notater && <div className="kal-notater">📝 {okt.notater}</div>}
+                        {okt.notater && <div className="kal-notater">{okt.notater}</div>}
                         {ovList.length > 0 ? (
                           <div className="kal-ov-liste">
-                            <div className="kal-ov-lbl">Planlagte ovelser</div>
+                            <div className="kal-ov-lbl">Planlagte øvelser</div>
                             {ovList.map((ov, i) => {
-                              const info = finnOvInfo(ov.navn)
+                              const mTekst = musklerTekst(ov.navn)
                               return (
                                 <div key={i} className="kal-ov-rad">
-                                  <span className="kal-ov-em">{info.emoji}</span>
+                                  <OvelseMerke navn={ov.navn} />
                                   <div className="kal-ov-info">
                                     <div className="kal-ov-navn">{ov.navn}</div>
-                                    {info.muskler && <div className="kal-ov-musk">{info.muskler}</div>}
+                                    {mTekst && <div className="kal-ov-musk">{mTekst}</div>}
                                   </div>
                                   <div className="kal-ov-tall">{ov.sett}×{ov.reps}</div>
                                 </div>
@@ -479,15 +458,15 @@ const brukProgram = async (program: any) => {
                           return forslag.length > 0 ? (
                             <div className="kal-ov-liste">
                               <div className="kal-ov-lbl-preview">
-                                <span>✨ Anbefalte øvelser</span>
+                                <span className="eyebrow eyebrow-gold">Forslag</span>
                                 <span className="kal-ov-lbl-hint">Varieres automatisk per dag</span>
                               </div>
                               {forslag.map((ov, i) => (
                                 <div key={i} className="kal-ov-rad kal-ov-preview">
-                                  <span className="kal-ov-em">{ov.emoji}</span>
+                                  <OvelseMerke navn={ov.navn} />
                                   <div className="kal-ov-info">
                                     <div className="kal-ov-navn">{ov.navn}</div>
-                                    <div className="kal-ov-musk">{ov.muskler}</div>
+                                    <div className="kal-ov-musk">{musklerTekst(ov.navn) || ov.muskler}</div>
                                   </div>
                                   <div className="kal-ov-tall kal-ov-tall-preview">
                                     {ov.sett}×{ov.reps}
@@ -495,7 +474,7 @@ const brukProgram = async (program: any) => {
                                 </div>
                               ))}
                               <div className="kal-preview-note">
-                                💡 Endelig øvelsevalg skjer når du trykker Start
+                                Endelig utvalg gjøres når du starter økten.
                               </div>
                             </div>
                           ) : (
@@ -505,13 +484,12 @@ const brukProgram = async (program: any) => {
                           )
                         })()}
                         
-                        <button 
-                          className="kal-start-btn"
-                          onClick={() => {
-                            router.push(`/treninger/okt?okt=${okt.id}`)
-                          }}
+                        <button
+                          className="btn btn-primary kal-start-btn"
+                          onClick={() => router.push(`/treninger/okt?okt=${okt.id}`)}
                         >
-                          ▶ Start treningsøkt
+                          <span>{okt.fullfort ? 'Åpne økten igjen' : 'Start økten'}</span>
+                          <span className="hq-cta-arrow" style={{ width: 34, height: 34 }}><ArrowRight size={16} strokeWidth={1.5} /></span>
                         </button>
                       </div>
                     )}
@@ -528,7 +506,7 @@ const brukProgram = async (program: any) => {
           <div className="kal-modal glass-card" onClick={e => e.stopPropagation()}>
             <div className="kal-modal-header">
               <h3>{editOkt ? 'Rediger økt' : `Ny økt — ${format(valgtDag, 'd. MMM', { locale: nb })}`}</h3>
-              <button className="kal-modal-x" onClick={() => setVisModal(false)}>✕</button>
+              <button className="kal-modal-x" onClick={() => setVisModal(false)} aria-label="Lukk"><X size={15} strokeWidth={1.5} /></button>
             </div>
             <div className="kal-modal-body">
               <label className="kal-lbl">Tittel</label>
@@ -541,9 +519,8 @@ const brukProgram = async (program: any) => {
                 {(Object.keys(TYPE_META) as OktType[]).map(t => (
                   <button key={t}
                     className={`kal-type-btn${form.type === t ? ' on' : ''}`}
-                    style={form.type === t ? { borderColor: TYPE_META[t].color, color: TYPE_META[t].color, background: `${TYPE_META[t].color}12` } : {}}
                     onClick={() => setForm(f => ({ ...f, type: t }))}>
-                    {TYPE_META[t].emoji} {TYPE_META[t].label}
+                    {(() => { const Ikon = TYPE_META[t].ikon; return <Ikon size={13} strokeWidth={1.5} /> })()} {TYPE_META[t].label}
                   </button>
                 ))}
               </div>
@@ -585,115 +562,94 @@ const brukProgram = async (program: any) => {
       )}
 
       <style>{`
-        .kal-page{max-width:1060px;width:100%}
-        .kal-layout{display:grid;grid-template-columns:320px 1fr;gap:1.25rem;align-items:start}
-        @media(max-width:820px){.kal-layout{grid-template-columns:1fr}}
+        .kal-page{max-width:1080px;width:100%}
+        .kal-page .page-title em{font-style:italic}
+        .kal-maned-sum{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:2rem}
+        .kal-maned-sum>div{padding:1.1rem 1rem;display:flex;flex-direction:column;gap:8px}
+        .kal-maned-sum>div+div{border-left:1px solid var(--line)}
+        .kal-maned-sum strong{font-family:var(--font-serif);font-weight:400;font-size:2.4rem;line-height:1}
+        .kal-layout{display:grid;grid-template-columns:340px 1fr;gap:1.25rem;align-items:start}
+        @media(max-width:860px){.kal-layout{grid-template-columns:1fr}}
         .kal-venstre{display:flex;flex-direction:column;gap:.75rem}
-        .kal-nav{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem}
-        .kal-nav-btn{background:rgba(242,236,225,.06);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.5);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;transition:all .15s;display:flex;align-items:center;justify-content:center}
-        .kal-nav-btn:hover{background:rgba(242,236,225,.12);color:#F2ECE1}
-        .kal-nav-tittel{font-family:var(--font-display,sans-serif);font-size:1rem;font-weight:700;color:#F2ECE1;text-transform:capitalize;display:flex;align-items:center;gap:8px}
-        .kal-sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:kal-pulse .8s ease-in-out infinite}
-        @keyframes kal-pulse{0%,100%{opacity:.3}50%{opacity:1}}
-        .kal-grid{padding:.875rem}
-        .kal-ukedager{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
-        .kal-ukd{text-align:center;font-size:.62rem;font-weight:700;color:rgba(242,236,225,.25);text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
-        .kal-dager{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-        .kal-dag{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;border:1px solid transparent;gap:2px}
-        .kal-dag:hover{background:rgba(242,236,225,.06)}
+        .kal-nav{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1rem}
+        .kal-nav-btn{width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s}
+        .kal-nav-btn:hover{color:var(--ink);border-color:var(--line-strong)}
+        .kal-nav-tittel{font-family:var(--font-serif)!important;font-weight:400!important;font-size:1.7rem!important;color:var(--ink);text-transform:capitalize;display:flex;align-items:center;gap:10px}
+        .kal-sync-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--gold);animation:pulse 1s ease-in-out infinite}
+        .kal-grid{padding:1rem}
+        .kal-ukedager{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px}
+        .kal-ukd{text-align:center;padding:4px 0}
+        .kal-dager{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+        .kal-dag{aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,border-color .2s;border:1px solid transparent;gap:3px;position:relative}
+        .kal-dag:hover{background:rgba(242,236,225,.05)}
         .kal-tom{cursor:default}
-        .kal-dag-nr{font-size:.78rem;color:rgba(242,236,225,.5);line-height:1}
-        .kal-idag{background:rgba(201,169,110,.08);border-color:rgba(201,169,110,.22)!important}
-        .kal-idag .kal-dag-nr{color:var(--cyan,#C9A96E);font-weight:700}
-        .kal-valgt{background:rgba(201,169,110,.14)!important;border-color:rgba(201,169,110,.45)!important}
-        .kal-valgt .kal-dag-nr{color:var(--cyan,#C9A96E)!important;font-weight:700}
-        .kal-prikker{display:flex;gap:2px;justify-content:center}
-        .kal-prikk{width:4px;height:4px;border-radius:50%;box-shadow:0 0 4px currentColor}
-        .kal-legend{display:flex;justify-content:space-around;padding:.6rem .875rem;flex-wrap:wrap;gap:6px}
-        .kal-leg-item{display:flex;align-items:center;gap:5px;font-size:.68rem;color:rgba(242,236,225,.38)}
-        .kal-leg-prikk{width:7px;height:7px;border-radius:50%}
+        .kal-dag-nr{font-family:var(--font-mono);font-size:.74rem;color:var(--text-secondary);line-height:1}
+        .kal-idag{border-color:rgba(201,169,110,.55)!important}
+        .kal-idag .kal-dag-nr{color:var(--gold-hi)}
+        .kal-valgt{background:var(--ink)!important;border-color:var(--ink)!important}
+        .kal-valgt .kal-dag-nr{color:#0B0A09!important;font-weight:500}
+        .kal-prikker{display:flex;gap:2px;justify-content:center;position:absolute;bottom:18%}
+        .kal-prikk{width:3px;height:3px;border-radius:50%}
+        .kal-prikk.ferdig{width:4px;height:4px;box-shadow:0 0 0 2px rgba(201,169,110,.2)}
+        .kal-valgt .kal-prikk{background:#0B0A09!important;box-shadow:none}
+        .kal-legend{display:flex;justify-content:space-between;padding:.8rem 1rem;flex-wrap:wrap;gap:8px}
+        .kal-leg-item{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
+        .kal-leg-prikk{width:6px;height:6px;border-radius:50%}
         .kal-hoeyre{display:flex;flex-direction:column;gap:.75rem;min-width:0}
-        .kal-dag-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;gap:1rem;flex-wrap:wrap}
-        .kal-dag-tittel{font-family:var(--font-display,sans-serif);font-size:1.1rem;font-weight:700;color:#F2ECE1;margin-bottom:2px}
-        .kal-dag-sub{font-size:.75rem;color:rgba(242,236,225,.3)}
-        .kal-legg-btn{font-size:.82rem!important;padding:.5rem 1rem!important}
-        .kal-ingen{display:flex;flex-direction:column;align-items:center;text-align:center;padding:2.5rem 1.5rem}
-        .kal-ingen-t{font-family:var(--font-display,sans-serif);font-size:.9rem;font-weight:700;color:#F2ECE1;margin-bottom:4px}
-        .kal-ingen-s{font-size:.78rem;color:rgba(242,236,225,.3)}
+        .kal-dag-header{display:flex;align-items:flex-end;justify-content:space-between;padding:1.5rem;gap:1rem;flex-wrap:wrap}
+        .kal-dag-tittel{font-family:var(--font-serif)!important;font-weight:400!important;font-size:2.1rem!important;line-height:1;color:var(--ink);margin-bottom:8px}
+        .kal-dag-sub{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted)}
+        .kal-dag-knapper{display:flex;gap:8px}
+        .kal-dag-knapper .btn{font-size:.82rem;padding:.6rem 1.05rem;gap:7px}
+        .kal-ingen{display:flex;flex-direction:column;align-items:flex-start;padding:2rem 1.5rem}
+        .kal-ingen-t{font-family:var(--font-serif);font-size:1.7rem;color:var(--ink);margin-bottom:6px}
+        .kal-ingen-s{font-size:.86rem;color:var(--text-muted)}
         .kal-okter-liste{display:flex;flex-direction:column;gap:.75rem}
-        .kal-okt{overflow:hidden;transition:border-color .2s}
-        .kal-okt-topp{display:flex;align-items:center;gap:12px;padding:1rem 1.25rem;cursor:pointer;transition:background .12s}
-        .kal-okt-topp:hover{background:rgba(242,236,225,.02)}
-        .kal-okt-icon{width:40px;height:40px;border-radius:10px;border:1px solid;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+        .kal-okt{overflow:hidden}
+        .kal-okt.ferdig{border-color:rgba(201,169,110,.4)!important;background:linear-gradient(180deg,rgba(201,169,110,.06),rgba(201,169,110,.01)),var(--bg-card)!important}
+        .kal-okt-topp{display:flex;align-items:center;gap:14px;padding:1.2rem 1.35rem;cursor:pointer}
+        .kal-okt-icon{width:42px;height:42px;border-radius:50%;border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .kal-okt.ferdig .kal-okt-icon{background:var(--gold);border-color:var(--gold);color:#17130C!important}
         .kal-okt-info{flex:1;min-width:0}
-        .kal-okt-navn{font-family:var(--font-display,sans-serif);font-size:.95rem;font-weight:700;color:#F2ECE1;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .kal-okt-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-        .kal-badge{padding:2px 8px;border-radius:999px;font-size:.65rem;font-weight:600;border:1px solid}
-        .kal-meta-txt{font-size:.7rem;color:rgba(242,236,225,.3)}
+        .kal-okt-navn{font-family:var(--font-serif);font-size:1.5rem;line-height:1.05;color:var(--ink);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .kal-okt-meta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-family:var(--font-mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
+        .kal-ferdig-merke{color:var(--gold)}
         .kal-okt-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
-        .kal-edit-btn,.kal-del-btn{background:none;border:none;cursor:pointer;font-size:.85rem;padding:4px 6px;border-radius:6px;transition:background .12s}
-        .kal-edit-btn:hover{background:rgba(242,236,225,.08)}
-        .kal-del-btn:hover{background:rgba(224,97,79,.12)}
-        .kal-slett-ja{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(224,97,79,.15);border:1px solid rgba(224,97,79,.3);color:#E0614F;transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-slett-ja:hover{background:rgba(224,97,79,.28);border-color:rgba(224,97,79,.5)}
-        .kal-slett-nei{padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;background:rgba(242,236,225,.05);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-slett-nei:hover{background:rgba(242,236,225,.1);color:#F2ECE1}
-        .kal-toggle{font-size:.6rem;color:rgba(242,236,225,.22);margin-left:4px}
-        .kal-okt-detalj{padding:0 1.25rem 1.25rem;border-top:1px solid rgba(242,236,225,.05);display:flex;flex-direction:column;gap:.75rem}
-        .kal-notater{font-size:.78rem;color:rgba(242,236,225,.4);padding:8px 10px;background:rgba(242,236,225,.03);border-radius:8px;margin-top:.75rem}
-        .kal-ov-liste{display:flex;flex-direction:column;gap:0;margin-top:.5rem}
-        .kal-ov-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(242,236,225,.25);font-weight:700;margin-bottom:8px}
-        .kal-ov-lbl-preview{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-        .kal-ov-lbl-preview>span:first-child{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan,#C9A96E);font-weight:700}
-        .kal-ov-lbl-hint{font-size:.6rem;color:rgba(242,236,225,.2);font-style:italic}
-        .kal-ov-preview{background:rgba(201,169,110,0.02);border-radius:8px;border:1px solid rgba(201,169,110,0.06);margin-bottom:3px}
-        .kal-ov-preview:hover{background:rgba(201,169,110,0.05)!important;border-color:rgba(201,169,110,0.12)!important}
-        .kal-ov-tall-preview{color:var(--cyan,#C9A96E);opacity:.7;font-weight:600}
-        .kal-preview-note{font-size:.65rem;color:rgba(242,236,225,.2);text-align:center;padding:8px;margin-top:4px;border-top:1px solid rgba(242,236,225,.04)}
-        .kal-ov-rad{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;transition:background .1s}
-        .kal-ov-rad:hover{background:rgba(242,236,225,.03)}
-        .kal-ov-em{font-size:1.1rem;flex-shrink:0}
+        .kal-ikon-btn{width:32px;height:32px;border-radius:50%;background:none;border:1px solid transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .kal-ikon-btn:hover{border-color:var(--line-strong);color:var(--ink)}
+        .kal-ikon-btn.fare:hover{color:var(--danger);border-color:rgba(224,97,79,.4)}
+        .kal-toggle{color:var(--text-muted);display:flex;transition:transform .35s var(--ease-out)}
+        .kal-toggle.open{transform:rotate(180deg)}
+        .kal-slett-ja{padding:6px 12px;border-radius:999px;font-size:.76rem;cursor:pointer;background:var(--danger);border:none;color:#0B0A09;font-weight:500}
+        .kal-slett-nei{padding:6px 12px;border-radius:999px;font-size:.76rem;cursor:pointer;background:none;border:1px solid var(--line-strong);color:var(--text-secondary)}
+        .kal-okt-detalj{padding:0 1.35rem 1.35rem;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:1rem}
+        .kal-notater{font-size:.86rem;color:var(--text-secondary);padding:.2rem 0 .2rem 1rem;border-left:1px solid var(--gold);margin-top:1rem;background:none;border-radius:0}
+        .kal-ov-liste{display:flex;flex-direction:column;margin-top:.75rem}
+        .kal-ov-lbl{margin-bottom:8px!important}
+        .kal-ov-lbl-preview{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+        .kal-ov-lbl-hint{font-size:.72rem;color:var(--text-muted)}
+        .kal-ov-rad{display:flex;align-items:center;gap:12px;padding:.55rem 0;border-bottom:1px solid var(--line)}
+        .kal-ov-rad:last-of-type{border-bottom:none}
+        .kal-ov-em{width:30px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
         .kal-ov-info{flex:1;min-width:0}
-        .kal-ov-navn{font-size:.82rem;color:rgba(242,236,225,.75);font-weight:500}
-        .kal-ov-musk{font-size:.65rem;color:rgba(242,236,225,.3);margin-top:1px}
-        .kal-ov-tall{font-size:.7rem;color:rgba(242,236,225,.3);flex-shrink:0;white-space:nowrap}
-        .kal-ingen-ov{font-size:.78rem;color:rgba(242,236,225,.28);text-align:center;padding:12px;background:rgba(242,236,225,.02);border-radius:8px;border:1px dashed rgba(242,236,225,.08);margin-top:.5rem}
-        .kal-start-btn{width:100%;padding:.75rem;border-radius:10px;background:rgba(201,169,110,.07);border:1px solid rgba(201,169,110,.25);color:var(--cyan,#C9A96E);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-body,sans-serif);letter-spacing:.02em}
-        .kal-start-btn:hover{background:rgba(201,169,110,.14);border-color:rgba(201,169,110,.45);box-shadow:0 0 20px rgba(201,169,110,.1)}
-        .kal-modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem}
-        .kal-modal{width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:0}
-        .kal-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(242,236,225,.07)}
-        .kal-modal-header h3{font-family:var(--font-display,sans-serif);font-size:1rem;font-weight:700;color:#F2ECE1}
-        .kal-modal-x{background:none;border:none;color:rgba(242,236,225,.3);cursor:pointer;font-size:.85rem;padding:4px 8px;border-radius:6px;transition:all .12s}
-        .kal-modal-x:hover{background:rgba(242,236,225,.08);color:#F2ECE1}
-        .kal-modal-body{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:.875rem}
-        .kal-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(242,236,225,.3);font-weight:700;margin-bottom:-6px}
-        .kal-type-rad{display:flex;gap:6px;flex-wrap:wrap}
-        .kal-type-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(242,236,225,.04);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-type-btn.on{background:rgba(201,169,110,.1);border-color:rgba(201,169,110,.3);color:var(--cyan,#C9A96E)}
-        .kal-var-rad{display:flex;gap:6px;flex-wrap:wrap}
-        .kal-var-btn{padding:5px 12px;border-radius:8px;font-size:.78rem;background:rgba(242,236,225,.04);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body,sans-serif)}
-        .kal-var-btn.on{background:rgba(201,169,110,.1);border-color:rgba(201,169,110,.3);color:var(--cyan,#C9A96E)}
-        .kal-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid rgba(242,236,225,.07)}
-        @media(max-width:600px){.kal-dag-header{flex-direction:column;align-items:flex-start}.kal-legg-btn{width:100%;justify-content:center}}
-        .btn-ghost{background:rgba(242,236,225,0.05);border:1px solid rgba(242,236,225,0.1);color:rgba(242,236,225,0.6);padding:0.5rem 1rem;border-radius:8px;cursor:pointer;transition:all 0.15s;font-size:0.82rem}
-        .btn-ghost:hover{background:rgba(242,236,225,0.1);color:#F2ECE1}
-        .pr-kat-btn{padding:4px 12px;border-radius:8px;font-size:.75rem;background:rgba(242,236,225,.04);border:1px solid rgba(242,236,225,.1);color:rgba(242,236,225,.4);cursor:pointer;transition:all .12s;font-family:var(--font-body)}
-        .pr-kat-btn.on{background:rgba(184,190,198,.12);border-color:rgba(184,190,198,.35);color:var(--purple)}
-        .pr-kort{padding:1rem;cursor:pointer;transition:all .15s;border:1px solid rgba(242,236,225,.07)!important;border-radius:12px}
-        .pr-kort:hover{background:rgba(242,236,225,.04)!important;border-color:rgba(184,190,198,.25)!important;transform:translateY(-2px)}
-        .pr-kort-navn{font-family:var(--font-display);font-size:.85rem;font-weight:700;color:#F2ECE1;margin-bottom:.25rem}
-        .pr-kort-reps{font-size:.7rem;color:rgba(242,236,225,.4)}
-        .pr-kort-dato{font-size:.6rem;color:rgba(242,236,225,.2);margin-top:4px}
-        .pr-kort-topp{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
-        .pr-kort-em{font-size:1.2rem}
-        .pr-modal-bg{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem}
-        .pr-modal{width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:0;background:rgba(20,19,17,0.98);border:1px solid rgba(242,236,225,0.1);border-radius:20px}
-        .pr-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(242,236,225,.07)}
-        .pr-modal-tittel{font-family:var(--font-display);font-size:1rem;font-weight:700;color:#F2ECE1}
-        .pr-modal-body{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem}
-        .spinner-lg{width:32px;height:32px;border:3px solid rgba(242,236,225,0.1);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
+        .kal-ov-navn{font-size:.92rem;color:var(--ink)}
+        .kal-ov-musk{font-family:var(--font-mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-top:3px}
+        .kal-ov-tall{font-family:var(--font-mono);font-size:.74rem;color:var(--text-secondary);flex-shrink:0;white-space:nowrap}
+        .kal-preview-note{font-size:.76rem;color:var(--text-muted);padding-top:.75rem}
+        .kal-ingen-ov{font-size:.84rem;color:var(--text-muted);padding:1rem 0}
+        .kal-start-btn{width:100%;justify-content:space-between!important;padding:.9rem .55rem .9rem 1.4rem!important}
+        .kal-modal-bg{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem}
+        .kal-modal{width:100%;max-width:500px;max-height:90vh;overflow-y:auto;padding:0;border-radius:28px!important}
+        .kal-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.5rem 1.5rem 1rem}
+        .kal-modal-x{width:34px;height:34px;border-radius:50%;background:none;border:1px solid var(--line);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .kal-modal-x:hover{color:var(--ink);border-color:var(--line-strong)}
+        .kal-modal-body{padding:.5rem 1.5rem 1.25rem;display:flex;flex-direction:column;gap:.9rem}
+        .kal-lbl{margin-bottom:-4px}
+        .kal-type-rad,.kal-var-rad{display:flex;gap:6px;flex-wrap:wrap}
+        .kal-type-btn,.kal-var-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:.8rem;border:1px solid var(--line);background:none;color:var(--text-secondary);cursor:pointer;transition:all .2s}
+        .kal-type-btn.on{background:var(--ink)!important;border-color:var(--ink)!important;color:#0B0A09!important}
+        .kal-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem 1.5rem;border-top:1px solid var(--line)}
+        @media(max-width:600px){.kal-dag-header{flex-direction:column;align-items:flex-start}.kal-dag-knapper{width:100%}.kal-dag-knapper .btn{flex:1}.kal-maned-sum strong{font-size:1.9rem}}
       `}</style>
     </div>
   )

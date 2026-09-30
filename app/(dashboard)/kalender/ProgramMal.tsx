@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { nb } from 'date-fns/locale'
+import { X, Trash2, FolderOpen, Star, Library, Save, Dumbbell } from 'lucide-react'
+import { OVELSER as BIBLIOTEK, muskler, visesBakfra } from '@/data/ovelsesbibliotek'
+import { MuskelkartMini } from '@/components/atelier/Muskelkart'
 
 interface Program {
   id: string
@@ -23,37 +26,15 @@ interface FavorittOvelse {
   hvile: string
 }
 
-// Alle øvelser – importeres fra DB-strukturen eller hardkodes her
-// Hvis du har en egen øvelsesliste, kan du importere den. Her bruker vi en grunnleggende liste.
-const ALLE_OVELSER = [
-  { navn: 'Benkpress', emoji: '🏋️', kategori: 'bryst', sett: 4, reps: '8-10', hvile: '90s' },
-  { navn: 'Push-up', emoji: '💪', kategori: 'bryst', sett: 4, reps: '12-15', hvile: '60s' },
-  { navn: 'Skråbenkpress', emoji: '📐', kategori: 'bryst', sett: 3, reps: '10-12', hvile: '75s' },
-  { navn: 'Dips', emoji: '⬇️', kategori: 'bryst', sett: 3, reps: '10-12', hvile: '75s' },
-  { navn: 'Pull-ups', emoji: '🤸', kategori: 'rygg', sett: 4, reps: '6-10', hvile: '2min' },
-  { navn: 'Markløft', emoji: '⚡', kategori: 'rygg', sett: 4, reps: '5-6', hvile: '3min' },
-  { navn: 'Lat pulldown', emoji: '⬇️', kategori: 'rygg', sett: 3, reps: '10-12', hvile: '75s' },
-  { navn: 'Hantelroing', emoji: '💪', kategori: 'rygg', sett: 4, reps: '10×2', hvile: '60s' },
-  { navn: 'Knebøy', emoji: '🦵', kategori: 'bein', sett: 4, reps: '8-10', hvile: '2min' },
-  { navn: 'Legpress', emoji: '🔧', kategori: 'bein', sett: 4, reps: '10-12', hvile: '90s' },
-  { navn: 'Rumensk markløft', emoji: '🍑', kategori: 'bein', sett: 3, reps: '10-12', hvile: '90s' },
-  { navn: 'Utfall', emoji: '🚶', kategori: 'bein', sett: 3, reps: '12×2', hvile: '60s' },
-  { navn: 'Military press', emoji: '⬆️', kategori: 'skuldre', sett: 4, reps: '8-10', hvile: '2min' },
-  { navn: 'Sidehev', emoji: '🔼', kategori: 'skuldre', sett: 3, reps: '12-15', hvile: '60s' },
-  { navn: 'Face pull', emoji: '🎯', kategori: 'skuldre', sett: 3, reps: '15-20', hvile: '45s' },
-  { navn: 'Biceps curl', emoji: '💪', kategori: 'bicep', sett: 3, reps: '10-12', hvile: '60s' },
-  { navn: 'Hammer curl', emoji: '🔨', kategori: 'bicep', sett: 3, reps: '10-12', hvile: '60s' },
-  { navn: 'Preacher curl', emoji: '🙏', kategori: 'bicep', sett: 3, reps: '10-12', hvile: '60s' },
-  { navn: 'Triceps pushdown', emoji: '📉', kategori: 'tricep', sett: 3, reps: '12-15', hvile: '60s' },
-  { navn: 'Skull crushers', emoji: '💀', kategori: 'tricep', sett: 3, reps: '10-12', hvile: '75s' },
-  { navn: 'Overhead triceps ext.', emoji: '⬆️', kategori: 'tricep', sett: 3, reps: '10-12', hvile: '75s' },
-  { navn: 'Planke', emoji: '🧘', kategori: 'core', sett: 3, reps: '45-60 sek', hvile: '45s' },
-  { navn: 'Crunches', emoji: '🔄', kategori: 'core', sett: 3, reps: '20', hvile: '45s' },
-  { navn: 'Russian twist', emoji: '🔃', kategori: 'core', sett: 3, reps: '20', hvile: '45s' },
-  { navn: 'Burpees', emoji: '🔥', kategori: 'fullkropp', sett: 4, reps: '10', hvile: '60s' },
-  { navn: 'Thrusters', emoji: '🚀', kategori: 'fullkropp', sett: 3, reps: '10', hvile: '90s' },
-  { navn: 'Kettlebell swing', emoji: '🔔', kategori: 'fullkropp', sett: 4, reps: '15', hvile: '60s' },
-]
+// «Bytt øvelse» søker i hele biblioteket
+const ALLE_OVELSER = BIBLIOTEK.map(o => ({ navn: o.navn, kategori: o.kategori, sett: o.sett, reps: o.reps, hvile: o.hvile }))
+
+function Merke({ navn, hoyde = 50 }: { navn: string; hoyde?: number }) {
+  const b = BIBLIOTEK.find(o => o.navn.toLowerCase() === navn.toLowerCase())
+  if (!b) return <Dumbbell size={18} strokeWidth={1.3} style={{ color: 'var(--text-muted)' }} />
+  const m = muskler(b)
+  return <MuskelkartMini {...m} bakfra={visesBakfra(m.primaer)} hoyde={hoyde} />
+}
 
 export default function ProgramMal({ 
   userId, 
@@ -125,7 +106,7 @@ export default function ProgramMal({
           reps: o.reps,
           hvile: o.hvile,
           kg: o.kg || 0,
-          emoji: o.emoji || '💪',
+          emoji: o.emoji || '',
           muskler: o.muskler || ''
         }))
       }])
@@ -163,13 +144,12 @@ export default function ProgramMal({
         {/* Header */}
         <div className="pr-modal-header">
           <span className="pr-modal-tittel">
-            {mode === 'bytte' && '🔄 Bytt øvelse'}
-            {mode !== 'bytte' && aktivFane === 'program' && '📁 Mine programmer'}
-            {mode !== 'bytte' && aktivFane === 'favoritter' && '⭐ Favorittøvelser'}
-            {mode !== 'bytte' && aktivFane === 'alle' && '📚 Alle øvelser'}
-            {mode !== 'bytte' && aktivFane === 'lagre' && '💾 Lagre som program'}
+            {mode === 'bytte' && <>Bytt <em>øvelse</em></>}
+            {mode !== 'bytte' && aktivFane === 'program' && <>Mine <em>programmer</em></>}
+            {mode !== 'bytte' && aktivFane === 'favoritter' && <>Favoritt<em>øvelser</em></>}
+            {mode !== 'bytte' && aktivFane === 'lagre' && <>Lagre som <em>program</em></>}
           </span>
-          <button className="pr-lukk-btn" onClick={onClose}>✕</button>
+          <button className="pr-lukk-btn" onClick={onClose} aria-label="Lukk"><X size={15} strokeWidth={1.5} /></button>
         </div>
 
         {/* Faner */}
@@ -179,21 +159,21 @@ export default function ProgramMal({
               onClick={() => setAktivFane('program')}
               className={`pr-fane-btn${aktivFane === 'program' ? ' on' : ''}`}
             >
-              📁 Programmer ({programmer.length})
+              <FolderOpen size={13} strokeWidth={1.5} /> Programmer ({programmer.length})
             </button>
           )}
           <button 
             onClick={() => setAktivFane('favoritter')}
             className={`pr-fane-btn${aktivFane === 'favoritter' ? ' on' : ''}`}
           >
-            ⭐ Favoritter ({laster ? '…' : favoritter.length})
+            <Star size={13} strokeWidth={1.5} /> Favoritter ({laster ? '…' : favoritter.length})
           </button>
           {mode === 'bytte' && (
             <button 
               onClick={() => setAktivFane('alle')}
               className={`pr-fane-btn${aktivFane === 'alle' ? ' on' : ''}`}
             >
-              📚 Alle øvelser
+              <Library size={13} strokeWidth={1.5} /> Alle øvelser
             </button>
           )}
           {currentOvelser && currentOvelser.length > 0 && mode !== 'bytte' && (
@@ -201,7 +181,7 @@ export default function ProgramMal({
               onClick={() => setAktivFane('lagre')}
               className={`pr-fane-btn${aktivFane === 'lagre' ? ' on' : ''}`}
             >
-              💾 Lagre nåværende
+              <Save size={13} strokeWidth={1.5} /> Lagre nåværende
             </button>
           )}
         </div>
@@ -221,7 +201,7 @@ export default function ProgramMal({
                 <>
                   {programmer.length === 0 ? (
                     <div className="pr-tom-melding">
-                      Ingen lagrede programmer ennå. Lagre en økt som program!
+                      <strong>Ingen programmer ennå.</strong>Lagre en økt som program, så kan du legge den inn i kalenderen med ett trykk.
                     </div>
                   ) : (
                     <div className="pr-liste">
@@ -243,8 +223,9 @@ export default function ProgramMal({
                           <button 
                             className="pr-slett-btn"
                             onClick={(e) => { e.stopPropagation(); slettProgram(prog.id) }}
+                            aria-label="Slett program"
                           >
-                            🗑️
+                            <Trash2 size={14} strokeWidth={1.4} />
                           </button>
                         </div>
                       ))}
@@ -258,11 +239,8 @@ export default function ProgramMal({
                 <>
                   {favoritter.length === 0 ? (
                     <div className="pr-tom-melding">
-                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⭐</div>
-                      <div>Ingen favoritter ennå.</div>
-                      <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'rgba(242,236,225,0.3)' }}>
-                        Klikk ⭐ ved en øvelse under trening for å legge den til.
-                      </div>
+                      <strong>Ingen favoritter ennå.</strong>
+                      Trykk «Favoritt» på en øvelse under trening for å samle den her.
                     </div>
                   ) : (
                     <div className="pr-fav-grid">
@@ -273,12 +251,13 @@ export default function ProgramMal({
                           onClick={() => onSelectFavoritt?.(fav)}
                         >
                           <div className="pr-fav-topp">
-                            <span className="pr-fav-em">{fav.emoji}</span>
+                            <span className="pr-fav-em"><Merke navn={fav.ovelse_navn} /></span>
                             <button 
                               className="pr-slett-btn"
                               onClick={(e) => { e.stopPropagation(); slettFavoritt(fav.id) }}
+                              aria-label="Fjern favoritt"
                             >
-                              ✕
+                              <X size={13} strokeWidth={1.5} />
                             </button>
                           </div>
                           <div className="pr-fav-navn">{fav.ovelse_navn}</div>
@@ -299,7 +278,7 @@ export default function ProgramMal({
                     <input
                       type="text"
                       className="input"
-                      placeholder="🔍 Søk etter øvelse..."
+                      placeholder="Søk etter øvelse …"
                       value={sokeord}
                       onChange={(e) => setSokeord(e.target.value)}
                     />
@@ -313,7 +292,7 @@ export default function ProgramMal({
                         className={`pr-kat-btn${valgtKategori === kat ? ' on' : ''}`}
                         onClick={() => setValgtKategori(kat)}
                       >
-                        {kat === 'alle' ? '📋 Alle' : kat.charAt(0).toUpperCase() + kat.slice(1)}
+                        {kat === 'alle' ? 'Alle' : kat.charAt(0).toUpperCase() + kat.slice(1)}
                       </button>
                     ))}
                   </div>
@@ -328,13 +307,13 @@ export default function ProgramMal({
                           id: `temp_${idx}`,
                           ovelse_navn: ov.navn,
                           ovelse_id: ov.navn.toLowerCase().replace(/\s+/g, '-'),
-                          emoji: ov.emoji,
+                          emoji: '',
                           sett: ov.sett,
                           reps: ov.reps,
                           hvile: ov.hvile
                         })}
                       >
-                        <div className="pr-alle-em">{ov.emoji}</div>
+                        <div className="pr-alle-em"><Merke navn={ov.navn} /></div>
                         <div className="pr-alle-navn">{ov.navn}</div>
                         <div className="pr-alle-detalj">{ov.sett} × {ov.reps}</div>
                         <div className="pr-alle-kat" style={{ fontSize: '0.55rem', color: 'rgba(242,236,225,0.3)' }}>{ov.kategori}</div>
@@ -366,7 +345,7 @@ export default function ProgramMal({
                     onChange={e => setNyttProgramBeskrivelse(e.target.value)}
                   />
                   <div className="pr-lagre-info">
-                    📋 {currentOvelser.length} øvelser blir lagret
+                    {currentOvelser.length} øvelser blir lagret
                   </div>
                   <button 
                     className="btn btn-primary" 
@@ -375,7 +354,7 @@ export default function ProgramMal({
                   >
                     {lagrer 
                       ? <span className="spinner" style={{ width: 14, height: 14 }} /> 
-                      : '💾 Lagre program'
+                      : 'Lagre program'
                     }
                   </button>
                 </div>
@@ -386,281 +365,43 @@ export default function ProgramMal({
       </div>
 
       <style>{`
-        .pr-modal-bg {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.75);
-          backdrop-filter: blur(6px);
-          -webkit-backdrop-filter: blur(6px);
-          z-index: 9999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 1rem;
-        }
-        .pr-modal {
-          width: 100%;
-          max-width: 680px;
-          max-height: 85vh;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          border-radius: 16px;
-        }
-        .pr-modal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 1.25rem 1.5rem;
-          border-bottom: 1px solid rgba(242,236,225,0.07);
-          flex-shrink: 0;
-        }
-        .pr-modal-tittel {
-          font-family: var(--font-display, sans-serif);
-          font-size: 1rem;
-          font-weight: 700;
-          color: #F2ECE1;
-        }
-        .pr-lukk-btn {
-          background: rgba(242,236,225,0.06);
-          border: 1px solid rgba(242,236,225,0.1);
-          color: rgba(242,236,225,0.5);
-          width: 30px;
-          height: 30px;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 0.75rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.15s;
-          flex-shrink: 0;
-        }
-        .pr-lukk-btn:hover {
-          background: rgba(224,97,79,0.15);
-          border-color: rgba(224,97,79,0.3);
-          color: #E0614F;
-        }
-        .pr-faner {
-          display: flex;
-          gap: 4px;
-          padding: 0.75rem 1.5rem 0;
-          border-bottom: 1px solid rgba(242,236,225,0.07);
-          flex-shrink: 0;
-          flex-wrap: wrap;
-        }
-        .pr-fane-btn {
-          padding: 5px 12px;
-          border-radius: 8px 8px 0 0;
-          font-size: 0.75rem;
-          background: rgba(242,236,225,0.04);
-          border: 1px solid rgba(242,236,225,0.08);
-          border-bottom: none;
-          color: rgba(242,236,225,0.4);
-          cursor: pointer;
-          font-family: var(--font-body, sans-serif);
-          transition: all 0.15s;
-          margin-bottom: -1px;
-        }
-        .pr-fane-btn.on {
-          background: rgba(201,169,110,0.08);
-          border-color: rgba(201,169,110,0.2);
-          color: var(--cyan, #C9A96E);
-        }
-        .pr-modal-body {
-          padding: 1.25rem 1.5rem;
-          overflow-y: auto;
-          flex: 1;
-        }
-        .pr-tom-melding {
-          text-align: center;
-          padding: 2rem 1rem;
-          color: rgba(242,236,225,0.4);
-          font-size: 0.85rem;
-          line-height: 1.5;
-        }
-        .pr-liste {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .pr-rad {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 12px 14px;
-          border-radius: 10px;
-          background: rgba(242,236,225,0.03);
-          border: 1px solid rgba(242,236,225,0.07);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .pr-rad:hover {
-          background: rgba(201,169,110,0.06);
-          border-color: rgba(201,169,110,0.2);
-        }
+        .pr-modal-bg { position: fixed; inset: 0; background: rgba(5,5,4,0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .pr-modal { width: 100%; max-width: 700px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; border-radius: 28px !important; }
+        .pr-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 1.5rem 1rem; flex-shrink: 0; }
+        .pr-modal-tittel { font-family: var(--font-serif); font-weight: 400; font-size: 1.9rem; line-height: 1; color: var(--ink); }
+        .pr-modal-tittel em { font-style: italic; color: var(--gold); }
+        .pr-lukk-btn { width: 34px; height: 34px; border-radius: 50%; background: none; border: 1px solid var(--line); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .pr-lukk-btn:hover { color: var(--ink); border-color: var(--line-strong); }
+        .pr-faner { display: flex; gap: 4px; padding: 0 1.5rem 1rem; flex-shrink: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+        .pr-fane-btn { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 0.55rem 1rem; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--text-secondary); font-size: 0.82rem; cursor: pointer; transition: all 0.25s; }
+        .pr-fane-btn:hover { color: var(--ink); }
+        .pr-fane-btn.on { background: var(--ink); border-color: var(--ink); color: #0B0A09; }
+        .pr-modal-body { padding: 1.25rem 1.5rem 1.5rem; overflow-y: auto; flex: 1; }
+        .pr-tom-melding { padding: 2rem 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+        .pr-tom-melding strong { display: block; font-family: var(--font-serif); font-weight: 400; font-size: 1.6rem; color: var(--ink); margin-bottom: 6px; }
+        .pr-liste { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+        .pr-rad { display: flex; align-items: center; gap: 12px; padding: 1rem 0.25rem; border-bottom: 1px solid var(--line); cursor: pointer; transition: padding 0.3s var(--ease-out); }
+        .pr-rad:hover { padding-left: 0.75rem; }
         .pr-rad-info { flex: 1; min-width: 0; }
-        .pr-rad-navn {
-          font-size: 0.9rem;
-          font-weight: 600;
-          color: #F2ECE1;
-          margin-bottom: 2px;
-        }
-        .pr-rad-sub {
-          font-size: 0.72rem;
-          color: rgba(242,236,225,0.4);
-          margin-bottom: 2px;
-        }
-        .pr-rad-meta {
-          font-size: 0.65rem;
-          color: rgba(242,236,225,0.25);
-        }
-        .pr-slett-btn {
-          background: none;
-          border: none;
-          color: rgba(242,236,225,0.25);
-          cursor: pointer;
-          font-size: 0.85rem;
-          padding: 4px 6px;
-          border-radius: 6px;
-          transition: all 0.15s;
-          flex-shrink: 0;
-        }
-        .pr-slett-btn:hover {
-          background: rgba(224,97,79,0.12);
-          color: #E0614F;
-        }
-        .pr-fav-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-          gap: 10px;
-        }
-        .pr-fav-kort {
-          padding: 12px;
-          border-radius: 10px;
-          background: rgba(242,236,225,0.03);
-          border: 1px solid rgba(242,236,225,0.07);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .pr-fav-kort:hover {
-          background: rgba(201,169,110,0.07);
-          border-color: rgba(201,169,110,0.25);
-          transform: translateY(-1px);
-        }
-        .pr-fav-topp {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 6px;
-        }
-        .pr-fav-em { font-size: 1.3rem; }
-        .pr-fav-navn {
-          font-size: 0.82rem;
-          font-weight: 600;
-          color: #F2ECE1;
-          margin-bottom: 4px;
-          line-height: 1.3;
-        }
-        .pr-fav-detalj {
-          font-size: 0.7rem;
-          color: var(--cyan, #C9A96E);
-          margin-bottom: 2px;
-        }
-        .pr-fav-hvile {
-          font-size: 0.62rem;
-          color: rgba(242,236,225,0.28);
-        }
-        .pr-sok-felt {
-          margin-bottom: 0.75rem;
-        }
-        .pr-kat-filter {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-          margin-bottom: 1rem;
-        }
-        .pr-kat-btn {
-          padding: 3px 10px;
-          border-radius: 8px;
-          font-size: 0.7rem;
-          background: rgba(242,236,225,0.04);
-          border: 1px solid rgba(242,236,225,0.1);
-          color: rgba(242,236,225,0.45);
-          cursor: pointer;
-          transition: all 0.12s;
-          font-family: var(--font-body, sans-serif);
-        }
-        .pr-kat-btn:hover {
-          background: rgba(242,236,225,0.08);
-          color: rgba(242,236,225,0.8);
-        }
-        .pr-kat-btn.on {
-          background: rgba(201,169,110,0.12);
-          border-color: rgba(201,169,110,0.35);
-          color: var(--cyan, #C9A96E);
-        }
-        .pr-alle-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          gap: 8px;
-          max-height: 400px;
-          overflow-y: auto;
-          padding-right: 4px;
-        }
-        .pr-alle-kort {
-          padding: 10px;
-          border-radius: 8px;
-          background: rgba(242,236,225,0.02);
-          border: 1px solid rgba(242,236,225,0.06);
-          cursor: pointer;
-          transition: all 0.12s;
-          text-align: center;
-        }
-        .pr-alle-kort:hover {
-          background: rgba(201,169,110,0.07);
-          border-color: rgba(201,169,110,0.25);
-          transform: translateY(-1px);
-        }
-        .pr-alle-em {
-          font-size: 1.4rem;
-          margin-bottom: 4px;
-        }
-        .pr-alle-navn {
-          font-size: 0.78rem;
-          font-weight: 600;
-          color: #F2ECE1;
-          margin-bottom: 3px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .pr-alle-detalj {
-          font-size: 0.65rem;
-          color: var(--cyan, #C9A96E);
-        }
-        .pr-lagre-form {
-          display: flex;
-          flex-direction: column;
-          gap: 0.875rem;
-        }
-        .pr-lagre-info {
-          font-size: 0.75rem;
-          color: rgba(201,169,110,0.7);
-          background: rgba(201,169,110,0.05);
-          border: 1px solid rgba(201,169,110,0.1);
-          border-radius: 8px;
-          padding: 8px 12px;
-        }
-        .spinner-lg {
-          width: 32px;
-          height: 32px;
-          border: 3px solid rgba(242,236,225,0.1);
-          border-top-color: var(--cyan, #C9A96E);
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .pr-rad-navn { font-family: var(--font-serif); font-size: 1.45rem; line-height: 1.1; color: var(--ink); }
+        .pr-rad-sub { font-size: 0.84rem; color: var(--text-secondary); margin-top: 4px; }
+        .pr-rad-meta { font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-top: 6px; }
+        .pr-slett-btn { width: 30px; height: 30px; border-radius: 50%; background: none; border: 1px solid transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+        .pr-slett-btn:hover { color: var(--danger); border-color: rgba(224,97,79,0.4); }
+        .pr-fav-grid, .pr-alle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+        .pr-fav-kort, .pr-alle-kort { display: flex; flex-direction: column; gap: 4px; padding: 0.9rem; border-radius: 18px; border: 1px solid var(--line); cursor: pointer; transition: all 0.3s var(--ease-out); background: rgba(242,236,225,0.015); }
+        .pr-fav-kort:hover, .pr-alle-kort:hover { border-color: rgba(201,169,110,0.45); transform: translateY(-2px); }
+        .pr-fav-topp { display: flex; align-items: flex-start; justify-content: space-between; }
+        .pr-fav-em, .pr-alle-em { height: 52px; display: flex; align-items: center; margin-bottom: 6px; }
+        .pr-fav-navn, .pr-alle-navn { font-family: var(--font-serif); font-size: 1.2rem; line-height: 1.1; color: var(--ink); }
+        .pr-fav-detalj, .pr-alle-detalj { font-family: var(--font-mono); font-size: 0.66rem; color: var(--gold); }
+        .pr-fav-hvile { font-family: var(--font-mono); font-size: 0.58rem; color: var(--text-muted); }
+        .pr-sok-felt { margin-bottom: 0.75rem; }
+        .pr-kat-filter { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 1rem; }
+        .pr-kat-btn { flex-shrink: 0; padding: 7px 14px; border-radius: 999px; font-size: 0.8rem; background: none; border: 1px solid var(--line); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+        .pr-kat-btn.on { background: var(--ink); border-color: var(--ink); color: #0B0A09; }
+        .pr-lagre-form { display: flex; flex-direction: column; gap: 0.9rem; }
+        .pr-lagre-info { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); }
       `}</style>
     </div>
   )

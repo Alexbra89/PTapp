@@ -1,11 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { format } from 'date-fns'
-import { nb } from 'date-fns/locale'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Footprints, Droplet, Moon, StretchHorizontal, Beef, CandyOff, Timer, Dumbbell, Flame, Trophy,
+  TrendingUp, Layers, Check, Minus, Plus, Sparkles,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useSupabaseQuery'
 import { lokalDato } from '@/lib/dato'
+import { TickRing } from '@/components/atelier/Dial'
+import { TelleTall } from '@/components/atelier/TelleTall'
 
 // ─── MANUELLE UTFORDRINGER (krever bruker-input) ──────────────────────────────
 const MANUELLE_UTFORDRINGER = [
@@ -43,7 +48,6 @@ interface Utfordring {
   beskrivelse: string
   maal: number
   enhet: string
-  emoji: string
   kategori: string
   sjeldenhet: 'vanlig' | 'sjelden' | 'episk'
   fullfort: boolean
@@ -52,417 +56,197 @@ interface Utfordring {
   krav_type?: string
 }
 
+// Linjeikoner i stedet for emojier – per utfordring, ellers per kategori
+const IKON: Record<string, typeof Flame> = {
+  man_skritt: Footprints, man_vann: Droplet, man_sovn: Moon, man_strekk: StretchHorizontal,
+  man_protein: Beef, man_sukker: CandyOff, man_planke: Timer, man_gange: Footprints,
+  okter: Layers, kg: Dumbbell, streak: Flame, volum_uke: TrendingUp, alle_muskler: Sparkles, bein_uke: Footprints,
+}
+const ikonFor = (u: Utfordring) => IKON[u.id] ?? (u.krav_type ? IKON[u.krav_type] : undefined) ?? Trophy
+
+const SJELDENHET: Record<Utfordring['sjeldenhet'], string> = { vanlig: 'Vanlig', sjelden: 'Sjelden', episk: 'Episk' }
+const POENG_AUTO = 20
+const POENG_MANUELL = 10
+const POENG_PER_NIVA = 50
+const ukeNummer = () => Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
+
+type Lagret = Record<string, { fullfort: boolean; fremgang: number }>
+// Manuell fremgang lagres per id. Tidligere ble den lagret per posisjon i den sorterte listen
+// og lest tilbake per posisjon i en annen liste – fremgangen havnet på feil utfordring.
+const lesUke = (uke: number): Lagret => {
+  try {
+    const data = JSON.parse(localStorage.getItem(`manuelle_utfordringer_${uke}`) ?? '{}')
+    return Object.fromEntries(Object.entries(data).filter(([k]) => k.startsWith('man_'))) as Lagret
+  } catch { return {} }
+}
+
 export default function UtfordringerPage() {
   const supabase = createClient()
-  const { data: user, isLoading: userLaster } = useUser()
+  const { data: user } = useUser()
   const [utfordringer, setUtfordringer] = useState<Utfordring[]>([])
-  const [poeng, setPoeng] = useState<number>(0)
-  const [nivaa, setNivaa] = useState<number>(1)
   const [laster, setLaster] = useState(true)
   const [aktivKategori, setAktivKategori] = useState('alle')
-  const [isClient, setIsClient] = useState(false)
+  const [nettoFullfort, setNettoFullfort] = useState<string | null>(null)
 
-  // Sett isClient til true når komponenten mountes
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  // Hent automatiske data fra databasen
   useEffect(() => {
     if (!user?.id) return
-
-    const hentDataOgBeregn = async () => {
+    const hent = async () => {
       setLaster(true)
+      const [{ data: logger }, { data: okterAlle }] = await Promise.all([
+        supabase.from('treningslogger').select('dato, sett, muskelgruppe').eq('bruker_id', user.id),
+        supabase.from('okter').select('dato, fullfort').eq('bruker_id', user.id),
+      ])
+      // Bare fullførte økter teller – planlagte økter er ikke gjennomført trening
+      const okter = (okterAlle ?? []).filter((o: any) => o.fullfort === true)
+      const volum = (l: any) => (l.sett ?? []).reduce((s: number, x: any) => s + (x.vekt || x.kg || 0) * (x.reps || 0), 0)
+      const totalKg = (logger ?? []).reduce((s: number, l: any) => s + volum(l), 0)
 
-      // Hent treningslogger
-      const { data: logger } = await supabase
-        .from('treningslogger')
-        .select('*')
-        .eq('bruker_id', user.id)
-
-      // Hent okter
-      const { data: okter } = await supabase
-        .from('okter')
-        .select('*')
-        .eq('bruker_id', user.id)
-        .order('dato', { ascending: true })
-
-      // Beregn total kg
-      let totalKg = 0
-      if (logger) {
-        for (const logg of logger) {
-          if (logg.sett && Array.isArray(logg.sett)) {
-            for (const sett of logg.sett) {
-              const vekt = sett.vekt || sett.kg || 0
-              const reps = sett.reps || 0
-              totalKg += vekt * reps
-            }
-          }
-        }
-      }
-
-      // Beregn streak
+      const datoer = new Set(okter.map((o: any) => o.dato))
       let streak = 0
-      if (okter && okter.length > 0) {
-        const datoer = new Set(okter.map(o => o.dato))
-        let currentDate = new Date()
-        currentDate.setHours(0, 0, 0, 0)
-        for (let i = 0; i < 60; i++) {
-          const datoStr = lokalDato(currentDate)
-          if (datoer.has(datoStr)) {
-            streak++
-            currentDate.setDate(currentDate.getDate() - 1)
-          } else {
-            break
-          }
-        }
+      const d = new Date(); d.setHours(0, 0, 0, 0)
+      if (!datoer.has(lokalDato(d))) d.setDate(d.getDate() - 1) // i dag teller ikke mot deg før dagen er over
+      while (datoer.has(lokalDato(d)) && streak < 365) { streak++; d.setDate(d.getDate() - 1) }
+
+      const ukeStart = new Date(); ukeStart.setDate(ukeStart.getDate() - 7)
+      const denneUka = (logger ?? []).filter((l: any) => new Date(l.dato) >= ukeStart)
+      const ukeKg = denneUka.reduce((s: number, l: any) => s + volum(l), 0)
+      const erBein = (m: string) => /bein|leg|quad|hamstring|glute/.test(m)
+      const beinUke = new Set(denneUka.filter((l: any) => erBein((l.muskelgruppe ?? '').toLowerCase())).map((l: any) => l.dato)).size
+      const grupper = new Set<string>()
+      for (const l of logger ?? []) for (const m of String(l.muskelgruppe ?? '').toLowerCase().split(',')) {
+        const t = m.trim()
+        if (/pec|bryst/.test(t)) grupper.add('bryst')
+        else if (/lat|rygg|rhomb|erector/.test(t)) grupper.add('rygg')
+        else if (erBein(t)) grupper.add('bein')
+        else if (/delt|skuld/.test(t)) grupper.add('skuldre')
+        else if (/bicep|tricep|underarm/.test(t)) grupper.add('armer')
+        else if (/core|mage|abdom|obliq/.test(t)) grupper.add('core')
       }
 
-      // Beregn uke-volum (siste 7 dager)
-      const ukeStart = new Date()
-      ukeStart.setDate(ukeStart.getDate() - 7)
-      let ukeKg = 0
-      if (logger) {
-        for (const logg of logger) {
-          if (new Date(logg.dato) >= ukeStart && logg.sett) {
-            for (const sett of logg.sett) {
-              const vekt = sett.vekt || sett.kg || 0
-              const reps = sett.reps || 0
-              ukeKg += vekt * reps
-            }
-          }
-        }
-      }
-
-      // Tell muskelgrupper
-      const muskelgrupper = new Set<string>()
-      let legCount = 0
-      if (logger) {
-        for (const logg of logger) {
-          if (logg.muskelgruppe) {
-            const muskelListe = logg.muskelgruppe.split(',').map((m: string) => m.trim().toLowerCase())
-            muskelListe.forEach((m: string) => muskelgrupper.add(m))
-            if (muskelListe.some((m: string) => m.includes('bein') || m.includes('leg') || m.includes('quad') || m.includes('hamstring'))) {
-              legCount++
-            }
-          }
-        }
-      }
-
-      // Bygg automatiske utfordringer med fremgang
-      const automatiskeMedFremgang = AUTOMATISKE_UTFORDRINGER.map(uf => {
-        let fremgang = 0
-        switch (uf.krav_type) {
-          case 'okter': fremgang = okter?.length || 0; break
-          case 'kg': fremgang = totalKg; break
-          case 'streak': fremgang = streak; break
-          case 'volum_uke': fremgang = ukeKg; break
-          case 'alle_muskler': fremgang = muskelgrupper.size; break
-          case 'bein_uke': fremgang = legCount; break
-          default: fremgang = 0
-        }
-        const fullfort = fremgang >= uf.maal
-        return {
-          ...uf,
-          id: `auto_${uf.id}`,
-          kategori: uf.kategori,
-          sjeldenhet: uf.sjeldenhet as 'vanlig' | 'sjelden' | 'episk',
-          fullfort,
-          fremgang: Math.min(fremgang, uf.maal),
-          automatisk: true,
-        }
+      const auto: Utfordring[] = AUTOMATISKE_UTFORDRINGER.map(({ emoji, ...uf }) => {
+        const verdi = ({ okter: okter.length, kg: totalKg, streak, volum_uke: ukeKg, alle_muskler: grupper.size, bein_uke: beinUke } as Record<string, number>)[uf.krav_type] ?? 0
+        return { ...uf, id: `auto_${uf.id}`, sjeldenhet: uf.sjeldenhet as Utfordring['sjeldenhet'], fullfort: verdi >= uf.maal, fremgang: Math.min(Math.round(verdi), uf.maal), automatisk: true }
       })
-
-      // Hent lagrede manuelle utfordringer fra localStorage
-      const ukeNr = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
-      let lagretManuelle: any = {}
-      try {
-        const lagret = localStorage.getItem(`manuelle_utfordringer_${ukeNr}`)
-        if (lagret) {
-          lagretManuelle = JSON.parse(lagret)
-        }
-      } catch (e) {
-        console.error('Kunne ikke hente fra localStorage', e)
-      }
-      
-      const manuelleMedStatus = MANUELLE_UTFORDRINGER.map((uf, i) => ({
-        ...uf,
-        id: `man_${uf.id}`,
-        kategori: uf.kategori,
-        sjeldenhet: uf.sjeldenhet as 'vanlig' | 'sjelden' | 'episk',
-        fullfort: lagretManuelle[i]?.fullfort ?? false,
-        fremgang: lagretManuelle[i]?.fremgang ?? 0,
-        automatisk: false,
-      }))
-
-      // Kombiner og sorter
-      const alle = [...automatiskeMedFremgang, ...manuelleMedStatus]
-      const sortert = alle.sort((a, b) => {
-        if (a.fullfort === b.fullfort) return 0
-        return a.fullfort ? 1 : -1
+      const lagret = lesUke(ukeNummer())
+      const manuelle: Utfordring[] = MANUELLE_UTFORDRINGER.map(({ emoji, ...uf }) => {
+        const id = `man_${uf.id}`
+        return { ...uf, id, sjeldenhet: uf.sjeldenhet as Utfordring['sjeldenhet'], fullfort: lagret[id]?.fullfort ?? false, fremgang: lagret[id]?.fremgang ?? 0, automatisk: false }
       })
-
-      // Beregn poeng
-      let totalPoeng = 0
-      for (let i = 0; i <= 4; i++) {
-        try {
-          const ukeData = JSON.parse(localStorage.getItem(`manuelle_utfordringer_${ukeNr - i}`) ?? '{}')
-          Object.values(ukeData).forEach((u: any) => {
-            if (u.fullfort) totalPoeng += 10
-          })
-        } catch (e) {}
-      }
-      // Legg til poeng for automatiske fullførte
-      totalPoeng += automatiskeMedFremgang.filter(u => u.fullfort).length * 20
-
-      setUtfordringer(sortert)
-      setPoeng(totalPoeng)
-      setNivaa(Math.floor(totalPoeng / 50) + 1)
+      setUtfordringer([...auto, ...manuelle])
       setLaster(false)
     }
+    hent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
-    hentDataOgBeregn()
-  }, [user?.id, supabase])
-
-  // Oppdater manuell utfordring
-  const toggleManuellUtfordring = (idx: number, nyFremgang: number) => {
-    const ukeNr = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
-    const oppdatert = utfordringer.map((u, i) => {
-      if (i !== idx || u.automatisk) return u
-      const nyF = Math.min(nyFremgang, u.maal)
-      const nyFullfort = nyF >= u.maal
-      return { ...u, fremgang: nyF, fullfort: nyFullfort }
+  const oppdater = (id: string, nyFremgang: number) => {
+    setUtfordringer(liste => {
+      const ny = liste.map(u => {
+        if (u.id !== id || u.automatisk) return u
+        const fremgang = Math.max(0, Math.min(nyFremgang, u.maal))
+        const fullfort = fremgang >= u.maal
+        if (fullfort && !u.fullfort) { setNettoFullfort(u.id); setTimeout(() => setNettoFullfort(null), 2400) }
+        return { ...u, fremgang, fullfort }
+      })
+      const lagret: Lagret = {}
+      for (const u of ny) if (!u.automatisk) lagret[u.id] = { fullfort: u.fullfort, fremgang: u.fremgang }
+      try { localStorage.setItem(`manuelle_utfordringer_${ukeNummer()}`, JSON.stringify(lagret)) } catch {}
+      return ny
     })
-    setUtfordringer(oppdatert)
-
-    // Lagre til localStorage
-    const lagret: any = {}
-    oppdatert.forEach((u, i) => {
-      if (!u.automatisk) {
-        lagret[i] = { fullfort: u.fullfort, fremgang: u.fremgang }
-      }
-    })
-    localStorage.setItem(`manuelle_utfordringer_${ukeNr}`, JSON.stringify(lagret))
-
-    // Oppdater poeng hvis nettopp fullført
-    const bleFullfort = oppdatert[idx].fullfort && !utfordringer[idx].fullfort
-    if (bleFullfort) {
-      setPoeng(p => p + 10)
-      setNivaa(Math.floor((poeng + 10) / 50) + 1)
-    }
   }
 
-  const getSjeldenhetFarge = (sjeldenhet?: string) => {
-    switch(sjeldenhet) {
-      case 'vanlig': return '#9A9285'
-      case 'sjelden': return '#B8BEC6'
-      case 'episk': return '#E07A4F'
-      default: return '#9A9285'
-    }
-  }
+  // Poeng: fullførte automatiske + manuelle de siste fem ukene
+  const poengManuelle = (() => {
+    if (typeof window === 'undefined') return 0
+    let p = 0
+    const naa = ukeNummer()
+    for (let i = 1; i <= 4; i++) p += Object.values(lesUke(naa - i)).filter(u => u.fullfort).length * POENG_MANUELL
+    return p + utfordringer.filter(u => !u.automatisk && u.fullfort).length * POENG_MANUELL
+  })()
+  const poeng = utfordringer.filter(u => u.automatisk && u.fullfort).length * POENG_AUTO + poengManuelle
+  const nivaa = Math.floor(poeng / POENG_PER_NIVA) + 1
+  const iNivaa = poeng % POENG_PER_NIVA
 
-  const kategorier = ['alle', 'styrke', 'konsistens', 'prestasjon', 'helse', 'kosthold', 'kondisjon']
-  const katEmoji: Record<string, string> = {
-    styrke: '🏋️', konsistens: '🔥', prestasjon: '🏆', helse: '💚', kosthold: '🥗', kondisjon: '🏃'
-  }
+  const kategorier = ['alle', ...Array.from(new Set(utfordringer.map(u => u.kategori)))]
+  const filtrerte = (aktivKategori === 'alle' ? utfordringer : utfordringer.filter(u => u.kategori === aktivKategori))
+    .slice().sort((a, b) => Number(a.fullfort) - Number(b.fullfort) || (b.fremgang / b.maal) - (a.fremgang / a.maal))
+  const antallFullfort = utfordringer.filter(u => u.fullfort).length
 
-  const filtrerte = aktivKategori === 'alle'
-    ? utfordringer
-    : utfordringer.filter(u => u.kategori === aktivKategori)
-
-  const prosentTilNesteNivaa = (poeng % 50) / 50 * 100
-
-  // Vis spinner mens vi laster
-  if (userLaster || laster || !isClient) {
-    return (
-      <div className="utf-page anim-fade-up" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <div className="spinner-lg" />
-      </div>
-    )
-  }
+  if (laster) return null
 
   return (
-    <div className="utf-page anim-fade-up" suppressHydrationWarning>
-      {/* Header med nivå og poeng */}
-      <div className="utf-header glass-card">
-        <div className="utf-header-left">
-          <h1 className="page-title">🏆 Utfordringer</h1>
-          <p className="page-subtitle">Fullfør utfordringer og tjen belønninger</p>
-        </div>
-        <div className="utf-level-card">
-          <div className="utf-level-info">
-            <span className="utf-level-badge">Nivå {nivaa}</span>
-            <span className="utf-level-poeng">{poeng} poeng</span>
-          </div>
-          <div className="utf-level-progress">
-            <div className="utf-level-progress-bar" style={{ width: `${prosentTilNesteNivaa}%` }} />
-          </div>
-          <div className="utf-level-next">{50 - (poeng % 50)} poeng til nivå {nivaa + 1}</div>
-        </div>
+    <div className="utf-page">
+      <div className="page-header">
+        <h1 className="page-title">Troféskapet<em className="gold">.</em></h1>
+        <p className="page-subtitle">Milepæler som låses opp av seg selv · og ukens vaner</p>
       </div>
 
-      {/* Kategori-filter */}
-      <div className="utf-kategori-filter glass-card">
-        {kategorier.map(kat => (
-          <button
-            key={kat}
-            className={`utf-kategori-btn ${aktivKategori === kat ? 'active' : ''}`}
-            onClick={() => setAktivKategori(kat)}
-          >
-            {kat === 'alle' ? '📋 Alle' : `${katEmoji[kat]} ${kat.charAt(0).toUpperCase() + kat.slice(1)}`}
+      <section className="utf-hero glass-card crop">
+        <TickRing
+          value={iNivaa} max={POENG_PER_NIVA} size={150}
+          label={<span className="num-monument" style={{ fontSize: '3.4rem' }}><TelleTall verdi={nivaa} /></span>}
+          sub="Nivå"
+        />
+        <div className="utf-hero-tall">
+          <div><span className="eyebrow">Poeng</span><strong className="num-monument"><TelleTall verdi={poeng} forsinkelse={0.15} /></strong></div>
+          <div><span className="eyebrow">Låst opp</span><strong className="num-monument"><TelleTall verdi={antallFullfort} forsinkelse={0.25} /><small>/{utfordringer.length}</small></strong></div>
+          <p className="utf-hero-neste">{POENG_PER_NIVA - iNivaa} poeng til nivå {nivaa + 1}</p>
+        </div>
+      </section>
+
+      <div className="bib-kategorier">
+        {kategorier.map(k => (
+          <button key={k} className={`bib-kat${aktivKategori === k ? ' on' : ''}`} onClick={() => setAktivKategori(k)}>
+            {k === 'alle' ? 'Alle' : k.charAt(0).toUpperCase() + k.slice(1)}
           </button>
         ))}
       </div>
 
-      {/* Utfordringsliste */}
-      <div className="utf-liste">
-        {filtrerte.length === 0 ? (
-          <div className="utf-empty" style={{ textAlign: 'center', padding: '3rem' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎯</div>
-            <div>Ingen utfordringer i denne kategorien</div>
-          </div>
-        ) : (
-          filtrerte.map((u, idx) => {
-            const prosent = Math.min(100, Math.round((u.fremgang / u.maal) * 100))
-            const sjeldenhetFarge = getSjeldenhetFarge(u.sjeldenhet)
-            const erAutomatisk = u.automatisk
-
-            return (
-              <div key={u.id} className={`utf-kort glass-card ${u.fullfort ? 'utf-done' : ''}`}>
-                <div className="utf-kort-header">
-                  <div className="utf-kort-em" style={{ background: `${sjeldenhetFarge}20` }}>
-                    {u.emoji}
-                  </div>
-                  <div className="utf-kort-info">
-                    <div className="utf-kort-tittel">
-                      {u.tittel}
-                      {erAutomatisk && <span className="utf-auto-badge">🤖 Auto</span>}
-                    </div>
-                    <div className="utf-kort-besk">{u.beskrivelse}</div>
-                  </div>
-                  {u.sjeldenhet && (
-                    <div className="utf-kort-sjeldenhet" style={{ color: sjeldenhetFarge }}>
-                      {u.sjeldenhet === 'episk' ? '🌟' : u.sjeldenhet === 'sjelden' ? '✨' : '·'}
-                    </div>
-                  )}
-                </div>
-
-                <div className="utf-kort-fremdrift">
-                  <div className="utf-fremdrift-bar-bg">
-                    <div className="utf-fremdrift-bar-fill" style={{ width: `${prosent}%` }} />
-                  </div>
-                  <span className="utf-fremdrift-tekst">
-                    {u.fremgang.toLocaleString('no')} / {u.maal.toLocaleString('no')} {u.enhet}
-                  </span>
-                </div>
-
-                {!erAutomatisk && (
-                  <div className="utf-kontroller">
-                    {u.maal > 1000 ? (
-                      <div className="utf-slider-wrapper">
-                        <input
-                          type="range"
-                          min="0"
-                          max={u.maal}
-                          value={u.fremgang}
-                          onChange={(e) => toggleManuellUtfordring(idx, parseInt(e.target.value))}
-                          className="utf-slider"
-                          disabled={u.fullfort}
-                        />
-                        <button
-                          className="utf-fullfor-knapp"
-                          onClick={() => toggleManuellUtfordring(idx, u.maal)}
-                          disabled={u.fullfort}
-                        >
-                          Fullfør
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="utf-knapper">
-                        <button
-                          className="utf-minus-knapp"
-                          onClick={() => toggleManuellUtfordring(idx, Math.max(0, u.fremgang - 1))}
-                          disabled={u.fullfort}
-                        >
-                          −
-                        </button>
-                        <button
-                          className="utf-plus-knapp"
-                          onClick={() => toggleManuellUtfordring(idx, u.fremgang + 1)}
-                          disabled={u.fullfort}
-                        >
-                          +
-                        </button>
-                        <button
-                          className="utf-fullfor-knapp"
-                          onClick={() => toggleManuellUtfordring(idx, u.maal)}
-                          disabled={u.fullfort}
-                        >
-                          Fullfør 🎉
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {u.fullfort && (
-                  <div className="utf-belonning">
-                    <span className="utf-belonning-ikon">🏆</span>
-                    <span className="utf-belonning-tekst">
-                      {erAutomatisk ? `+20 poeng for å fullføre "${u.tittel}"!` : `+10 poeng for å fullføre "${u.tittel}"!`}
-                    </span>
-                    <span className="utf-belonning-poeng">{erAutomatisk ? '+20' : '+10'} poeng</span>
-                  </div>
-                )}
+      <div className="utf-grid">
+        {filtrerte.map(u => {
+          const Ikon = ikonFor(u)
+          const pst = Math.min(100, Math.round((u.fremgang / u.maal) * 100))
+          return (
+            <motion.article key={u.id} layout className={`utf-kort glass-card ${u.sjeldenhet}${u.fullfort ? ' ferdig' : ''}`}>
+              <div className="utf-kort-topp">
+                <span className="utf-medalje"><Ikon size={20} strokeWidth={1.3} /></span>
+                <span className="utf-merke">{u.automatisk ? 'Milepæl' : 'Ukens vane'} · {SJELDENHET[u.sjeldenhet]}</span>
               </div>
-            )
-          })
-        )}
+              <h3 className="utf-tittel">{u.tittel}</h3>
+              <p className="utf-besk">{u.beskrivelse}</p>
+              <div className="utf-fremdrift">
+                <div className="tick-track"><div className="tick-fill" style={{ width: `${pst}%` }} /></div>
+                <div className="utf-tall">
+                  <span>{u.fremgang.toLocaleString('nb-NO')} / {u.maal.toLocaleString('nb-NO')} {u.enhet}</span>
+                  <span className={u.fullfort ? 'gold' : ''}>{u.fullfort ? <><Check size={11} strokeWidth={2} /> +{u.automatisk ? POENG_AUTO : POENG_MANUELL}</> : `${pst}%`}</span>
+                </div>
+              </div>
+              {!u.automatisk && !u.fullfort && (
+                <div className="utf-kontroller">
+                  {u.maal > 100 ? (
+                    <input type="range" className="utf-slider" min={0} max={u.maal} step={u.maal / 20} value={u.fremgang}
+                      onChange={e => oppdater(u.id, Number(e.target.value))} aria-label={u.tittel} />
+                  ) : (
+                    <span className="velger-stepper">
+                      <button onClick={() => oppdater(u.id, u.fremgang - 1)} aria-label="Mindre"><Minus size={11} /></button>
+                      <span className="mono">{u.fremgang}</span>
+                      <button onClick={() => oppdater(u.id, u.fremgang + 1)} aria-label="Mer"><Plus size={11} /></button>
+                    </span>
+                  )}
+                  <button className="btn btn-ghost utf-fullfor" onClick={() => oppdater(u.id, u.maal)}>Fullført</button>
+                </div>
+              )}
+              <AnimatePresence>
+                {nettoFullfort === u.id && (
+                  <motion.div className="utf-feiring" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                    <span className="num-monument">+{POENG_MANUELL}</span><span className="eyebrow eyebrow-gold">poeng</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.article>
+          )
+        })}
       </div>
-
-      <style>{`
-        .utf-page { max-width: 900px; margin: 0 auto; }
-        .utf-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem; }
-        .utf-level-card { background: rgba(201,169,110,0.1); border: 1px solid rgba(201,169,110,0.2); border-radius: 12px; padding: 1rem; min-width: 200px; }
-        .utf-level-info { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
-        .utf-level-badge { background: var(--cyan); color: #000; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
-        .utf-level-poeng { color: #F2ECE1; font-weight: 600; }
-        .utf-level-progress { height: 6px; background: rgba(242,236,225,0.1); border-radius: 3px; margin-bottom: 0.5rem; overflow: hidden; }
-        .utf-level-progress-bar { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); transition: width 0.3s ease; }
-        .utf-level-next { font-size: 0.7rem; color: rgba(242,236,225,0.4); }
-        .utf-kategori-filter { display: flex; gap: 6px; flex-wrap: wrap; padding: 0.75rem; margin-bottom: 1rem; }
-        .utf-kategori-btn { padding: 4px 12px; border-radius: 8px; font-size: 0.75rem; background: rgba(242,236,225,0.04); border: 1px solid rgba(242,236,225,0.1); color: rgba(242,236,225,0.45); cursor: pointer; transition: all 0.15s; font-family: var(--font-body); }
-        .utf-kategori-btn:hover { background: rgba(242,236,225,0.08); color: rgba(242,236,225,0.8); }
-        .utf-kategori-btn.active { background: rgba(201,169,110,0.12); border-color: rgba(201,169,110,0.35); color: var(--cyan); }
-        .utf-liste { display: flex; flex-direction: column; gap: 1rem; }
-        .utf-kort { padding: 1.25rem; transition: all 0.3s ease; }
-        .utf-done { border-color: rgba(157,196,150,0.3) !important; background: rgba(157,196,150,0.05) !important; }
-        .utf-kort-header { display: flex; gap: 1rem; margin-bottom: 1rem; }
-        .utf-kort-em { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
-        .utf-kort-info { flex: 1; }
-        .utf-kort-tittel { font-family: var(--font-display); font-size: 1rem; font-weight: 600; color: #F2ECE1; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-        .utf-auto-badge { font-size: 0.6rem; background: rgba(201,169,110,0.15); border: 1px solid rgba(201,169,110,0.25); color: var(--cyan); padding: 2px 6px; border-radius: 999px; font-weight: 400; }
-        .utf-kort-besk { font-size: 0.8rem; color: rgba(242,236,225,0.5); }
-        .utf-kort-sjeldenhet { font-size: 1.2rem; }
-        .utf-kort-fremdrift { margin-bottom: 1rem; }
-        .utf-fremdrift-bar-bg { height: 8px; background: rgba(242,236,225,0.1); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
-        .utf-fremdrift-bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); transition: width 0.3s ease; }
-        .utf-fremdrift-tekst { font-size: 0.8rem; color: rgba(242,236,225,0.6); }
-        .utf-kontroller { display: flex; gap: 0.5rem; }
-        .utf-slider-wrapper { display: flex; gap: 0.5rem; width: 100%; }
-        .utf-slider { flex: 1; height: 4px; background: rgba(242,236,225,0.1); border-radius: 2px; outline: none; }
-        .utf-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--cyan); cursor: pointer; box-shadow: 0 0 10px var(--cyan); }
-        .utf-knapper { display: flex; gap: 0.5rem; width: 100%; }
-        .utf-minus-knapp, .utf-plus-knapp { width: 36px; height: 36px; border-radius: 8px; border: 1px solid rgba(242,236,225,0.1); background: rgba(242,236,225,0.05); color: #F2ECE1; font-size: 1.2rem; cursor: pointer; }
-        .utf-minus-knapp:hover, .utf-plus-knapp:hover { background: rgba(242,236,225,0.1); }
-        .utf-fullfor-knapp { flex: 1; padding: 0.5rem; border-radius: 8px; border: none; background: var(--cyan); color: #000; font-weight: 600; cursor: pointer; }
-        .utf-fullfor-knapp:disabled { opacity: 0.3; cursor: not-allowed; }
-        .utf-belonning { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; background: rgba(157,196,150,0.08); border: 1px solid rgba(157,196,150,0.15); display: flex; align-items: center; gap: 0.75rem; }
-        .utf-belonning-ikon { font-size: 1.2rem; }
-        .utf-belonning-tekst { flex: 1; font-size: 0.9rem; font-weight: 600; color: #F2ECE1; }
-        .utf-belonning-poeng { font-size: 0.8rem; color: var(--green); }
-        .utf-empty { text-align: center; padding: 3rem; color: rgba(242,236,225,0.3); }
-      `}</style>
     </div>
   )
 }

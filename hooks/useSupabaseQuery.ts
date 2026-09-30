@@ -133,9 +133,11 @@ export function useStats(userId?: string) {
         { data: dAll },
         { count: ukeMaal },
       ] = await Promise.all([
+        // Kun fullførte økter teller – planlagte/autofylte økter skal ikke blåse opp tallene
         supabase.from('okter')
           .select('*', { count: 'exact', head: true })
-          .eq('bruker_id', userId!),
+          .eq('bruker_id', userId!)
+          .eq('fullfort', true),
 
         supabase.from('treningslogger')
           .select('sett, muskelgruppe')
@@ -149,12 +151,14 @@ export function useStats(userId?: string) {
         supabase.from('okter')
           .select('dato')
           .eq('bruker_id', userId!)
+          .eq('fullfort', true)
           .order('dato', { ascending: false })
           .limit(60),
 
         supabase.from('okter')
           .select('*', { count: 'exact', head: true })
           .eq('bruker_id', userId!)
+          .eq('fullfort', true)
           .gte('dato', startOfThisWeek),
       ])
 
@@ -208,18 +212,18 @@ export function useAktivitet(userId?: string) {
     enabled:  !!userId,
     staleTime: 10 * 60 * 1000,
     queryFn:  async () => {
-      const uker: any[] = []
-      for (let i = 6; i >= 0; i--) {
+      // Sju uker hentes parallelt (tidligere én og én – sju rundturer i serie)
+      return Promise.all([6, 5, 4, 3, 2, 1, 0].map(async i => {
         const fra = format(startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 }), 'yyyy-MM-dd')
         const til = format(endOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 }), 'yyyy-MM-dd')
         const { count } = await supabase.from('okter')
           .select('*', { count: 'exact', head: true })
           .eq('bruker_id', userId!)
+          .eq('fullfort', true)
           .gte('dato', fra)
           .lte('dato', til)
-        uker.push({ uke: `U${format(subWeeks(new Date(), i), 'w')}`, okter: count ?? 0 })
-      }
-      return uker
+        return { uke: `U${format(subWeeks(new Date(), i), 'w')}`, okter: count ?? 0 }
+      }))
     },
   })
 }
