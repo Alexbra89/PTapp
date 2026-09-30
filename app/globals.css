@@ -462,7 +462,7 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 /* Ark for "Mer" */
 .sheet-bg { position: fixed; inset: 0; z-index: 60; background: rgba(5,5,4,0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .sheet {
-  position: fixed; z-index: 61; left: 0; right: 0; bottom: 0;
+  position: fixed; z-index: 61; left: 0; right: 0; bottom: 0; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
   padding: 0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
   border-radius: 28px 28px 0 0; border: 1px solid var(--line-strong); border-bottom: none;
   background: linear-gradient(180deg, #1A1916, #121110);
@@ -1614,3 +1614,24 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .prg-forhandsvis { display: flex; justify-content: space-between; align-items: baseline; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
 .prg-forhandsvis .num-monument { font-size: 2.6rem; }
 .prg-forhandsvis small { font-family: var(--font-mono); font-size: 0.6rem; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   DELING  (del-*)
+   ═══════════════════════════════════════════════════════════════════ */
+.del-page { max-width: 760px; display: flex; flex-direction: column; gap: 1rem; }
+.del-page .page-header { margin-bottom: 1rem; }
+.del-page .page-title em, .del-page .hq-section-title em { font-style: italic; color: var(--gold); }
+.del-tall { grid-template-columns: 1fr 1fr; margin-bottom: 0.5rem; }
+.del-liste { list-style: none; border-top: 1px solid var(--line); }
+.del-liste li { display: flex; align-items: center; gap: 12px; padding: 0.85rem 0; border-bottom: 1px solid var(--line); }
+.del-liste li:last-child { border-bottom: none; }
+.del-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.del-navn { font-size: 0.95rem; color: var(--ink); }
+.del-epost { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.del-bryter { width: 46px; height: 26px; flex-shrink: 0; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(242,236,225,0.04); padding: 3px; display: flex; justify-content: flex-start; cursor: pointer; transition: background 0.3s, border-color 0.3s; }
+.del-bryter.on { background: var(--gold); border-color: var(--gold); justify-content: flex-end; }
+.del-knott { width: 18px; height: 18px; border-radius: 50%; background: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+.del-bryter.on .del-knott { background: #17130C; }
+.del-avatarer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 0.9rem; }
+.del-avatar-rad { display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.88rem; }

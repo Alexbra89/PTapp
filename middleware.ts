@@ -35,7 +35,9 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // getUser() verifiserer innloggingen mot Supabase. getSession() leser bare informasjonskapselen,
+  // som kan være utløpt eller manipulert – Supabase fraråder den for tilgangskontroll på server.
+  const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
   const cleanPath = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname
   const publicRoutes = ['/login', '/signup']
@@ -44,17 +46,17 @@ export async function middleware(request: NextRequest) {
   // Root redirect
   if (cleanPath === '' || pathname === '/') {
     return NextResponse.redirect(
-      new URL(session ? '/dashboard' : '/login', request.url)
+      new URL(user ? '/dashboard' : '/login', request.url)
     )
   }
 
-  if (!session && !isPublicRoute) {
+  if (!user && !isPublicRoute) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('from', cleanPath)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (session && isPublicRoute) {
+  if (user && isPublicRoute) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
