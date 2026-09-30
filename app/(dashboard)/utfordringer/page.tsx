@@ -253,10 +253,10 @@ export default function UtfordringerPage() {
 
   const getSjeldenhetFarge = (sjeldenhet?: string) => {
     switch(sjeldenhet) {
-      case 'vanlig': return '#a0a0a0'
-      case 'sjelden': return '#b44eff'
-      case 'episk': return '#ff8c00'
-      default: return '#a0a0a0'
+      case 'vanlig': return '#9A9285'
+      case 'sjelden': return '#B8BEC6'
+      case 'episk': return '#E07A4F'
+      default: return '#9A9285'
     }
   }
 
@@ -422,45 +422,45 @@ export default function UtfordringerPage() {
       <style>{`
         .utf-page { max-width: 900px; margin: 0 auto; }
         .utf-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem; }
-        .utf-level-card { background: rgba(0,245,255,0.1); border: 1px solid rgba(0,245,255,0.2); border-radius: 12px; padding: 1rem; min-width: 200px; }
+        .utf-level-card { background: rgba(201,169,110,0.1); border: 1px solid rgba(201,169,110,0.2); border-radius: 12px; padding: 1rem; min-width: 200px; }
         .utf-level-info { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
         .utf-level-badge { background: var(--cyan); color: #000; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
-        .utf-level-poeng { color: #fff; font-weight: 600; }
-        .utf-level-progress { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-bottom: 0.5rem; overflow: hidden; }
+        .utf-level-poeng { color: #F2ECE1; font-weight: 600; }
+        .utf-level-progress { height: 6px; background: rgba(242,236,225,0.1); border-radius: 3px; margin-bottom: 0.5rem; overflow: hidden; }
         .utf-level-progress-bar { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); transition: width 0.3s ease; }
-        .utf-level-next { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+        .utf-level-next { font-size: 0.7rem; color: rgba(242,236,225,0.4); }
         .utf-kategori-filter { display: flex; gap: 6px; flex-wrap: wrap; padding: 0.75rem; margin-bottom: 1rem; }
-        .utf-kategori-btn { padding: 4px 12px; border-radius: 8px; font-size: 0.75rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.45); cursor: pointer; transition: all 0.15s; font-family: var(--font-body); }
-        .utf-kategori-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
-        .utf-kategori-btn.active { background: rgba(0,245,255,0.12); border-color: rgba(0,245,255,0.35); color: var(--cyan); }
+        .utf-kategori-btn { padding: 4px 12px; border-radius: 8px; font-size: 0.75rem; background: rgba(242,236,225,0.04); border: 1px solid rgba(242,236,225,0.1); color: rgba(242,236,225,0.45); cursor: pointer; transition: all 0.15s; font-family: var(--font-body); }
+        .utf-kategori-btn:hover { background: rgba(242,236,225,0.08); color: rgba(242,236,225,0.8); }
+        .utf-kategori-btn.active { background: rgba(201,169,110,0.12); border-color: rgba(201,169,110,0.35); color: var(--cyan); }
         .utf-liste { display: flex; flex-direction: column; gap: 1rem; }
         .utf-kort { padding: 1.25rem; transition: all 0.3s ease; }
-        .utf-done { border-color: rgba(0,255,136,0.3) !important; background: rgba(0,255,136,0.05) !important; }
+        .utf-done { border-color: rgba(157,196,150,0.3) !important; background: rgba(157,196,150,0.05) !important; }
         .utf-kort-header { display: flex; gap: 1rem; margin-bottom: 1rem; }
         .utf-kort-em { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
         .utf-kort-info { flex: 1; }
-        .utf-kort-tittel { font-family: var(--font-display); font-size: 1rem; font-weight: 600; color: #fff; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-        .utf-auto-badge { font-size: 0.6rem; background: rgba(0,245,255,0.15); border: 1px solid rgba(0,245,255,0.25); color: var(--cyan); padding: 2px 6px; border-radius: 999px; font-weight: 400; }
-        .utf-kort-besk { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+        .utf-kort-tittel { font-family: var(--font-display); font-size: 1rem; font-weight: 600; color: #F2ECE1; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .utf-auto-badge { font-size: 0.6rem; background: rgba(201,169,110,0.15); border: 1px solid rgba(201,169,110,0.25); color: var(--cyan); padding: 2px 6px; border-radius: 999px; font-weight: 400; }
+        .utf-kort-besk { font-size: 0.8rem; color: rgba(242,236,225,0.5); }
         .utf-kort-sjeldenhet { font-size: 1.2rem; }
         .utf-kort-fremdrift { margin-bottom: 1rem; }
-        .utf-fremdrift-bar-bg { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
+        .utf-fremdrift-bar-bg { height: 8px; background: rgba(242,236,225,0.1); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
         .utf-fremdrift-bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); transition: width 0.3s ease; }
-        .utf-fremdrift-tekst { font-size: 0.8rem; color: rgba(255,255,255,0.6); }
+        .utf-fremdrift-tekst { font-size: 0.8rem; color: rgba(242,236,225,0.6); }
         .utf-kontroller { display: flex; gap: 0.5rem; }
         .utf-slider-wrapper { display: flex; gap: 0.5rem; width: 100%; }
-        .utf-slider { flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; outline: none; }
+        .utf-slider { flex: 1; height: 4px; background: rgba(242,236,225,0.1); border-radius: 2px; outline: none; }
         .utf-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--cyan); cursor: pointer; box-shadow: 0 0 10px var(--cyan); }
         .utf-knapper { display: flex; gap: 0.5rem; width: 100%; }
-        .utf-minus-knapp, .utf-plus-knapp { width: 36px; height: 36px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 1.2rem; cursor: pointer; }
-        .utf-minus-knapp:hover, .utf-plus-knapp:hover { background: rgba(255,255,255,0.1); }
+        .utf-minus-knapp, .utf-plus-knapp { width: 36px; height: 36px; border-radius: 8px; border: 1px solid rgba(242,236,225,0.1); background: rgba(242,236,225,0.05); color: #F2ECE1; font-size: 1.2rem; cursor: pointer; }
+        .utf-minus-knapp:hover, .utf-plus-knapp:hover { background: rgba(242,236,225,0.1); }
         .utf-fullfor-knapp { flex: 1; padding: 0.5rem; border-radius: 8px; border: none; background: var(--cyan); color: #000; font-weight: 600; cursor: pointer; }
         .utf-fullfor-knapp:disabled { opacity: 0.3; cursor: not-allowed; }
-        .utf-belonning { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.15); display: flex; align-items: center; gap: 0.75rem; }
+        .utf-belonning { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; background: rgba(157,196,150,0.08); border: 1px solid rgba(157,196,150,0.15); display: flex; align-items: center; gap: 0.75rem; }
         .utf-belonning-ikon { font-size: 1.2rem; }
-        .utf-belonning-tekst { flex: 1; font-size: 0.9rem; font-weight: 600; color: #fff; }
+        .utf-belonning-tekst { flex: 1; font-size: 0.9rem; font-weight: 600; color: #F2ECE1; }
         .utf-belonning-poeng { font-size: 0.8rem; color: var(--green); }
-        .utf-empty { text-align: center; padding: 3rem; color: rgba(255,255,255,0.3); }
+        .utf-empty { text-align: center; padding: 3rem; color: rgba(242,236,225,0.3); }
       `}</style>
     </div>
   )

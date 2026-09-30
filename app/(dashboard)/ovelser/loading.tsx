@@ -40,7 +40,7 @@ export default function OvelserLoading() {
       </div>
 
       {/* Gruppe-header skeleton */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(242,236,225,0.06)' }}>
         <SkeletonBox w={24} h={24} r={6} />
         <SkeletonBox w={80} h={16} r={4} />
         <div style={{ marginLeft: 'auto' }}><SkeletonBox w={28} h={20} r={999} /></div>
@@ -62,7 +62,7 @@ export default function OvelserLoading() {
             }}
           >
             {/* SVG-placeholder */}
-            <div style={{ width: 68, height: 68, borderRadius: 14, background: 'rgba(0,245,255,0.05)', flexShrink: 0 }} />
+            <div style={{ width: 68, height: 68, borderRadius: 14, background: 'rgba(201,169,110,0.05)', flexShrink: 0 }} />
             {/* Tekst */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
               <SkeletonBox w="75%" h={13} r={4} />

@@ -169,16 +169,16 @@ export default function ProgresjonOvelse({ userId }: Props) {
         <div className="progresjon-graf">
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(242,236,225,0.1)" />
               <XAxis 
                 dataKey="visDato" 
-                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                tick={{ fill: 'rgba(242,236,225,0.5)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 interval={Math.floor(data.length / 8)}
               />
               <YAxis 
-                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                tick={{ fill: 'rgba(242,236,225,0.5)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -238,7 +238,7 @@ export default function ProgresjonOvelse({ userId }: Props) {
           font-family: var(--font-display);
           font-size: 1.2rem;
           font-weight: 700;
-          color: #fff;
+          color: #F2ECE1;
         }
         .progresjon-kontroller {
           display: flex;
@@ -247,9 +247,9 @@ export default function ProgresjonOvelse({ userId }: Props) {
           flex-wrap: wrap;
         }
         .progresjon-select {
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: #fff;
+          background: rgba(242,236,225,0.05);
+          border: 1px solid rgba(242,236,225,0.1);
+          color: #F2ECE1;
           padding: 0.5rem 1rem;
           border-radius: 8px;
           font-size: 0.9rem;
@@ -257,7 +257,7 @@ export default function ProgresjonOvelse({ userId }: Props) {
           min-width: 180px;
         }
         .progresjon-select option {
-          background: #030308;
+          background: #0B0A09;
         }
         .progresjon-tidsrom {
           display: flex;
@@ -267,18 +267,18 @@ export default function ProgresjonOvelse({ userId }: Props) {
           padding: 0.4rem 0.8rem;
           border-radius: 6px;
           font-size: 0.8rem;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.5);
+          background: rgba(242,236,225,0.03);
+          border: 1px solid rgba(242,236,225,0.1);
+          color: rgba(242,236,225,0.5);
           cursor: pointer;
           transition: all 0.15s;
         }
         .progresjon-tidsrom-btn:hover {
-          background: rgba(255,255,255,0.08);
+          background: rgba(242,236,225,0.08);
         }
         .progresjon-tidsrom-btn.active {
-          background: rgba(0,245,255,0.1);
-          border-color: rgba(0,245,255,0.3);
+          background: rgba(201,169,110,0.1);
+          border-color: rgba(201,169,110,0.3);
           color: var(--cyan);
         }
         .progresjon-laster {
@@ -297,25 +297,25 @@ export default function ProgresjonOvelse({ userId }: Props) {
         .progresjon-tom-t {
           font-family: var(--font-display);
           font-size: 1rem;
-          color: #fff;
+          color: #F2ECE1;
           margin-bottom: 0.5rem;
         }
         .progresjon-tom-s {
           font-size: 0.85rem;
-          color: rgba(255,255,255,0.3);
+          color: rgba(242,236,225,0.3);
         }
         .progresjon-graf {
           width: 100%;
         }
         .progresjon-tooltip {
-          background: rgba(3,3,8,0.95);
-          border: 1px solid rgba(0,245,255,0.2);
+          background: rgba(11,10,9,0.95);
+          border: 1px solid rgba(201,169,110,0.2);
           border-radius: 8px;
           padding: 0.5rem 1rem;
         }
         .progresjon-tooltip-dato {
           font-size: 0.7rem;
-          color: rgba(255,255,255,0.5);
+          color: rgba(242,236,225,0.5);
           margin-bottom: 0.25rem;
         }
         .progresjon-tooltip-verdi {

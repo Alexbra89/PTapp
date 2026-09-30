@@ -212,7 +212,7 @@ export default function ProgramMal({
           {laster ? (
             <div style={{ textAlign: 'center', padding: '2rem' }}>
               <div className="spinner-lg" style={{ margin: '0 auto' }} />
-              <p style={{ color: 'rgba(255,255,255,0.4)', marginTop: '1rem', fontSize: '0.82rem' }}>Laster...</p>
+              <p style={{ color: 'rgba(242,236,225,0.4)', marginTop: '1rem', fontSize: '0.82rem' }}>Laster...</p>
             </div>
           ) : (
             <>
@@ -260,7 +260,7 @@ export default function ProgramMal({
                     <div className="pr-tom-melding">
                       <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⭐</div>
                       <div>Ingen favoritter ennå.</div>
-                      <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'rgba(255,255,255,0.3)' }}>
+                      <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'rgba(242,236,225,0.3)' }}>
                         Klikk ⭐ ved en øvelse under trening for å legge den til.
                       </div>
                     </div>
@@ -337,7 +337,7 @@ export default function ProgramMal({
                         <div className="pr-alle-em">{ov.emoji}</div>
                         <div className="pr-alle-navn">{ov.navn}</div>
                         <div className="pr-alle-detalj">{ov.sett} × {ov.reps}</div>
-                        <div className="pr-alle-kat" style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.3)' }}>{ov.kategori}</div>
+                        <div className="pr-alle-kat" style={{ fontSize: '0.55rem', color: 'rgba(242,236,225,0.3)' }}>{ov.kategori}</div>
                       </div>
                     ))}
                     {filtrerteOvelser.length === 0 && (
@@ -412,19 +412,19 @@ export default function ProgramMal({
           align-items: center;
           justify-content: space-between;
           padding: 1.25rem 1.5rem;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid rgba(242,236,225,0.07);
           flex-shrink: 0;
         }
         .pr-modal-tittel {
           font-family: var(--font-display, sans-serif);
           font-size: 1rem;
           font-weight: 700;
-          color: #fff;
+          color: #F2ECE1;
         }
         .pr-lukk-btn {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.5);
+          background: rgba(242,236,225,0.06);
+          border: 1px solid rgba(242,236,225,0.1);
+          color: rgba(242,236,225,0.5);
           width: 30px;
           height: 30px;
           border-radius: 8px;
@@ -437,15 +437,15 @@ export default function ProgramMal({
           flex-shrink: 0;
         }
         .pr-lukk-btn:hover {
-          background: rgba(255,80,80,0.15);
-          border-color: rgba(255,80,80,0.3);
-          color: #ff5555;
+          background: rgba(224,97,79,0.15);
+          border-color: rgba(224,97,79,0.3);
+          color: #E0614F;
         }
         .pr-faner {
           display: flex;
           gap: 4px;
           padding: 0.75rem 1.5rem 0;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid rgba(242,236,225,0.07);
           flex-shrink: 0;
           flex-wrap: wrap;
         }
@@ -453,19 +453,19 @@ export default function ProgramMal({
           padding: 5px 12px;
           border-radius: 8px 8px 0 0;
           font-size: 0.75rem;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(242,236,225,0.04);
+          border: 1px solid rgba(242,236,225,0.08);
           border-bottom: none;
-          color: rgba(255,255,255,0.4);
+          color: rgba(242,236,225,0.4);
           cursor: pointer;
           font-family: var(--font-body, sans-serif);
           transition: all 0.15s;
           margin-bottom: -1px;
         }
         .pr-fane-btn.on {
-          background: rgba(0,245,255,0.08);
-          border-color: rgba(0,245,255,0.2);
-          color: var(--cyan, #00f5ff);
+          background: rgba(201,169,110,0.08);
+          border-color: rgba(201,169,110,0.2);
+          color: var(--cyan, #C9A96E);
         }
         .pr-modal-body {
           padding: 1.25rem 1.5rem;
@@ -475,7 +475,7 @@ export default function ProgramMal({
         .pr-tom-melding {
           text-align: center;
           padding: 2rem 1rem;
-          color: rgba(255,255,255,0.4);
+          color: rgba(242,236,225,0.4);
           font-size: 0.85rem;
           line-height: 1.5;
         }
@@ -490,35 +490,35 @@ export default function ProgramMal({
           gap: 10px;
           padding: 12px 14px;
           border-radius: 10px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: rgba(242,236,225,0.03);
+          border: 1px solid rgba(242,236,225,0.07);
           cursor: pointer;
           transition: all 0.15s;
         }
         .pr-rad:hover {
-          background: rgba(0,245,255,0.06);
-          border-color: rgba(0,245,255,0.2);
+          background: rgba(201,169,110,0.06);
+          border-color: rgba(201,169,110,0.2);
         }
         .pr-rad-info { flex: 1; min-width: 0; }
         .pr-rad-navn {
           font-size: 0.9rem;
           font-weight: 600;
-          color: #fff;
+          color: #F2ECE1;
           margin-bottom: 2px;
         }
         .pr-rad-sub {
           font-size: 0.72rem;
-          color: rgba(255,255,255,0.4);
+          color: rgba(242,236,225,0.4);
           margin-bottom: 2px;
         }
         .pr-rad-meta {
           font-size: 0.65rem;
-          color: rgba(255,255,255,0.25);
+          color: rgba(242,236,225,0.25);
         }
         .pr-slett-btn {
           background: none;
           border: none;
-          color: rgba(255,255,255,0.25);
+          color: rgba(242,236,225,0.25);
           cursor: pointer;
           font-size: 0.85rem;
           padding: 4px 6px;
@@ -527,8 +527,8 @@ export default function ProgramMal({
           flex-shrink: 0;
         }
         .pr-slett-btn:hover {
-          background: rgba(255,80,80,0.12);
-          color: #ff5555;
+          background: rgba(224,97,79,0.12);
+          color: #E0614F;
         }
         .pr-fav-grid {
           display: grid;
@@ -538,14 +538,14 @@ export default function ProgramMal({
         .pr-fav-kort {
           padding: 12px;
           border-radius: 10px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: rgba(242,236,225,0.03);
+          border: 1px solid rgba(242,236,225,0.07);
           cursor: pointer;
           transition: all 0.15s;
         }
         .pr-fav-kort:hover {
-          background: rgba(0,245,255,0.07);
-          border-color: rgba(0,245,255,0.25);
+          background: rgba(201,169,110,0.07);
+          border-color: rgba(201,169,110,0.25);
           transform: translateY(-1px);
         }
         .pr-fav-topp {
@@ -558,18 +558,18 @@ export default function ProgramMal({
         .pr-fav-navn {
           font-size: 0.82rem;
           font-weight: 600;
-          color: #fff;
+          color: #F2ECE1;
           margin-bottom: 4px;
           line-height: 1.3;
         }
         .pr-fav-detalj {
           font-size: 0.7rem;
-          color: var(--cyan, #00f5ff);
+          color: var(--cyan, #C9A96E);
           margin-bottom: 2px;
         }
         .pr-fav-hvile {
           font-size: 0.62rem;
-          color: rgba(255,255,255,0.28);
+          color: rgba(242,236,225,0.28);
         }
         .pr-sok-felt {
           margin-bottom: 0.75rem;
@@ -584,21 +584,21 @@ export default function ProgramMal({
           padding: 3px 10px;
           border-radius: 8px;
           font-size: 0.7rem;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.45);
+          background: rgba(242,236,225,0.04);
+          border: 1px solid rgba(242,236,225,0.1);
+          color: rgba(242,236,225,0.45);
           cursor: pointer;
           transition: all 0.12s;
           font-family: var(--font-body, sans-serif);
         }
         .pr-kat-btn:hover {
-          background: rgba(255,255,255,0.08);
-          color: rgba(255,255,255,0.8);
+          background: rgba(242,236,225,0.08);
+          color: rgba(242,236,225,0.8);
         }
         .pr-kat-btn.on {
-          background: rgba(0,245,255,0.12);
-          border-color: rgba(0,245,255,0.35);
-          color: var(--cyan, #00f5ff);
+          background: rgba(201,169,110,0.12);
+          border-color: rgba(201,169,110,0.35);
+          color: var(--cyan, #C9A96E);
         }
         .pr-alle-grid {
           display: grid;
@@ -611,15 +611,15 @@ export default function ProgramMal({
         .pr-alle-kort {
           padding: 10px;
           border-radius: 8px;
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.06);
+          background: rgba(242,236,225,0.02);
+          border: 1px solid rgba(242,236,225,0.06);
           cursor: pointer;
           transition: all 0.12s;
           text-align: center;
         }
         .pr-alle-kort:hover {
-          background: rgba(0,245,255,0.07);
-          border-color: rgba(0,245,255,0.25);
+          background: rgba(201,169,110,0.07);
+          border-color: rgba(201,169,110,0.25);
           transform: translateY(-1px);
         }
         .pr-alle-em {
@@ -629,7 +629,7 @@ export default function ProgramMal({
         .pr-alle-navn {
           font-size: 0.78rem;
           font-weight: 600;
-          color: #fff;
+          color: #F2ECE1;
           margin-bottom: 3px;
           white-space: nowrap;
           overflow: hidden;
@@ -637,7 +637,7 @@ export default function ProgramMal({
         }
         .pr-alle-detalj {
           font-size: 0.65rem;
-          color: var(--cyan, #00f5ff);
+          color: var(--cyan, #C9A96E);
         }
         .pr-lagre-form {
           display: flex;
@@ -646,17 +646,17 @@ export default function ProgramMal({
         }
         .pr-lagre-info {
           font-size: 0.75rem;
-          color: rgba(0,245,255,0.7);
-          background: rgba(0,245,255,0.05);
-          border: 1px solid rgba(0,245,255,0.1);
+          color: rgba(201,169,110,0.7);
+          background: rgba(201,169,110,0.05);
+          border: 1px solid rgba(201,169,110,0.1);
           border-radius: 8px;
           padding: 8px 12px;
         }
         .spinner-lg {
           width: 32px;
           height: 32px;
-          border: 3px solid rgba(255,255,255,0.1);
-          border-top-color: var(--cyan, #00f5ff);
+          border: 3px solid rgba(242,236,225,0.1);
+          border-top-color: var(--cyan, #C9A96E);
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }

@@ -36,7 +36,7 @@ export default function DashboardLoading() {
 
       <style>{`
         @keyframes ov-skel-pulse { 0%,100%{opacity:.35} 50%{opacity:.65} }
-        .ov-skel { background:rgba(255,255,255,0.07); animation:ov-skel-pulse 1.6s ease-in-out infinite; }
+        .ov-skel { background:rgba(242,236,225,0.07); animation:ov-skel-pulse 1.6s ease-in-out infinite; }
       `}</style>
     </div>
   )

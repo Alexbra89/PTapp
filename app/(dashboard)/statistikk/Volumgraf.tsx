@@ -17,8 +17,8 @@ const Tooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background:'rgba(5,5,18,0.95)', border:'1px solid rgba(0,245,255,0.2)', borderRadius:10, padding:'8px 14px' }}>
-      <div style={{ color:'rgba(255,255,255,0.5)', fontSize:'0.72rem', marginBottom:4 }}>{label}</div>
+    <div style={{ background:'rgba(11,10,9,0.95)', border:'1px solid rgba(201,169,110,0.2)', borderRadius:10, padding:'8px 14px' }}>
+      <div style={{ color:'rgba(242,236,225,0.5)', fontSize:'0.72rem', marginBottom:4 }}>{label}</div>
       {payload.map((p: any) => (
         <div key={p.dataKey} style={{ color:p.color, fontSize:'0.85rem', fontWeight:600 }}>
           {p.name}: {p.value.toLocaleString('no')} kg
@@ -85,9 +85,9 @@ export default function Volumgraf({ userId }: { userId: string }) {
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top:5, right:10, bottom:0, left:-20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-          <XAxis dataKey="uke" tick={{ fill:'rgba(255,255,255,0.35)', fontSize:11 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill:'rgba(255,255,255,0.35)', fontSize:11 }} axisLine={false} tickLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(242,236,225,0.05)" />
+          <XAxis dataKey="uke" tick={{ fill:'rgba(242,236,225,0.35)', fontSize:11 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill:'rgba(242,236,225,0.35)', fontSize:11 }} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="kg" name="Løftet" fill="var(--green)" radius={[4,4,0,0]} fillOpacity={0.8} />
         </BarChart>

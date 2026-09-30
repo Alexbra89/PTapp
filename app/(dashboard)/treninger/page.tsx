@@ -309,7 +309,7 @@ function KonfigInner() {
       <div className={`tk-klokke glass-card${alarm ? ' tk-alarm' : ''}`}>
         <div className="tk-klokke-venstre">
           <div className="tk-tid" style={{
-            color: alarm ? '#ff4444' : kjoerer ? 'var(--cyan)' : 'rgba(255,255,255,0.4)'
+            color: alarm ? '#E0614F' : kjoerer ? 'var(--cyan)' : 'rgba(242,236,225,0.4)'
           }}>
             {formatTid(sekunder)}
           </div>
@@ -392,7 +392,7 @@ function KonfigInner() {
           display: 'flex', 
           gap: '0.5rem',
           marginBottom: '1rem',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          borderBottom: '1px solid rgba(242,236,225,0.1)',
           paddingBottom: '0.5rem'
         }}>
           <button
@@ -401,8 +401,8 @@ function KonfigInner() {
               flex: 1,
               padding: '0.75rem',
               borderRadius: '8px 8px 0 0',
-              background: modus === 'auto' ? 'rgba(0,245,255,0.1)' : 'transparent',
-              color: modus === 'auto' ? 'var(--cyan)' : 'rgba(255,255,255,0.5)',
+              background: modus === 'auto' ? 'rgba(201,169,110,0.1)' : 'transparent',
+              color: modus === 'auto' ? 'var(--cyan)' : 'rgba(242,236,225,0.5)',
               border: 'none',
               borderBottom: modus === 'auto' ? '2px solid var(--cyan)' : 'none',
               cursor: 'pointer',
@@ -418,8 +418,8 @@ function KonfigInner() {
               flex: 1,
               padding: '0.75rem',
               borderRadius: '8px 8px 0 0',
-              background: modus === 'custom' ? 'rgba(0,245,255,0.1)' : 'transparent',
-              color: modus === 'custom' ? 'var(--cyan)' : 'rgba(255,255,255,0.5)',
+              background: modus === 'custom' ? 'rgba(201,169,110,0.1)' : 'transparent',
+              color: modus === 'custom' ? 'var(--cyan)' : 'rgba(242,236,225,0.5)',
               border: 'none',
               borderBottom: modus === 'custom' ? '2px solid var(--cyan)' : 'none',
               cursor: 'pointer',
@@ -434,7 +434,7 @@ function KonfigInner() {
         {/* Muskelgruppe - vises KUN i auto-modus */}
         {modus === 'auto' && (
           <div className="tk-seksjon glass-card">
-            <div className="tk-lbl">💪 Muskelgruppe <span style={{color:'rgba(255,255,255,0.3)',fontWeight:400}}>(velg én eller flere)</span></div>
+            <div className="tk-lbl">💪 Muskelgruppe <span style={{color:'rgba(242,236,225,0.3)',fontWeight:400}}>(velg én eller flere)</span></div>
             <div className="tk-gruppe-grid">
               {GRUPPER.map(g => (
                 <button key={g.key} className={`tk-gruppe${grupper.includes(g.key)?' on':''}`}
@@ -477,7 +477,7 @@ function KonfigInner() {
 
         {/* Oppvarming - vises i begge moduser */}
         <div className="tk-seksjon glass-card">
-          <div className="tk-lbl">🔥 Oppvarming <span style={{color:'rgba(255,255,255,0.3)',fontWeight:400}}>(valgfritt)</span></div>
+          <div className="tk-lbl">🔥 Oppvarming <span style={{color:'rgba(242,236,225,0.3)',fontWeight:400}}>(valgfritt)</span></div>
           <div className="tk-opp-grid">
             {tilgjOpp.map(o => (
               <button key={o.id} className={`tk-opp${oppvarming.includes(o.id)?' on':''}`}
@@ -570,97 +570,97 @@ function KonfigInner() {
           transition: border-color 0.3s;
         }
         .tk-alarm {
-          border-color: rgba(255,68,68,0.5) !important;
+          border-color: rgba(224,97,79,0.5) !important;
           animation: alarmPulse 0.5s ease-in-out infinite alternate;
         }
         @keyframes alarmPulse {
-          from { box-shadow: 0 0 0 rgba(255,68,68,0); }
-          to   { box-shadow: 0 0 20px rgba(255,68,68,0.25); }
+          from { box-shadow: 0 0 0 rgba(224,97,79,0); }
+          to   { box-shadow: 0 0 20px rgba(224,97,79,0.25); }
         }
         .tk-klokke-venstre { flex-shrink: 0; }
         .tk-tid {
           font-family: var(--font-display, monospace); font-size: 2.2rem; font-weight: 800;
           letter-spacing: 0.05em; font-variant-numeric: tabular-nums; line-height: 1;
         }
-        .tk-klokke-info { font-size: 0.68rem; color: rgba(255,255,255,0.3); margin-top: 3px; }
+        .tk-klokke-info { font-size: 0.68rem; color: rgba(242,236,225,0.3); margin-top: 3px; }
         .tk-klokke-midten { flex: 1; min-width: 0; }
         .tk-modus-rad { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
         .tk-modus {
           padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
-          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.4); cursor: pointer; font-family: var(--font-body, sans-serif);
+          background: rgba(242,236,225,0.04); border: 1px solid rgba(242,236,225,0.1);
+          color: rgba(242,236,225,0.4); cursor: pointer; font-family: var(--font-body, sans-serif);
           transition: all 0.15s;
         }
-        .tk-modus.on { background: rgba(0,245,255,0.1); border-color: rgba(0,245,255,0.3); color: var(--cyan); }
+        .tk-modus.on { background: rgba(201,169,110,0.1); border-color: rgba(201,169,110,0.3); color: var(--cyan); }
         .tk-ned-rad { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .tk-ned-btn {
           width: 26px; height: 26px; border-radius: 7px;
-          background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-          color: #fff; cursor: pointer; font-size: 0.9rem; font-family: var(--font-body, sans-serif);
+          background: rgba(242,236,225,0.06); border: 1px solid rgba(242,236,225,0.12);
+          color: #F2ECE1; cursor: pointer; font-size: 0.9rem; font-family: var(--font-body, sans-serif);
           display: flex; align-items: center; justify-content: center;
         }
         .tk-ned-val { font-family: var(--font-display, monospace); font-size: 1.1rem; font-weight: 700; color: var(--cyan); min-width: 32px; text-align: center; }
         .tk-ned-hurtig { display: flex; gap: 3px; flex-wrap: wrap; }
         .tk-quick {
           padding: 2px 7px; border-radius: 6px; font-size: 0.65rem;
-          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
-          color: rgba(255,255,255,0.35); cursor: pointer; font-family: var(--font-body, sans-serif);
+          background: rgba(242,236,225,0.04); border: 1px solid rgba(242,236,225,0.07);
+          color: rgba(242,236,225,0.35); cursor: pointer; font-family: var(--font-body, sans-serif);
           transition: all 0.1s;
         }
-        .tk-quick.on { background: rgba(0,245,255,0.1); border-color: rgba(0,245,255,0.25); color: var(--cyan); }
+        .tk-quick.on { background: rgba(201,169,110,0.1); border-color: rgba(201,169,110,0.25); color: var(--cyan); }
         .tk-klokke-hoeyre { display: flex; gap: 6px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
         .tk-k-btn { font-size: 0.78rem !important; padding: 0.45rem 0.9rem !important; }
         .tk-reset {
-          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.4); width: 30px; height: 30px; border-radius: 8px;
+          background: rgba(242,236,225,0.05); border: 1px solid rgba(242,236,225,0.1);
+          color: rgba(242,236,225,0.4); width: 30px; height: 30px; border-radius: 8px;
           cursor: pointer; font-size: 0.85rem; transition: all 0.15s; font-family: var(--font-body, sans-serif);
         }
-        .tk-reset:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .tk-reset:hover { background: rgba(242,236,225,0.1); color: #F2ECE1; }
 
         .tk-grid { display: flex; flex-direction: column; gap: 0.875rem; }
         .tk-seksjon { padding: 1.125rem 1.25rem; }
         .tk-lbl {
           font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em;
-          color: rgba(255,255,255,0.3); font-weight: 700; margin-bottom: 0.7rem;
+          color: rgba(242,236,225,0.3); font-weight: 700; margin-bottom: 0.7rem;
         }
         .tk-pill-rad { display: flex; gap: 6px; flex-wrap: wrap; }
         .tk-pill {
           padding: 5px 12px; border-radius: 999px; font-size: 0.78rem;
-          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.45); cursor: pointer; font-family: var(--font-body, sans-serif);
+          background: rgba(242,236,225,0.04); border: 1px solid rgba(242,236,225,0.1);
+          color: rgba(242,236,225,0.45); cursor: pointer; font-family: var(--font-body, sans-serif);
           transition: all 0.15s;
         }
-        .tk-pill:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
-        .tk-pill.on { background: rgba(0,245,255,0.13); border-color: rgba(0,245,255,0.38); color: var(--cyan); }
+        .tk-pill:hover { background: rgba(242,236,225,0.08); color: rgba(242,236,225,0.8); }
+        .tk-pill.on { background: rgba(201,169,110,0.13); border-color: rgba(201,169,110,0.38); color: var(--cyan); }
         .tk-sted-rad { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .tk-sted {
           display: flex; flex-direction: column; align-items: center; gap: 4px;
-          padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.15s;
+          padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(242,236,225,0.1);
+          background: rgba(242,236,225,0.03); cursor: pointer; transition: all 0.15s;
           font-family: var(--font-body, sans-serif);
         }
-        .tk-sted:hover { background: rgba(255,255,255,0.07); }
-        .tk-sted.on { background: rgba(0,245,255,0.09); border-color: rgba(0,245,255,0.32); }
-        .tk-sted-l { font-size: 0.85rem; font-weight: 700; color: #fff; }
-        .tk-sted-s { font-size: 0.62rem; color: rgba(255,255,255,0.3); text-align: center; }
+        .tk-sted:hover { background: rgba(242,236,225,0.07); }
+        .tk-sted.on { background: rgba(201,169,110,0.09); border-color: rgba(201,169,110,0.32); }
+        .tk-sted-l { font-size: 0.85rem; font-weight: 700; color: #F2ECE1; }
+        .tk-sted-s { font-size: 0.62rem; color: rgba(242,236,225,0.3); text-align: center; }
         .tk-gruppe-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; }
         @media(max-width:600px) { .tk-gruppe-grid { grid-template-columns: repeat(4,1fr); } }
         .tk-gruppe {
           display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 4px; padding: 10px 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.15s;
+          gap: 4px; padding: 10px 4px; border-radius: 10px; border: 1px solid rgba(242,236,225,0.08);
+          background: rgba(242,236,225,0.03); cursor: pointer; transition: all 0.15s;
           font-family: var(--font-body, sans-serif); min-height: 62px;
         }
-        .tk-gruppe:hover { background: rgba(255,255,255,0.07); }
-        .tk-gruppe.on { background: rgba(0,245,255,0.1); border-color: rgba(0,245,255,0.32); }
+        .tk-gruppe:hover { background: rgba(242,236,225,0.07); }
+        .tk-gruppe.on { background: rgba(201,169,110,0.1); border-color: rgba(201,169,110,0.32); }
         .tk-gruppe-em { font-size: 1.15rem; line-height: 1; }
-        .tk-gruppe-l { font-size: 0.62rem; color: rgba(255,255,255,0.5); text-align: center; }
+        .tk-gruppe-l { font-size: 0.62rem; color: rgba(242,236,225,0.5); text-align: center; }
         .tk-gruppe.on .tk-gruppe-l { color: var(--cyan); }
         .tk-valgte { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
         .tk-badge {
           display: inline-flex; align-items: center; gap: 5px;
           padding: 3px 8px; border-radius: 999px; font-size: 0.7rem;
-          background: rgba(0,245,255,0.1); border: 1px solid rgba(0,245,255,0.25); color: var(--cyan);
+          background: rgba(201,169,110,0.1); border: 1px solid rgba(201,169,110,0.25); color: var(--cyan);
         }
         .tk-badge button { background: none; border: none; cursor: pointer; color: var(--cyan); font-size: 0.6rem; padding: 0; }
         .tk-2kol { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
@@ -669,52 +669,52 @@ function KonfigInner() {
         @media(max-width:600px) { .tk-opp-grid { grid-template-columns: 1fr 1fr; } }
         .tk-opp {
           display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-          border-radius: 10px; border: 1px solid rgba(255,255,255,0.07);
-          background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.15s;
+          border-radius: 10px; border: 1px solid rgba(242,236,225,0.07);
+          background: rgba(242,236,225,0.03); cursor: pointer; transition: all 0.15s;
           font-family: var(--font-body, sans-serif); text-align: left;
         }
-        .tk-opp:hover { background: rgba(255,255,255,0.07); }
-        .tk-opp.on { background: rgba(255,140,0,0.1); border-color: rgba(255,140,0,0.3); }
-        .tk-opp-navn { font-size: 0.75rem; color: rgba(255,255,255,0.7); font-weight: 500; }
-        .tk-opp-tid  { font-size: 0.62rem; color: rgba(255,255,255,0.3); }
+        .tk-opp:hover { background: rgba(242,236,225,0.07); }
+        .tk-opp.on { background: rgba(224,122,79,0.1); border-color: rgba(224,122,79,0.3); }
+        .tk-opp-navn { font-size: 0.75rem; color: rgba(242,236,225,0.7); font-weight: 500; }
+        .tk-opp-tid  { font-size: 0.62rem; color: rgba(242,236,225,0.3); }
         .tk-autofill-toggle {
-          background: none; border: 1px dashed rgba(255,255,255,0.14);
-          color: rgba(255,255,255,0.42); border-radius: 10px; padding: 7px 14px;
+          background: none; border: 1px dashed rgba(242,236,225,0.14);
+          color: rgba(242,236,225,0.42); border-radius: 10px; padding: 7px 14px;
           font-size: 0.78rem; cursor: pointer; font-family: var(--font-body, sans-serif);
           width: 100%; text-align: left; transition: all 0.15s;
         }
-        .tk-autofill-toggle:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.7); }
+        .tk-autofill-toggle:hover { border-color: rgba(242,236,225,0.25); color: rgba(242,236,225,0.7); }
         .tk-autofill-panel { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .tk-autofill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .tk-af-btn {
           display: flex; flex-direction: column; gap: 2px; padding: 10px 12px;
-          border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.15s;
+          border-radius: 10px; border: 1px solid rgba(242,236,225,0.08);
+          background: rgba(242,236,225,0.03); cursor: pointer; transition: all 0.15s;
           font-family: var(--font-body, sans-serif); text-align: left;
         }
-        .tk-af-btn:hover { background: rgba(255,255,255,0.07); }
-        .tk-af-btn.on { background: rgba(0,245,255,0.09); border-color: rgba(0,245,255,0.28); }
+        .tk-af-btn:hover { background: rgba(242,236,225,0.07); }
+        .tk-af-btn.on { background: rgba(201,169,110,0.09); border-color: rgba(201,169,110,0.28); }
         .tk-af-d { font-size: 0.62rem; color: var(--cyan); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
-        .tk-af-n { font-size: 0.82rem; color: rgba(255,255,255,0.8); font-weight: 600; }
-        .tk-af-s { font-size: 0.65rem; color: rgba(255,255,255,0.3); }
-        .tk-af-msg { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); color: var(--green); border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; }
+        .tk-af-n { font-size: 0.82rem; color: rgba(242,236,225,0.8); font-weight: 600; }
+        .tk-af-s { font-size: 0.65rem; color: rgba(242,236,225,0.3); }
+        .tk-af-msg { background: rgba(157,196,150,0.08); border: 1px solid rgba(157,196,150,0.2); color: var(--green); border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; }
 
         .tk-start-btn {
           width: 100%; margin-top: 1.5rem; padding: 1rem;
           border-radius: 14px; border: none; cursor: pointer;
-          background: linear-gradient(135deg, rgba(0,245,255,0.2), rgba(180,78,255,0.2));
-          border: 1px solid rgba(0,245,255,0.3);
-          color: #fff; font-family: var(--font-display, sans-serif); font-size: 1rem; font-weight: 700;
+          background: linear-gradient(135deg, rgba(201,169,110,0.2), rgba(184,190,198,0.2));
+          border: 1px solid rgba(201,169,110,0.3);
+          color: #F2ECE1; font-family: var(--font-display, sans-serif); font-size: 1rem; font-weight: 700;
           transition: all 0.2s; letter-spacing: 0.02em;
         }
         .tk-start-btn:hover:not(.tk-disabled) {
-          background: linear-gradient(135deg, rgba(0,245,255,0.3), rgba(180,78,255,0.3));
-          border-color: rgba(0,245,255,0.5);
-          box-shadow: 0 0 30px rgba(0,245,255,0.15);
+          background: linear-gradient(135deg, rgba(201,169,110,0.3), rgba(184,190,198,0.3));
+          border-color: rgba(201,169,110,0.5);
+          box-shadow: 0 0 30px rgba(201,169,110,0.15);
           transform: translateY(-1px);
         }
         .tk-disabled { opacity: 0.35; cursor: not-allowed; }
-        .tk-hint { text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.3); margin-top: 0.5rem; }
+        .tk-hint { text-align: center; font-size: 0.75rem; color: rgba(242,236,225,0.3); margin-top: 0.5rem; }
       `}</style>
     </div>
   )

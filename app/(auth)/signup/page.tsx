@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Mail, Lock, KeyRound, Eye, EyeOff, User, Check } from 'lucide-react'
+import { Dial } from '@/components/atelier/Dial'
+import { BRAND } from '@/lib/brand'
 
 export default function Signup() {
   const [navn,      setNavn]      = useState('')
@@ -76,40 +79,33 @@ export default function Signup() {
     : passord.length < 10 ? 2
     : 3
   const styrkeLabel = ['', 'Svakt', 'OK', 'Sterkt'][styrke]
-  const styrkeColor = ['', '#ff4466', '#ff8c00', '#00ff88'][styrke]
+  const styrkeColor = ['', '#E0614F', '#E07A4F', '#9DC496'][styrke]
 
   return (
     <div className="login-root">
       {/* Background — samme som login */}
       <div className="app-bg">
-        <div className="app-bg-grid" />
-        <div className="app-bg-blob app-bg-blob-1" />
-        <div className="app-bg-blob app-bg-blob-2" />
-        <div className="app-bg-blob app-bg-blob-3" />
+        <Dial className="app-bg-dial" />
       </div>
 
       <div className="login-card-wrap anim-fade-up" style={{ opacity: mounted ? undefined : 0 }}>
         <div className="login-glow" aria-hidden><div className="login-glow-inner" /></div>
 
-        <div className="login-card glass-card">
+        <div className="login-card glass-card crop">
 
           {/* Logo */}
           <div className="login-logo-area">
             <div className="login-logo-icon">
-              <div className="login-logo-ring">
-                <div className="login-logo-ring-inner">
-                  <span style={{ fontSize: '1.8rem' }}>🏋️</span>
-                </div>
-              </div>
+              <span className="monogram">A</span>
             </div>
-            <div className="login-title">Treningsapp</div>
-            <div className="login-subtitle">Opprett din konto</div>
+            <div className="login-title">Bli <em>medlem.</em></div>
+            <div className="login-subtitle">{BRAND.navn} · Opprett konto</div>
           </div>
 
           {/* Suksess-melding */}
           {suksess ? (
             <div className="su-suksess">
-              <div className="su-suksess-icon">✓</div>
+              <div className="su-suksess-icon"><Check size={22} strokeWidth={1.5} /></div>
               <div className="su-suksess-t">Konto opprettet!</div>
               <div className="su-suksess-s">Sender deg til dashboard…</div>
             </div>
@@ -128,7 +124,7 @@ export default function Signup() {
                 <div className="login-field">
                   <label className="login-field-label">Navn</label>
                   <div style={{ position: 'relative' }}>
-                    <span className="login-field-icon">👤</span>
+                    <span className="login-field-icon"><User size={15} strokeWidth={1.4} /></span>
                     <input
                       type="text"
                       className="input login-field-input"
@@ -145,7 +141,7 @@ export default function Signup() {
                 <div className="login-field">
                   <label className="login-field-label">Epost</label>
                   <div style={{ position: 'relative' }}>
-                    <span className="login-field-icon">✉</span>
+                    <span className="login-field-icon"><Mail size={15} strokeWidth={1.4} /></span>
                     <input
                       type="email"
                       className="input login-field-input"
@@ -162,7 +158,7 @@ export default function Signup() {
                 <div className="login-field">
                   <label className="login-field-label">Passord</label>
                   <div style={{ position: 'relative' }}>
-                    <span className="login-field-icon">🔒</span>
+                    <span className="login-field-icon"><Lock size={15} strokeWidth={1.4} /></span>
                     <input
                       type={visP1 ? 'text' : 'password'}
                       className="input login-field-input login-field-input-pr"
@@ -175,7 +171,7 @@ export default function Signup() {
                     <button type="button" className="login-eye-btn"
                       onClick={() => setVisP1(!visP1)}
                       aria-label={visP1 ? 'Skjul passord' : 'Vis passord'}>
-                      {visP1 ? '🙈' : '👁'}
+                      {visP1 ? <EyeOff size={16} strokeWidth={1.4} /> : <Eye size={16} strokeWidth={1.4} />}
                     </button>
                   </div>
                   {passord.length > 0 && (
@@ -183,7 +179,7 @@ export default function Signup() {
                       <div className="su-styrke-bar">
                         {[1,2,3].map(i => (
                           <div key={i} className="su-styrke-seg"
-                            style={{ background: i <= styrke ? styrkeColor : 'rgba(255,255,255,0.08)' }} />
+                            style={{ background: i <= styrke ? styrkeColor : 'rgba(242,236,225,0.08)' }} />
                         ))}
                       </div>
                       <span className="su-styrke-lbl" style={{ color: styrkeColor }}>{styrkeLabel}</span>
@@ -195,7 +191,7 @@ export default function Signup() {
                 <div className="login-field">
                   <label className="login-field-label">Bekreft passord</label>
                   <div style={{ position: 'relative' }}>
-                    <span className="login-field-icon">🔐</span>
+                    <span className="login-field-icon"><KeyRound size={15} strokeWidth={1.4} /></span>
                     <input
                       type={visP2 ? 'text' : 'password'}
                       className="input login-field-input login-field-input-pr"
@@ -208,18 +204,18 @@ export default function Signup() {
                     <button type="button" className="login-eye-btn"
                       onClick={() => setVisP2(!visP2)}
                       aria-label={visP2 ? 'Skjul passord' : 'Vis passord'}>
-                      {visP2 ? '🙈' : '👁'}
+                      {visP2 ? <EyeOff size={16} strokeWidth={1.4} /> : <Eye size={16} strokeWidth={1.4} />}
                     </button>
                   </div>
                   {passord2.length > 0 && passord !== passord2 && (
-                    <div className="su-mismatch">⚠ Passordene stemmer ikke</div>
+                    <div className="su-mismatch">Passordene stemmer ikke</div>
                   )}
                 </div>
 
                 {/* Error */}
                 {error && (
                   <div className="login-error-box">
-                    <span className="neon-dot" style={{ background: '#ff3250', boxShadow: '0 0 8px #ff3250' }} />
+                    
                     <span className="login-error-text">{error}</span>
                   </div>
                 )}
@@ -230,20 +226,20 @@ export default function Signup() {
                   className="btn btn-primary login-btn-full"
                   disabled={laster || passord !== passord2}
                 >
-                  {laster ? <span className="spinner" /> : <>✨ Opprett konto</>}
+                  {laster ? <span className="spinner" /> : <>Opprett konto</>}
                 </button>
               </form>
 
               {/* Logg inn-link */}
               <p className="login-signup-row" style={{ marginTop: '0.5rem' }}>
                 Har du allerede konto?{' '}
-                <Link href="/login" className="login-signup-link">Logg inn →</Link>
+                <Link href="/login" className="login-signup-link">Logg inn</Link>
               </p>
             </>
           )}
         </div>
 
-        <p className="login-footer">© 2024 Treningsapp · Alle rettigheter reservert</p>
+        <p className="login-footer">{BRAND.navn} · {BRAND.under}</p>
       </div>
 
       <style>{`
@@ -253,22 +249,22 @@ export default function Signup() {
         }
         .su-suksess-icon {
           width: 56px; height: 56px; border-radius: 50%;
-          background: rgba(0,255,136,.1); border: 2px solid rgba(0,255,136,.4);
-          color: #00ff88; font-size: 1.6rem; font-weight: 700;
+          background: transparent; border: 1px solid rgba(201,169,110,.6);
+          color: #E3C68C; font-size: 1.6rem;
           display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 0 24px rgba(0,255,136,.2);
+          box-shadow: 0 0 0 8px rgba(201,169,110,.06);
           animation: suPop .4s cubic-bezier(.34,1.56,.64,1) forwards;
         }
         @keyframes suPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .su-suksess-t { font-family: var(--font-display,sans-serif); font-size: 1.1rem; font-weight: 700; color: #fff; }
-        .su-suksess-s { font-size: .82rem; color: rgba(255,255,255,.35); }
+        .su-suksess-t { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; color: #F2ECE1; }
+        .su-suksess-s { font-size: .82rem; color: rgba(242,236,225,.35); }
 
         .su-styrke-rad { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
         .su-styrke-bar { display: flex; gap: 4px; flex: 1; }
         .su-styrke-seg { height: 3px; flex: 1; border-radius: 2px; transition: background .3s; }
-        .su-styrke-lbl { font-size: .65rem; font-weight: 600; min-width: 40px; text-align: right; text-transform: uppercase; letter-spacing: .06em; transition: color .3s; }
+        .su-styrke-lbl { font-family: var(--font-mono); font-size: .6rem; font-weight: 500; min-width: 40px; text-align: right; text-transform: uppercase; letter-spacing: .06em; transition: color .3s; }
 
-        .su-mismatch { font-size: .68rem; color: #ff6680; margin-top: 5px; }
+        .su-mismatch { font-size: .68rem; color: #E88A7A; margin-top: 5px; }
       `}</style>
     </div>
   )

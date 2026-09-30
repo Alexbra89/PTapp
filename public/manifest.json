@@ -4,8 +4,8 @@
   "description": "Din personlige treningsapp",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#030308",
-  "theme_color": "#030308",
+  "background_color": "#0B0A09",
+  "theme_color": "#0B0A09",
   "orientation": "portrait-primary",
   "icons": [
     {
