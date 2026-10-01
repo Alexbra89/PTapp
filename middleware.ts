@@ -1,13 +1,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { byggCsp } from '@/lib/csp'
 
 export async function middleware(request: NextRequest) {
+  // Ny nonce per forespørsel. Next.js leser CSP-en fra forespørselen og setter nonce på
+  // sine egne skript; layout leser x-nonce for vårt eget inline-skript.
+  const nonce = btoa(crypto.randomUUID())
+  const csp = byggCsp(nonce, process.env.NODE_ENV === 'development')
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
+
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   })
+  response.headers.set('Content-Security-Policy', csp)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

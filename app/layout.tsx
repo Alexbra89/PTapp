@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import { Providers } from './providers'
 import './globals.css'
 
@@ -26,7 +27,9 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Nonce fra middleware – uten den blokkerer CSP-en inline-skriptet under
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     <html lang="nb" suppressHydrationWarning>
       <head>
@@ -110,7 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         
         {/* Script som skjuler splash-screen når siden er klar */}
-        <script dangerouslySetInnerHTML={{ __html: `
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: `
           (function() {
             var splash = document.getElementById('splash-screen');
             if (!splash) return;
