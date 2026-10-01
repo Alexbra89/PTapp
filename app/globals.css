@@ -314,7 +314,7 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .login-logo-area { text-align: left; margin-bottom: 2.25rem; }
 .login-logo-icon { width: 44px; height: 44px; margin: 0 0 1.75rem; position: relative; display: flex; align-items: center; justify-content: center; color: var(--gold); }
 .login-logo-ring, .login-logo-ring-inner { display: contents; }
-.monogram { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(201,169,110,0.55); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-style: italic; font-size: 1.45rem; color: var(--gold-hi); box-shadow: 0 0 0 6px rgba(201,169,110,0.05); }
+.monogram { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(201,169,110,0.55); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-style: italic; font-size: 1.1rem; letter-spacing: -0.02em; color: var(--gold-hi); box-shadow: 0 0 0 6px rgba(201,169,110,0.05); }
 .login-title {
   font-family: var(--font-serif); font-size: 2.9rem; font-weight: 400; letter-spacing: -0.03em; line-height: 0.95;
   color: var(--ink); background: none; -webkit-text-fill-color: currentColor;
@@ -1355,6 +1355,8 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .ovd-steg li { position: relative; display: grid; grid-template-columns: 36px 1fr; gap: 18px; padding: 0.7rem 0; align-items: start; }
 .ovd-steg-nr { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-base); border: 1px solid rgba(201,169,110,0.5); color: var(--gold-hi); font-family: var(--font-mono); font-size: 0.66rem; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
 .ovd-steg p { padding-top: 7px; color: var(--ink); line-height: 1.6; font-size: 0.96rem; }
+.ins-seksjon { margin-top: 1.75rem; }
+.ins-seksjon .hq-section-title { margin-bottom: 0.75rem; }
 .ovd-tom { min-height: 55vh; display: flex; flex-direction: column; justify-content: center; gap: 1.25rem; max-width: 520px; }
 .ovd-tom p { color: var(--text-secondary); }
 .ovd-tom .btn { align-self: flex-start; }

@@ -1,7 +1,7 @@
 {
-  "name": "Treningsapp",
-  "short_name": "Trening",
-  "description": "Din personlige treningsapp",
+  "name": "AB-PT",
+  "short_name": "AB-PT",
+  "description": "AB-PT – personlig trening",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0B0A09",

@@ -59,7 +59,7 @@ export default function Login() {
         <div className="login-card glass-card crop">
           <div className="login-logo-area">
             <div className="login-logo-icon">
-              <span className="monogram">A</span>
+              <span className="monogram">AB</span>
             </div>
             <div className="login-title">
               Velkommen<br />tilbake til <em>{BRAND.navn}.</em>

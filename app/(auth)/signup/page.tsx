@@ -96,7 +96,7 @@ export default function Signup() {
           {/* Logo */}
           <div className="login-logo-area">
             <div className="login-logo-icon">
-              <span className="monogram">A</span>
+              <span className="monogram">AB</span>
             </div>
             <div className="login-title">Bli <em>medlem.</em></div>
             <div className="login-subtitle">{BRAND.navn} · Opprett konto</div>

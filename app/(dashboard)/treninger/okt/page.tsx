@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
@@ -8,7 +8,7 @@ import { OVELSER as BIBLIOTEK, utvalg, type Ovelse } from '@/data/ovelsesbibliot
 import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from '../../kalender/ProgramMal'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame, Trophy, SkipForward } from 'lucide-react'
+import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame, Trophy, SkipForward, BookOpen } from 'lucide-react'
 import { Dial } from '@/components/atelier/Dial'
 import { OppvarmingIkon } from '@/components/atelier/Glyph'
 import { TelleTall } from '@/components/atelier/TelleTall'
@@ -16,6 +16,7 @@ import { lokalDato } from '@/lib/dato'
 import { lyd } from '@/lib/lyd'
 import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 import { finnPrOvelse } from '@/lib/prOvelser'
+import Instruksjonsark from '@/components/Instruksjonsark'
 
 
 function spillAlarm() {
@@ -166,6 +167,8 @@ function OktInner() {
   const [dagensDato, setDagensDato] = useState('')
   const [visFavorittModal, setVisFavorittModal] = useState(false)
   const [bytteIndex, setBytteIndex] = useState<number | null>(null)
+  const [instruksjon, setInstruksjon] = useState<OvelseLogg | null>(null)
+  const lukkInstruksjon = useCallback(() => setInstruksjon(null), [])
   const [bekrefter,  setBekrefter]  = useState(false)
   const [lagretOktId, setLagretOktId] = useState<string | null>(searchParams.get('okt'))
   // Forrige resultat og beste løft per øvelse (fra treningslogger)
@@ -755,6 +758,9 @@ function OktInner() {
                     transition={{ duration: 0.45, ease: [0.16,1,0.3,1] }}
                   >
                     <div className="okt-verktoy">
+                      <button className="okt-slik-btn" onClick={(e) => { e.stopPropagation(); setInstruksjon(o) }}>
+                        <BookOpen size={12} strokeWidth={1.5} /> Slik gjør du
+                      </button>
                       <button className="okt-fav-btn" onClick={(e) => { e.stopPropagation(); leggTilFavoritt(o) }}>
                         <Star size={12} strokeWidth={1.5} /> Favoritt
                       </button>
@@ -893,6 +899,12 @@ function OktInner() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {instruksjon && (
+          <Instruksjonsark key="instruksjon" navn={instruksjon.navn} beskrivelse={instruksjon.beskrivelse} tips={instruksjon.tips} onLukk={lukkInstruksjon} />
+        )}
+      </AnimatePresence>
+
       {visFavorittModal && userId && bytteIndex !== null && (
         <ProgramMal
           userId={userId}
@@ -991,8 +1003,10 @@ function OktInner() {
 
         .okt-ov-body { padding: 0 1.4rem; overflow:hidden; }
         .okt-ov-body > :last-child { margin-bottom: 1.4rem; }
-        .okt-verktoy { display:flex; gap:6px; padding-top: 1rem; border-top: 1px solid var(--line); }
+        .okt-verktoy { display:flex; flex-wrap:wrap; gap:6px; padding-top: 1rem; border-top: 1px solid var(--line); }
         .okt-fav-btn, .okt-bytte-btn { display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--line); color: var(--text-secondary); border-radius:999px; padding:6px 12px; font-size:0.74rem; cursor:pointer; transition: all 0.2s; }
+        .okt-slik-btn { display:inline-flex; align-items:center; gap:6px; background: rgba(201,169,110,0.1); border:1px solid rgba(201,169,110,0.45); color: var(--gold-hi); border-radius:999px; padding:6px 12px; font-size:0.74rem; cursor:pointer; transition: all 0.2s; }
+        .okt-slik-btn:hover { background: rgba(201,169,110,0.18); }
         .okt-fav-btn:hover, .okt-bytte-btn:hover { border-color: rgba(201,169,110,0.5); color: var(--gold-hi); }
         .okt-besk-txt { font-size:0.88rem; color: var(--text-secondary); line-height:1.65; margin: 1rem 0 0; max-width: 60ch; }
         .okt-tips { display:flex; flex-direction:column; gap:4px; font-size:0.86rem; color: var(--ink); margin: 1rem 0 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 1px solid var(--gold); }

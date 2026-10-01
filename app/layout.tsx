@@ -4,15 +4,15 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default:  'Treningsapp',
-    template: '%s · Treningsapp',
+    default:  'AB-PT',
+    template: '%s · AB-PT',
   },
-  description: 'Din personlige treningsapp – øvelser, treningsøkter og statistikk',
+  description: 'AB-PT – personlig trening: øvelser, treningsøkter og statistikk',
   manifest:    '/manifest.json',
   appleWebApp: {
     capable:        true,
     statusBarStyle: 'black-translucent',
-    title:          'Trening',
+    title:          'AB-PT',
   },
   formatDetection: { telephone: false },
   robots: { index: false },
@@ -105,7 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Splash screen – fjernes når React er klar */}
         <div id="splash-screen">
           <div className="splash-ring" />
-          <div className="splash-title">Atelier</div>
+          <div className="splash-title">AB-PT</div>
           <div className="splash-sub">Privat treningsklubb</div>
         </div>
         
