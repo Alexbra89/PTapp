@@ -6,6 +6,7 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { AtelierTooltip, AKSE, RUTENETT, GULL } from '@/components/atelier/chart'
+import { tilDato, formaterDato } from '@/lib/dato'
 
 // Lazy-load Recharts
 const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
@@ -77,6 +78,7 @@ export default function ProgresjonOvelse({ userId }: Props) {
       
       logger.forEach((logg: any) => {
         const dato = logg.dato
+        if (!tilDato(dato) || !Array.isArray(logg.sett)) return // ufullstendig rad – hopp over
         const besteSett = logg.sett.reduce((max: number, sett: any) => {
           const vekt = sett.vekt || 0
           const reps = sett.reps || 0
@@ -93,13 +95,13 @@ export default function ProgresjonOvelse({ userId }: Props) {
       const chartData = Object.entries(dagligBeste).map(([dato, verdi]) => ({
         dato,
         verdi,
-        visDato: format(new Date(dato), 'dd.MM')
+        visDato: formaterDato(dato, 'dd.MM')
       }))
 
       // Filtrer basert på valgt tidsrom
       const now = new Date()
       const filterDato = (dato: string) => {
-        const d = new Date(dato)
+        const d = tilDato(dato) ?? new Date(0)
         if (tidsrom === '3m') return d >= subMonths(now, 3)
         if (tidsrom === '6m') return d >= subMonths(now, 6)
         if (tidsrom === '12m') return d >= subMonths(now, 12)

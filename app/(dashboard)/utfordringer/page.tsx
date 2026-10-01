@@ -98,7 +98,7 @@ export default function UtfordringerPage() {
       ])
       // Bare fullførte økter teller – planlagte økter er ikke gjennomført trening
       const okter = (okterAlle ?? []).filter((o: any) => o.fullfort === true)
-      const volum = (l: any) => (l.sett ?? []).reduce((s: number, x: any) => s + (x.vekt || x.kg || 0) * (x.reps || 0), 0)
+      const volum = (l: any) => (Array.isArray(l.sett) ? l.sett : []).reduce((s: number, x: any) => s + (x.vekt || x.kg || 0) * (x.reps || 0), 0)
       const totalKg = (logger ?? []).reduce((s: number, l: any) => s + volum(l), 0)
 
       const datoer = new Set(okter.map((o: any) => o.dato))

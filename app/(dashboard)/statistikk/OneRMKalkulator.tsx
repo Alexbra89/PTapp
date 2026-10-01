@@ -37,7 +37,7 @@ export default function OneRMKalkulator({ userId }: { userId: string }) {
       const perOvelse: Record<string, { kg: number; reps: number; dato: string }> = {}
       
       for (const logg of logger) {
-        if (!logg.sett || !Array.isArray(logg.sett)) continue
+        if (!logg.ovelse_navn || !logg.sett || !Array.isArray(logg.sett)) continue
         
         for (const sett of logg.sett) {
           const vekt = sett.vekt || sett.kg || 0

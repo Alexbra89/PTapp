@@ -14,7 +14,7 @@ import { MuskelGlyph } from '@/components/atelier/Glyph'
 import { TelleTall } from '@/components/atelier/TelleTall'
 import { PR_OVELSER } from '@/lib/prOvelser'
 import { AtelierTooltip, TikkSoyle, TikkSoyleH, AKSE, RUTENETT, MARKOR, GULL } from '@/components/atelier/chart'
-import { lokalDato } from '@/lib/dato'
+import { lokalDato, formaterDato } from '@/lib/dato'
 
 const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
 const BarChart  = dynamic(() => import('recharts').then(mod => mod.BarChart),  { ssr: false })
@@ -480,7 +480,7 @@ export default function StatistikkPage() {
                   const diff    = forrige ? v.vekt - forrige.vekt : null
                   return (
                     <div key={v.dato} className="st-vekt-row">
-                      <span className="st-vekt-dato">{format(new Date(v.dato), 'd. MMM yyyy', { locale:nb })}</span>
+                      <span className="st-vekt-dato">{formaterDato(v.dato, 'd. MMM yyyy', { locale:nb })}</span>
                       <span className="st-vekt-tall">{v.vekt} kg</span>
                       {diff !== null && (
                         <span style={{ fontSize:'0.75rem', color: diff < 0 ? 'var(--green)' : diff > 0 ? 'var(--orange)' : 'rgba(242,236,225,0.3)', marginLeft:8 }}>

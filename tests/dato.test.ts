@@ -15,3 +15,18 @@ describe('lokalDato', () => {
     expect(lokalDato()).toBe(lokalDato(new Date(n.getFullYear(), n.getMonth(), n.getDate())))
   })
 })
+
+describe('tilDato og formaterDato', () => {
+  it('tolker yyyy-MM-dd som lokal dato', async () => {
+    const { tilDato } = await import('@/lib/dato')
+    expect(tilDato('2026-10-01')?.getDate()).toBe(1)
+  })
+  it('krasjer ikke på manglende eller ugyldige datoer', async () => {
+    const { tilDato, formaterDato } = await import('@/lib/dato')
+    for (const v of [undefined, null, '', 'tull', 42]) {
+      expect(tilDato(v)).toBeNull()
+      expect(formaterDato(v, 'dd.MM')).toBe('')
+    }
+    expect(formaterDato('2026-10-01', 'dd.MM')).toBe('01.10')
+  })
+})

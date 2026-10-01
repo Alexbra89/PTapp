@@ -136,6 +136,18 @@ function shuffle<T>(arr: T[]): T[] {
 
 const UTKAST_NOKKEL = 'okt_utkast'
 
+// Økter som er ferdig lagret på denne enheten (nøkler). Hindrer at samme økt lagres på nytt
+// fra en annen fane eller et gjenopprettet utkast. Bare de 30 siste huskes.
+const FULLFORTE = 'okt_fullforte'
+const LOGGET = 'okt_logget' // reserveløsningen: settene er lagret, men ikke resten ennå
+const lesListe = (k: string): string[] => { try { return JSON.parse(localStorage.getItem(k) ?? '[]') } catch { return [] } }
+const leggTil = (k: string, v: string) => { try { localStorage.setItem(k, JSON.stringify([v, ...lesListe(k).filter(x => x !== v)].slice(0, 30))) } catch {} }
+const nyNokkel = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16))
+// Databasefunksjonen fullfor_okt finnes ikke før migrasjonen er kjørt
+const funksjonMangler = (e: { code?: string; message?: string }) =>
+  e.code === 'PGRST202' || e.code === '42883' || /could not find the function|does not exist/i.test(e.message ?? '')
+
 // Biblioteksøvelse → formatet økta bruker
 const fraBibliotek = (o: Ovelse): OvelseDB => ({
   navn: o.navn, sett: o.sett, reps: o.reps, hvile: o.hvile, utstyr: o.utstyr, emoji: '',
@@ -204,6 +216,9 @@ function OktInner() {
   const [klokkeMode, setKlokkeMode] = useState<'stopp'|'ned'>('stopp')
   const [sekunder,   setSekunder]   = useState(0)
   const startet = useRef(Date.now()) // når økta begynte – gir varighet selv om stoppeklokka ikke er brukt
+  const fullforNokkel = useRef(nyNokkel()) // én per økt – gjør lagringen trygg å prøve på nytt
+  const sender = useRef(false) // stopper dobbel innsending før knappen rekker å bli deaktivert
+  const [lagreFeil, setLagreFeil] = useState('')
   const [kjoerer,    setKjoerer]    = useState(false)
   const [nedMal,     setNedMal]     = useState(3)
   const [alarm,      setAlarm]      = useState(false)
@@ -324,10 +339,12 @@ function OktInner() {
     if (brukUtkast) {
       try {
         const u = JSON.parse(localStorage.getItem(UTKAST_NOKKEL) ?? 'null')
-        if (u && u.nokkel === searchParams.toString() && Date.now() - u.lagret < 12 * 3600_000 && u.okter?.length) {
+        const alleredeLagret = u?.fullforNokkel && lesListe(FULLFORTE).includes(u.fullforNokkel)
+        if (u && !alleredeLagret && u.nokkel === searchParams.toString() && Date.now() - u.lagret < 12 * 3600_000 && u.okter?.length) {
           setOkter(u.okter); setTittel(u.tittel ?? ''); setOppvar(u.oppvar ?? [])
           if (u.lagretOktId) setLagretOktId(u.lagretOktId)
           if (u.startet) startet.current = u.startet
+          if (u.fullforNokkel) fullforNokkel.current = u.fullforNokkel
           setGjenopprettet(true); setLaster(false)
           return
         }
@@ -442,14 +459,14 @@ function OktInner() {
     if (laster || feiring || !okter.length) return
     try {
       localStorage.setItem(UTKAST_NOKKEL, JSON.stringify({
-        nokkel: searchParams.toString(), lagret: Date.now(), startet: startet.current, okter, tittel, oppvar, lagretOktId,
+        nokkel: searchParams.toString(), lagret: Date.now(), startet: startet.current, fullforNokkel: fullforNokkel.current, okter, tittel, oppvar, lagretOktId,
       }))
     } catch {}
   }, [okter, tittel, oppvar, lagretOktId, laster, feiring]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const startPaNytt = () => {
     try { localStorage.removeItem(UTKAST_NOKKEL) } catch {}
-    setGjenopprettet(false); setLaster(true); setOkter([]); startet.current = Date.now()
+    setGjenopprettet(false); setLaster(true); setOkter([]); startet.current = Date.now(); fullforNokkel.current = nyNokkel(); setLagreFeil('')
     bygg(false)
   }
 
@@ -570,6 +587,30 @@ function OktInner() {
   const tonnasje = Math.round(alleSett.filter(s=>s.fullfort).reduce((sum,s)=>sum + (s.kg||0)*(s.reps||0), 0))
   const alleFerdig = totalt > 0 && fullfort === totalt
 
+  // Reserveløsning til migrasjonen fullfor_okt er kjørt: settene først, så økta, så rekorder.
+  // Feiler et steg, stopper vi – utkastet beholdes og et nytt forsøk hopper over det som er lagret.
+  const fullforUtenFunksjon = async (brukerId: string, dato: string, logger: any[], rekorder: { ovelse_id: string; kg: number; reps: number }[]) => {
+    const n = fullforNokkel.current
+    if (!lesListe(LOGGET).includes(n)) {
+      const { error } = logger.length
+        ? await supabase.from('treningslogger').insert(logger.map(l => ({ ...l, bruker_id: brukerId, dato })))
+        : { error: null }
+      if (error) return error
+      leggTil(LOGGET, n)
+    }
+    const feil = await lagreOktRad(brukerId, dato, true)
+    if (feil) return feil
+    for (const r of rekorder) {
+      // Bare høyere vekt overskriver – en rekord lagt inn manuelt i statistikken kan være høyere
+      const { data: eks } = await supabase.from('pr_rekorder').select('kg').eq('bruker_id', brukerId).eq('ovelse_id', r.ovelse_id).maybeSingle()
+      if (eks && r.kg <= Number(eks.kg)) continue
+      const { error } = await supabase.from('pr_rekorder')
+        .upsert([{ bruker_id: brukerId, ...r, dato }], { onConflict: 'bruker_id,ovelse_id' })
+      if (error) return error
+    }
+    return null
+  }
+
   const fullforTrening = async () => {
     if (!alleFerdig) {
       visMelding(`Fullfør alle sett først. ${totalt - fullfort} igjen.`)
@@ -580,44 +621,65 @@ function OktInner() {
       setTimeout(() => setBekrefter(false), 4000)
       return
     }
-    setBekrefter(false)
-    setLagrer(true)
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    if (!currentUser) { setLagrer(false); return }
+    if (sender.current) return
+    sender.current = true
+    setBekrefter(false); setLagrer(true); setLagreFeil('')
 
-    const dato = lokalDato()
-    const error = await lagreOktRad(currentUser.id, dato, true)
-
-    if (error) {
-      visMelding('Noe gikk galt ved lagring: ' + error.message)
-    } else {
-      const logger = okter
-        .filter(o => o.sett_logg.some(s => s.kg > 0))
-        .map(o => ({
-          bruker_id: currentUser.id,
-          dato,
-          ovelse_navn: o.navn,
-          muskelgruppe: o.muskler,
-          sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort })),
-        }))
-      // Én samlet insert i stedet for én forespørsel per øvelse
-      const { error: loggFeil } = logger.length ? await supabase.from('treningslogger').insert(logger) : { error: null }
-      if (loggFeil) visMelding('Økten er lagret, men settene kunne ikke logges: ' + loggFeil.message)
-      // Oppdater personlige rekorder for øvelser som finnes i rekordlisten
-      for (const [navn, kg] of Object.entries(nyePR)) {
-        const pr = finnPrOvelse(navn)
-        if (!pr) continue
-        const reps = okter.find(o => o.navn === navn)?.sett_logg.find(x => x.kg === kg)?.reps ?? 1
-        const { data: eks } = await supabase.from('pr_rekorder').select('id, kg').eq('bruker_id', currentUser.id).eq('ovelse_id', pr.id).maybeSingle()
-        if (!eks) await supabase.from('pr_rekorder').insert([{ bruker_id: currentUser.id, ovelse_id: pr.id, kg, reps, dato }])
-        else if (kg > eks.kg) await supabase.from('pr_rekorder').update({ kg, reps, dato }).eq('id', eks.id)
-      }
+    const ferdig = () => {
+      leggTil(FULLFORTE, fullforNokkel.current)
       setHvile(null)
       try { localStorage.removeItem(UTKAST_NOKKEL) } catch {}
       oppdaterCache()
       setFeiring({ sett: fullfort, ovelser: okter.length, kg: tonnasje, tid: varighetSek(klokkeMode === 'stopp' ? sekunder : 0, startet.current) })
     }
-    setLagrer(false)
+
+    try {
+      // Allerede lagret fra en annen fane på denne enheten
+      if (lesListe(FULLFORTE).includes(fullforNokkel.current)) { ferdig(); return }
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser) { setLagreFeil('Du er logget ut. Logg inn igjen – økta er tatt vare på.'); return }
+
+      const dato = lokalDato()
+      const okt = {
+        dato, tittel, type: 'styrke',
+        varighet_min: Math.max(1, Math.round(varighetSek(klokkeMode === 'stopp' ? sekunder : 0, startet.current) / 60)),
+        ovelser: okter.map(o => ({ navn: o.navn, sett: o.sett, reps: o.sett_logg.map(s => s.reps).join('/'), kg: o.sett_logg.find(s => s.kg > 0)?.kg ?? 0 })),
+      }
+      const logger = okter
+        .filter(o => o.sett_logg.some(s => s.kg > 0))
+        .map(o => ({
+          ovelse_navn: o.navn,
+          muskelgruppe: o.muskler,
+          sett: o.sett_logg.map(s => ({ reps: s.reps, vekt: s.kg, fullfort: s.fullfort })),
+        }))
+      const rekorder = Object.entries(nyePR).flatMap(([navn, kg]) => {
+        const pr = finnPrOvelse(navn)
+        if (!pr) return []
+        const reps = okter.find(o => o.navn === navn)?.sett_logg.find(x => x.kg === kg)?.reps ?? 1
+        return [{ ovelse_id: pr.id, kg, reps }]
+      })
+
+      // Alt i én transaksjon i databasen – lagres helt eller ikke i det hele tatt.
+      // Samme nøkkel to ganger (nytt forsøk, to faner) gir ingen duplikater.
+      const { data, error } = await supabase.rpc('fullfor_okt', {
+        p_nokkel: fullforNokkel.current, p_okt_id: lagretOktId, p_okt: okt, p_logger: logger, p_rekorder: rekorder,
+      })
+      if (error && !funksjonMangler(error)) throw error
+      if (error) {
+        const feil = await fullforUtenFunksjon(currentUser.id, dato, logger, rekorder)
+        if (feil) throw feil
+      } else if (typeof data === 'string') {
+        setLagretOktId(data)
+      }
+      ferdig()
+    } catch (e) {
+      console.error('Kunne ikke fullføre økta:', e)
+      setLagreFeil('Økta ble ikke lagret – sjekk nettet og prøv igjen. Ingenting er tapt.')
+    } finally {
+      sender.current = false
+      setLagrer(false)
+    }
   }
 
   return (
@@ -894,7 +956,9 @@ function OktInner() {
           <span>{lagrer ? 'Lagrer …' : bekrefter ? 'Trykk igjen for å bekrefte' : alleFerdig ? 'Fullfør treningen' : `Fullfør treningen · ${totalt - fullfort} sett igjen`}</span>
           <span className="hq-cta-arrow">{lagrer ? <span className="spinner" style={{ borderColor: 'rgba(227,198,140,0.25)', borderTopColor: 'var(--gold-hi)' }} /> : <ArrowRight size={18} strokeWidth={1.5} />}</span>
         </motion.button>
-        <span className="eyebrow" style={{ textAlign: 'center' }}>Lagres i kalenderen og statistikken</span>
+        {lagreFeil
+          ? <p className="okt-lagrefeil" role="alert">{lagreFeil}</p>
+          : <span className="eyebrow" style={{ textAlign: 'center' }}>Lagres i kalenderen og statistikken</span>}
       </div>
 
       {/* ── Fullført-seremoni ── portal til <body>, ellers havner menyen oppå (sideovergangen lager egen stabel) */}
@@ -1072,6 +1136,7 @@ function OktInner() {
         .okt-notat-lagre { font-size:.8rem !important; align-self:flex-end; padding: 0.55rem 1.1rem !important; }
 
         .okt-avslutt { display:flex; flex-direction:column; gap:12px; margin: 2rem 0 1rem; }
+        .okt-lagrefeil { text-align:center; font-size:0.84rem; line-height:1.5; color: var(--ember, #D08A6A); padding: 0.75rem 1rem; border:1px solid rgba(208,138,106,0.35); border-radius:14px; background: rgba(208,138,106,0.06); }
         .okt-fullfor { width:100%; justify-content:space-between; padding: 1.1rem 0.6rem 1.1rem 1.6rem; font-size: 1rem; }
         .okt-fullfor.bekreft { background: var(--gold-hi) !important; }
 

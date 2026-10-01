@@ -91,3 +91,11 @@ describe('utvalg etter nivå', () => {
     }
   })
 })
+
+describe('manglende navn', () => {
+  it('finnOvelseNavn tåler null og undefined', () => {
+    expect(finnOvelseNavn(undefined)).toBeUndefined()
+    expect(finnOvelseNavn(null)).toBeUndefined()
+    expect(finnOvelseNavn('')).toBeUndefined()
+  })
+})

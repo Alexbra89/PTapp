@@ -174,12 +174,12 @@ export function useStats(userId?: string) {
 
       // 🔥 TOTAL kg (alle tider)
       const totalKg = (allLogger ?? []).reduce((s: number, l: any) =>
-        s + (l.sett ?? []).reduce((ss: number, set: any) =>
+        s + (Array.isArray(l.sett) ? l.sett : []).reduce((ss: number, set: any) =>
           ss + (set.vekt ?? set.kg ?? 0) * (set.reps ?? 0), 0), 0)
 
       // 🔥 NY: UKENTLIG kg (denne uken)
       const ukeKg = (ukeLogger ?? []).reduce((s: number, l: any) =>
-        s + (l.sett ?? []).reduce((ss: number, set: any) =>
+        s + (Array.isArray(l.sett) ? l.sett : []).reduce((ss: number, set: any) =>
           ss + (set.vekt ?? set.kg ?? 0) * (set.reps ?? 0), 0), 0)
 
       // Muskelfokus

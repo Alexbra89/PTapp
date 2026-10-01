@@ -360,10 +360,12 @@ const TIDLIGERE_NAVN: Record<string, string> = {
   "paused bench": "pausedBench",
 }
 
-const normaliser = (navn: string) => navn.toLowerCase().trim().replace(/\s+/g, ' ')
+// Tåler manglende navn (null/undefined fra databasen) – gir da tom streng og ingen treff
+const normaliser = (navn: unknown) => typeof navn === 'string' ? navn.toLowerCase().trim().replace(/\s+/g, ' ') : ''
 
-export const finnOvelseNavn = (navn: string) => {
+export const finnOvelseNavn = (navn: string | null | undefined) => {
   const n = normaliser(navn)
+  if (!n) return undefined
   const id = TIDLIGERE_NAVN[n]
   return OVELSER.find(o => o.navn.toLowerCase() === n) ?? (id ? OVELSER.find(o => o.id === id) : undefined)
 }
