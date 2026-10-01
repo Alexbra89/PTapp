@@ -16,6 +16,8 @@ export default function Login() {
   const [laster, setLaster]         = useState(false)
   const [visPassord, setVisPassord] = useState(false)
   const [mounted, setMounted]       = useState(false)
+  const [ikkeBekreftet, setIkkeBekreftet] = useState(false)
+  const [sendtPaNytt, setSendtPaNytt]     = useState(false)
   const router   = useRouter()
   const supabase = createClient()
 
@@ -24,7 +26,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLaster(true)
-    setError('')
+    setError(''); setIkkeBekreftet(false); setSendtPaNytt(false)
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: epost,
@@ -34,15 +36,25 @@ export default function Login() {
       router.refresh()
       router.push('/dashboard')
     } catch (err: any) {
-      setError(
-        err.message === 'Invalid login credentials'
-          ? 'Feil e-post eller passord.'
-          : err.message
-      )
+      const m = err?.message ?? ''
+      if (/email not confirmed/i.test(m)) { setIkkeBekreftet(true); setError('E-posten er ikke bekreftet ennå. Åpne lenken vi sendte deg.') }
+      else if (m === 'Invalid login credentials') setError('Feil e-post eller passord.')
+      else if (err?.status === 429 || /rate limit|too many/i.test(m)) setError('For mange forsøk. Vent litt og prøv igjen.')
+      else setError('Kunne ikke logge inn. Prøv igjen.')
     } finally {
       setLaster(false)
     }
   }
+
+  const sendBekreftelse = async () => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email: epost.trim(), options: { emailRedirectTo: `${window.location.origin}/bekreftet` } })
+    if (error && (error.status === 429 || /rate limit|security purposes/i.test(error.message))) setError('For mange forsøk. Vent litt og prøv igjen.')
+    else setSendtPaNytt(true)
+  }
+
+  // Vises etter at kontoen er slettet (profilsiden)
+  const [slettet, setSlettet] = useState(false)
+  useEffect(() => { setSlettet(new URLSearchParams(window.location.search).has('slettet')) }, [])
 
   return (
     <div className="login-root">
@@ -112,9 +124,16 @@ export default function Login() {
 
             <div className="login-glemt"><Link href="/glemt-passord">Glemt passord?</Link></div>
 
+            {slettet && !error && (
+              <div className="pf-melding" role="status" style={{ marginBottom: '1rem' }}>Kontoen og alle dataene dine er slettet.</div>
+            )}
+
             {error && (
               <motion.div className="login-error-box" initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}>
                 <span className="login-error-text">{error}</span>
+                {ikkeBekreftet && (sendtPaNytt
+                  ? <span className="login-error-text" style={{ display: 'block', marginTop: 6 }}>Ny lenke er sendt.</span>
+                  : <button type="button" className="login-lenkeknapp" onClick={sendBekreftelse}>Send lenken på nytt</button>)}
               </motion.div>
             )}
 
@@ -136,7 +155,7 @@ export default function Login() {
             <Link href="/signup" className="login-signup-link">Opprett konto</Link>
           </p>
         </div>
-        <p className="login-footer">{BRAND.navn} · {BRAND.under}</p>
+        <p className="login-footer">{BRAND.navn} · {BRAND.under} · <Link href="/personvern" className="login-footer-lenke">Personvern</Link></p>
       </motion.div>
     </div>
   )

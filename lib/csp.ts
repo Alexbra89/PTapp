@@ -3,7 +3,7 @@
 // <script> eller onclick="…" blokkeres. Stiler må tillate inline (sidene bruker <style>-blokker
 // og style-attributter), men det gir ikke kjøring av kode.
 
-export function byggCsp(nonce: string, utvikling = false): string {
+export function byggCsp(nonce: string, utvikling = false, https = true): string {
   const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
   const supabaseWs = supabase.replace(/^http/, 'ws')
   const regler: Record<string, string[]> = {
@@ -22,6 +22,8 @@ export function byggCsp(nonce: string, utvikling = false): string {
     'frame-ancestors': ["'none'"],
   }
   const deler = Object.entries(regler).map(([k, v]) => `${k} ${v.join(' ')}`)
-  if (!utvikling) deler.push('upgrade-insecure-requests')
+  // Bare over HTTPS (alltid på Vercel). Lokalt over http ville nettleseren skrevet om
+  // omdirigeringer til https://localhost, som ikke finnes.
+  if (!utvikling && https) deler.push('upgrade-insecure-requests')
   return deler.join('; ')
 }

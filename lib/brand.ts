@@ -3,4 +3,6 @@ export const BRAND = {
   navn:    'AB-PT',
   under:   'Personlig trening',
   kort:    'Privat treningsklubb',
+  // E-post for spørsmål om personvern (vises i personvernerklæringen). Fyll inn før lansering.
+  kontaktEpost: '',
 } as const

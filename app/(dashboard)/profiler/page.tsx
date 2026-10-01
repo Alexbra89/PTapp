@@ -9,6 +9,7 @@ import { useUser, useProfil, useLagreProfil, useStats, useVektlogg } from '@/hoo
 import { TelleTall } from '@/components/atelier/TelleTall'
 import { BRAND } from '@/lib/brand'
 import InnstillingerPanel from '@/components/InnstillingerPanel'
+import KontoPanel from '@/components/KontoPanel'
 
 const MAL_OPTIONS = [
   { key: 'ned_i_vekt',    label: 'Ned i vekt',      ikon: TrendingDown, tekst: 'Kaloriunderskudd, bevar muskelmassen.' },
@@ -267,6 +268,7 @@ export default function ProfilPage() {
       )}
 
       {!redigerer && <InnstillingerPanel />}
+      {!redigerer && <KontoPanel />}
     </div>
   )
 }

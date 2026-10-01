@@ -13,7 +13,8 @@ import { Dial } from '@/components/atelier/Dial'
 import { BRAND } from '@/lib/brand'
 import { SideSkjelett } from '@/components/atelier/Skjelett'
 import Introduksjon, { INTRO_NOKKEL } from '@/components/Introduksjon'
-import { useProfil } from '@/hooks/useSupabaseQuery'
+import { useProfil, QK } from '@/hooks/useSupabaseQuery'
+import { useQueryClient } from '@tanstack/react-query'
 import { ryddVedUtlogging } from '@/lib/utlogging'
 
 const NAV = [
@@ -78,12 +79,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => { try { setIntroFerdig(localStorage.getItem(INTRO_NOKKEL) === '1') } catch {} }, [])
   const visIntro = klar && !!user && profilHentet && !profil?.mal && !introFerdig
 
+  // Profilraden lages ved første innlogging. Med e-postbekreftelse finnes det ingen økt ved
+  // registreringen, så den kan ikke lages der. Mange sider (deling, program) forutsetter den.
+  const qc = useQueryClient()
+  const [lagerProfil, setLagerProfil] = useState(false)
+  useEffect(() => {
+    if (!user || !profilHentet || profil || lagerProfil) return
+    setLagerProfil(true)
+    supabase.from('profiler')
+      .upsert({ id: user.id, epost: user.email, navn: user.user_metadata?.full_name ?? '' }, { onConflict: 'id', ignoreDuplicates: true })
+      .then(() => qc.invalidateQueries({ queryKey: QK.profil(user.id) }))
+  }, [user, profilHentet, profil, lagerProfil, supabase, qc])
+
   const loggUt = async () => {
     setLoggingUt(true)
     await supabase.auth.signOut()
     await ryddVedUtlogging()
-    router.push('/login')
-    router.refresh()
+    // Full sidelasting: tømmer også alt som ligger i minnet (cache, skjemaer). router.push etterfulgt
+    // av router.refresh kunne avbryte navigasjonen i Next 15, slik at brukeren ble stående.
+    window.location.replace('/login')
   }
 
   const initialer = (user?.user_metadata?.full_name ?? user?.email ?? '?')

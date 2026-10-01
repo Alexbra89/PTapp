@@ -15,6 +15,7 @@ export default function Signup() {
   const [passord2,  setPassord2]  = useState('')
   const [error,     setError]     = useState('')
   const [suksess,   setSuksess]   = useState(false)
+  const [sjekkEpost, setSjekkEpost] = useState(false)
   const [laster,    setLaster]    = useState(false)
   const [visP1,     setVisP1]     = useState(false)
   const [visP2,     setVisP2]     = useState(false)
@@ -28,55 +29,43 @@ export default function Signup() {
     e.preventDefault()
     setError('')
     if (passord !== passord2) { setError('Passordene stemmer ikke overens'); return }
-    if (passord.length < 6)   { setError('Passordet må være minst 6 tegn'); return }
+    if (passord.length < 8)   { setError('Passordet må være minst 8 tegn'); return }
 
     setLaster(true)
     try {
-      // 1. Opprett bruker
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: epost,
+      // Med «Confirm email» på i Supabase får brukeren en bekreftelseslenke og ingen økt ennå.
+      // Profilen lages da automatisk første gang brukeren logger inn (dashboard-layout).
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: epost.trim(),
         password: passord,
-        options: { data: { full_name: navn } },
+        options: { data: { full_name: navn.trim() }, emailRedirectTo: `${window.location.origin}/bekreftet` },
       })
       if (signUpError) throw signUpError
 
-      // 2. Logg inn umiddelbart (unngår hvitskjerm / epost-bekreftelse-limbo)
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email: epost,
-        password: passord,
-      })
-      if (loginError) throw loginError
-
-      // 3. Opprett profil-rad med bruker-ID
-      const userId = loginData.user?.id ?? signUpData.user?.id
-      if (userId) {
-        await supabase.from('profiler').upsert({
-          id: userId,
-          epost,
-          navn,
-          vekt: 0, hoyde: 0, mal: 'bygge_muskler', onsket_vekt: 0,
-        }, { onConflict: 'id' })
-      }
-
-      setSuksess(true)
-      setTimeout(() => {
-        router.push('/dashboard')
-        router.refresh()
-      }, 1500)
-    } catch (err: any) {
-      if (err.message?.includes('already registered') || err.message?.includes('already been registered')) {
-        setError('Denne eposten er allerede registrert — prøv å logge inn')
+      if (data.session) {
+        // Bekreftelse er av i Supabase: brukeren er logget inn med en gang
+        await supabase.from('profiler').upsert({ id: data.session.user.id, epost: epost.trim(), navn: navn.trim() }, { onConflict: 'id' })
+        setSuksess(true)
+        setTimeout(() => { router.push('/dashboard'); router.refresh() }, 1500)
       } else {
-        setError(err.message ?? 'Noe gikk galt')
+        // Samme svar også når e-posten finnes fra før – avslører ikke hvem som har konto
+        setSjekkEpost(true)
       }
+    } catch (err: any) {
+      const m = err?.message ?? ''
+      if (err?.status === 429 || /rate limit|security purposes/i.test(m)) setError('For mange forsøk. Vent litt og prøv igjen.')
+      else if (/already registered|already been registered|already exists/i.test(m)) setError('Kunne ikke opprette konto med denne e-posten. Har du allerede konto? Logg inn, eller bruk «Glemt passord».')
+      else if (/password/i.test(m)) setError('Passordet er for svakt. Bruk minst 8 tegn, gjerne med tall og symboler.')
+      else if (/invalid.*email|email.*invalid/i.test(m)) setError('E-postadressen ser ikke gyldig ut.')
+      else setError('Noe gikk galt. Prøv igjen.')
     } finally {
       setLaster(false)
     }
   }
 
   const styrke = passord.length === 0 ? 0
-    : passord.length < 6 ? 1
-    : passord.length < 10 ? 2
+    : passord.length < 8 ? 1
+    : passord.length < 12 ? 2
     : 3
   const styrkeLabel = ['', 'Svakt', 'OK', 'Sterkt'][styrke]
   const styrkeColor = ['', '#E0614F', '#E07A4F', '#9DC496'][styrke]
@@ -103,7 +92,14 @@ export default function Signup() {
           </div>
 
           {/* Suksess-melding */}
-          {suksess ? (
+          {sjekkEpost ? (
+            <div className="su-suksess" role="status">
+              <div className="su-suksess-icon"><Mail size={22} strokeWidth={1.5} /></div>
+              <div className="su-suksess-t">Sjekk e-posten</div>
+              <div className="su-suksess-s">Vi har sendt en bekreftelseslenke til {epost.trim()}. Åpne den for å aktivere kontoen – sjekk også søppelpost. Har du allerede konto, kan du logge inn.</div>
+              <Link href="/login" className="btn btn-ghost" style={{ marginTop: '0.75rem' }}>Til innlogging</Link>
+            </div>
+          ) : suksess ? (
             <div className="su-suksess">
               <div className="su-suksess-icon"><Check size={22} strokeWidth={1.5} /></div>
               <div className="su-suksess-t">Konto opprettet!</div>
@@ -164,7 +160,7 @@ export default function Signup() {
                       className="input login-field-input login-field-input-pr"
                       value={passord}
                       onChange={e => setPassord(e.target.value)}
-                      placeholder="Minst 6 tegn"
+                      placeholder="Minst 8 tegn"
                       required
                       autoComplete="new-password"
                     />
@@ -229,6 +225,8 @@ export default function Signup() {
                   {laster ? <span className="spinner" /> : <>Opprett konto</>}
                 </button>
               </form>
+
+              <p className="su-personvern">Ved å opprette konto godtar du at vi lagrer treningsdataene dine som beskrevet i <Link href="/personvern">personvernerklæringen</Link>.</p>
 
               {/* Logg inn-link */}
               <p className="login-signup-row" style={{ marginTop: '0.5rem' }}>

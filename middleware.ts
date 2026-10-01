@@ -7,7 +7,8 @@ export async function middleware(request: NextRequest) {
   // Ny nonce per forespørsel. Next.js leser CSP-en fra forespørselen og setter nonce på
   // sine egne skript; layout leser x-nonce for vårt eget inline-skript.
   const nonce = btoa(crypto.randomUUID())
-  const csp = byggCsp(nonce, process.env.NODE_ENV === 'development')
+  const https = request.nextUrl.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https'
+  const csp = byggCsp(nonce, process.env.NODE_ENV === 'development', https)
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set('Content-Security-Policy', csp)
@@ -52,7 +53,7 @@ export async function middleware(request: NextRequest) {
   const cleanPath = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname
   // Åpne uten innlogging. /nytt-passord er åpen fordi brukeren kommer dit fra e-postlenken
   // før økten er etablert – og skal IKKE sendes videre når den er det (da settes passordet).
-  const publicRoutes = ['/login', '/signup', '/glemt-passord', '/nytt-passord']
+  const publicRoutes = ['/login', '/signup', '/glemt-passord', '/nytt-passord', '/bekreftet', '/personvern']
   const isPublicRoute = publicRoutes.includes(cleanPath)
   const kunForUtlogget = ['/login', '/signup', '/glemt-passord'].includes(cleanPath)
 
