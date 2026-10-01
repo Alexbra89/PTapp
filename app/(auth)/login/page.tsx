@@ -110,6 +110,8 @@ export default function Login() {
               </div>
             </div>
 
+            <div className="login-glemt"><Link href="/glemt-passord">Glemt passord?</Link></div>
+
             {error && (
               <motion.div className="login-error-box" initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}>
                 <span className="login-error-text">{error}</span>

@@ -1682,3 +1682,7 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .intro-merk { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem; }
 .intro-knapper { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding-top: 2rem; }
 .intro-knapper .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.login-glemt { display: flex; justify-content: flex-end; margin: -0.35rem 0 0.9rem; }
+.login-glemt a { font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; border-bottom: 1px solid transparent; transition: color 0.2s, border-color 0.2s; }
+.login-glemt a:hover { color: var(--gold-hi); border-bottom-color: rgba(201,169,110,0.5); }

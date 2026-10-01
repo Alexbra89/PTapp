@@ -40,8 +40,11 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
   const cleanPath = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname
-  const publicRoutes = ['/login', '/signup']
+  // Åpne uten innlogging. /nytt-passord er åpen fordi brukeren kommer dit fra e-postlenken
+  // før økten er etablert – og skal IKKE sendes videre når den er det (da settes passordet).
+  const publicRoutes = ['/login', '/signup', '/glemt-passord', '/nytt-passord']
   const isPublicRoute = publicRoutes.includes(cleanPath)
+  const kunForUtlogget = ['/login', '/signup', '/glemt-passord'].includes(cleanPath)
 
   // Root redirect
   if (cleanPath === '' || pathname === '/') {
@@ -56,7 +59,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  if (user && isPublicRoute) {
+  if (user && kunForUtlogget) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
