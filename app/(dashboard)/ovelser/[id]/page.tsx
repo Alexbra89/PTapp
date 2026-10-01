@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { motion, type Variants } from 'framer-motion'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { finnOvelse, muskler, utstyrType, MUSKELNAVN, UTSTYRNAVN } from '@/data/ovelsesbibliotek'
@@ -14,8 +15,10 @@ const inn: Variants = {
   vis: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.8, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] } }),
 }
 
-export default function OvelseDetaljside({ params }: { params: { id: string } }) {
-  const ov = finnOvelse(params.id)
+// useParams i stedet for params-prop: i Next 15 er params et Promise for sider
+export default function OvelseDetaljside() {
+  const { id } = useParams<{ id: string }>()
+  const ov = finnOvelse(id ?? '')
 
   if (!ov) return (
     <div className="ovd-tom">

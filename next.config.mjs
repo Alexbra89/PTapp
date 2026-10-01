@@ -69,15 +69,14 @@ const nextConfig = {
   reactStrictMode: true,
   compress: true,
 
+  // Bildeoptimering er av: appen bruker ikke next/image, og /_next/image var et
+  // unødvendig, uautentisert endepunkt med kjente sårbarheter (bl.a. AVIF).
   images: {
-    formats: ['image/webp', 'image/avif'],
-    minimumCacheTTL: 86400,
+    unoptimized: true,
   },
 
   experimental: {
     optimizePackageImports: ['date-fns', 'recharts', 'lucide-react'],
-    // Raskere prefetch
-    middlewarePrefetch: 'strict',
   },
 
   // Deaktiver X-Powered-By header
