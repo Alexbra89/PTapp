@@ -1687,3 +1687,9 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .login-glemt a { font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; border-bottom: 1px solid transparent; transition: color 0.2s, border-color 0.2s; }
 .login-glemt a:hover { color: var(--gold-hi); border-bottom-color: rgba(201,169,110,0.5); }
 .del-ikke-funnet { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+.del-tilbake { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-secondary); text-decoration: none; }
+.del-tilbake:hover { color: var(--gold-hi); }
+.del-okt-merke { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; color: var(--bg-base); }
+.del-okt-merke.on { background: var(--gold); border-color: var(--gold); }
+.del-se { font-size: 0.74rem; color: var(--gold-hi); text-decoration: none; border: 1px solid rgba(201,169,110,0.45); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.del-se:hover { background: rgba(201,169,110,0.1); }

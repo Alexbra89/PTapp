@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Check, UserPlus, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -104,7 +105,7 @@ export default function DelingSide() {
     <div className="del-page">
       <div className="page-header">
         <h1 className="page-title">Deling<em className="gold">.</em></h1>
-        <p className="page-subtitle">Hvem du deler med · og hvem som deler med deg</p>
+        <p className="page-subtitle">De du deler med kan se dine økter og rekorder – ikke vekt eller profil</p>
       </div>
 
       <AnimatePresence>
@@ -156,7 +157,7 @@ export default function DelingSide() {
                       <span className="del-navn">{p.navn}</span>
                       <span className="del-epost">{p.jegDeler ? 'Du deler med denne personen' : 'Du deler ikke'}</span>
                     </div>
-                    {p.delerMedMeg && <span className="tid-merke gull"><Eye size={10} strokeWidth={1.8} style={{ verticalAlign: '-1px' }} /> Deler med deg</span>}
+                    {p.delerMedMeg && <Link href={`/deling/${p.id}`} className="del-se"><Eye size={11} strokeWidth={1.8} style={{ verticalAlign: '-1px' }} /> Se treningen</Link>}
                     <button
                       role="switch" aria-checked={p.jegDeler} aria-label={`Del med ${p.navn}`}
                       className={`del-bryter${p.jegDeler ? ' on' : ''}`} onClick={() => bytt(p)}
