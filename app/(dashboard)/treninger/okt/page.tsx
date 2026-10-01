@@ -217,6 +217,7 @@ function OktInner() {
   const [sekunder,   setSekunder]   = useState(0)
   const startet = useRef(Date.now()) // når økta begynte – gir varighet selv om stoppeklokka ikke er brukt
   const fullforNokkel = useRef(nyNokkel()) // én per økt – gjør lagringen trygg å prøve på nytt
+  const brukerId = useRef<string | null>(null) // utkastet knyttes til brukeren – en annen bruker på samme enhet får det ikke
   const sender = useRef(false) // stopper dobbel innsending før knappen rekker å bli deaktivert
   const [lagreFeil, setLagreFeil] = useState('')
   const [kjoerer,    setKjoerer]    = useState(false)
@@ -338,9 +339,13 @@ function OktInner() {
     // Fortsett en uavsluttet økt (samme økt-lenke, siste 12 timer) i stedet for å bygge på nytt
     if (brukUtkast) {
       try {
+        try { brukerId.current = (await supabase.auth.getSession()).data.session?.user.id ?? null } catch {}
         const u = JSON.parse(localStorage.getItem(UTKAST_NOKKEL) ?? 'null')
         const alleredeLagret = u?.fullforNokkel && lesListe(FULLFORTE).includes(u.fullforNokkel)
-        if (u && !alleredeLagret && u.nokkel === searchParams.toString() && Date.now() - u.lagret < 12 * 3600_000 && u.okter?.length) {
+        // Bare når begge er kjent – uten nett (f.eks. i treningsstudioet) kan innloggingen være ukjent,
+        // og da skal økta likevel kunne fortsette. Utlogging sletter uansett utkastet.
+        const annenBruker = !!(u?.brukerId && brukerId.current && u.brukerId !== brukerId.current)
+        if (u && !alleredeLagret && !annenBruker && u.nokkel === searchParams.toString() && Date.now() - u.lagret < 12 * 3600_000 && u.okter?.length) {
           setOkter(u.okter); setTittel(u.tittel ?? ''); setOppvar(u.oppvar ?? [])
           if (u.lagretOktId) setLagretOktId(u.lagretOktId)
           if (u.startet) startet.current = u.startet
@@ -459,7 +464,7 @@ function OktInner() {
     if (laster || feiring || !okter.length) return
     try {
       localStorage.setItem(UTKAST_NOKKEL, JSON.stringify({
-        nokkel: searchParams.toString(), lagret: Date.now(), startet: startet.current, fullforNokkel: fullforNokkel.current, okter, tittel, oppvar, lagretOktId,
+        nokkel: searchParams.toString(), lagret: Date.now(), brukerId: brukerId.current, startet: startet.current, fullforNokkel: fullforNokkel.current, okter, tittel, oppvar, lagretOktId,
       }))
     } catch {}
   }, [okter, tittel, oppvar, lagretOktId, laster, feiring]) // eslint-disable-line react-hooks/exhaustive-deps

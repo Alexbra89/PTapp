@@ -14,6 +14,7 @@ import { BRAND } from '@/lib/brand'
 import { SideSkjelett } from '@/components/atelier/Skjelett'
 import Introduksjon, { INTRO_NOKKEL } from '@/components/Introduksjon'
 import { useProfil } from '@/hooks/useSupabaseQuery'
+import { ryddVedUtlogging } from '@/lib/utlogging'
 
 const NAV = [
   { href: '/',             icon: LayoutGrid,   label: 'Oversikt' },
@@ -80,6 +81,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const loggUt = async () => {
     setLoggingUt(true)
     await supabase.auth.signOut()
+    await ryddVedUtlogging()
     router.push('/login')
     router.refresh()
   }

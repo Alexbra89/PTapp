@@ -109,7 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="splash-sub">Privat treningsklubb</div>
         </div>
         
-        {/* Script for å fjerne splash-screen når React er klar */}
+        {/* Script som skjuler splash-screen når siden er klar */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             var splash = document.getElementById('splash-screen');
@@ -118,8 +118,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             var removeSplash = function() {
               if (!splash) return;
               splash.style.opacity = '0';
-              setTimeout(function() { 
-                if (splash && splash.parentNode) splash.remove(); 
+              // Skjules – fjernes ikke. Elementet eies av React; fjernes det utenfor React,
+              // feiler React 19 med insertBefore/removeChild når siden oppdateres.
+              setTimeout(function() {
+                if (splash) { splash.style.display = 'none'; splash.setAttribute('aria-hidden', 'true'); }
               }, 300);
             };
             
