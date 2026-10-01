@@ -14,6 +14,7 @@ import ProgramMal from './ProgramMal'
 import { ChevronLeft, ChevronRight, Plus, FolderOpen, Dumbbell, Activity, Moon, Sparkles, Pencil, Trash2, ChevronDown, ArrowRight, Check, CalendarPlus, X } from 'lucide-react'
 import { muskler as musklerFor, visesBakfra, MUSKELNAVN, utvalg, froFraDato, finnOvelseNavn } from '@/data/ovelsesbibliotek'
 import { MuskelkartMini } from '@/components/atelier/Muskelkart'
+import { hentInnstillinger } from '@/lib/innstillinger'
 
 type OktType = 'styrke' | 'cardio' | 'hvile' | 'annet'
 interface Okt {
@@ -62,7 +63,7 @@ function hentAnbefaltOvelser(tittel: string, dato: string): Forslag[] {
   const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
   const res: Forslag[] = []
   grupper.forEach((g, i) => {
-    for (const o of utvalg(g, 'alle', antall, froFraDato(dato) + i)) {
+    for (const o of utvalg(g, 'alle', antall, froFraDato(dato) + i, hentInnstillinger().niva)) {
       if (!res.some(r => r.navn === o.navn)) res.push({ navn: o.navn, emoji: '', muskler: o.muskelgruppe, sett: o.sett, reps: o.reps })
     }
   })

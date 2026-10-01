@@ -1652,3 +1652,33 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .inn-valg-knapp { border: 1px solid var(--line); background: transparent; color: var(--text-secondary); border-radius: 999px; padding: 7px 13px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }
 .inn-valg-knapp:hover { border-color: rgba(201,169,110,0.5); color: var(--gold-hi); }
 .inn-valg-knapp.on { background: var(--ink); border-color: var(--ink); color: var(--bg-base); }
+
+/* ─── Introduksjon (første gang) ─────────────────────────────────────────── */
+.intro { position: fixed; inset: 0; z-index: 300; overflow-x: hidden; overflow-y: auto; display: flex; justify-content: center; padding: calc(1.25rem + env(safe-area-inset-top)) 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+  background: radial-gradient(900px 600px at 50% 0%, rgba(201,169,110,0.13), transparent 60%), var(--bg-base); }
+.intro-ring { position: fixed; width: min(130vw, 900px); aspect-ratio: 1; top: -22%; left: 50%; margin-left: calc(min(130vw, 900px) / -2); color: rgba(201,169,110,0.09); pointer-events: none; }
+.intro-ramme { position: relative; width: 100%; max-width: 520px; display: flex; flex-direction: column; min-height: 100%; }
+.intro-topp { display: flex; justify-content: space-between; align-items: center; }
+.intro-hopp { background: none; border: none; color: var(--text-secondary); font-size: 0.82rem; cursor: pointer; padding: 6px 0; }
+.intro-hopp:hover { color: var(--ink); }
+.intro-fremdrift { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 1.5rem 0 2rem; }
+.intro-fremdrift span { height: 2px; border-radius: 2px; background: var(--line-strong); transition: background 0.5s; }
+.intro-fremdrift span.on { background: var(--gold); }
+.intro-hei { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.75rem; max-width: 40ch; }
+.intro-tittel { font-family: var(--font-serif); font-weight: 400; font-size: clamp(2.4rem, 9vw, 3.4rem); line-height: 0.95; letter-spacing: -0.025em; margin: 0.6rem 0 1.5rem; color: var(--ink); }
+.intro-tittel em { color: var(--gold-hi); }
+.intro-valg { display: flex; flex-direction: column; gap: 10px; }
+.intro-kort { display: grid; grid-template-columns: 44px 1fr 22px; align-items: center; gap: 14px; text-align: left; padding: 1rem 1.1rem; border-radius: 18px; border: 1px solid var(--line); background: rgba(242,236,225,0.025); color: var(--ink); cursor: pointer; transition: border-color 0.25s, background 0.25s, transform 0.2s; }
+.intro-kort:hover { border-color: rgba(201,169,110,0.4); }
+.intro-kort:active { transform: scale(0.99); }
+.intro-kort.on { border-color: var(--gold); background: linear-gradient(90deg, rgba(201,169,110,0.12), rgba(201,169,110,0.03)); }
+.intro-ikon { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; color: var(--gold); }
+.intro-kort.on .intro-ikon { border-color: rgba(201,169,110,0.6); }
+.intro-tekst { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.intro-tekst strong { font-weight: 500; font-size: 1rem; }
+.intro-tekst span { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+.intro-hake { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line-strong); color: var(--bg-base); }
+.intro-kort.on .intro-hake { background: var(--gold); border-color: var(--gold); }
+.intro-merk { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem; }
+.intro-knapper { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding-top: 2rem; }
+.intro-knapper .btn:disabled { opacity: 0.35; cursor: not-allowed; }

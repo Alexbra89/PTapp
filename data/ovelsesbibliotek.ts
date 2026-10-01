@@ -264,9 +264,16 @@ function tilfeldig(fro: number) {
   }
 }
 
-export function utvalg(kategori: string, sted: Sted | 'alle', antall: number, fro?: number): Ovelse[] {
-  const pool = OVELSER.filter(o =>
+const NIVA_RANG: Record<Vanskelighetsgrad, number> = { Nybegynner: 1, Middels: 2, Avansert: 3 }
+
+// maksNiva: hopp over øvelser over brukerens nivå – men bare hvis det fortsatt er nok å velge mellom
+export function utvalg(kategori: string, sted: Sted | 'alle', antall: number, fro?: number, maksNiva?: Vanskelighetsgrad): Ovelse[] {
+  let pool = OVELSER.filter(o =>
     o.kategori === kategori && (sted === 'alle' || o.sted === sted || o.sted === 'begge'))
+  if (maksNiva) {
+    const passer = pool.filter(o => NIVA_RANG[o.vanskelighet] <= NIVA_RANG[maksNiva])
+    if (passer.length >= Math.min(antall, pool.length)) pool = passer
+  }
   const rng = fro === undefined ? Math.random : tilfeldig(fro)
   const a = [...pool]
   for (let i = a.length - 1; i > 0; i--) {

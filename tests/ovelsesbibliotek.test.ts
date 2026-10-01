@@ -77,3 +77,17 @@ describe('bruksanvisning', () => {
     expect(uten).toEqual([])
   })
 })
+
+describe('utvalg etter nivå', () => {
+  it('foreslår ikke avanserte øvelser til nybegynnere når det finnes nok andre', () => {
+    for (const k of kategorier) {
+      const alle = OVELSER.filter(o => o.kategori === k)
+      const enkle = alle.filter(o => o.vanskelighet !== 'Avansert')
+      const r = utvalg(k, 'alle', 3, 1, 'Nybegynner')
+      if (enkle.filter(o => o.vanskelighet === 'Nybegynner').length >= 3) {
+        for (const o of r) expect(o.vanskelighet, `${k}: ${o.navn}`).toBe('Nybegynner')
+      }
+      expect(r.length).toBeGreaterThan(0)
+    }
+  })
+})

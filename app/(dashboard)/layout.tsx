@@ -12,6 +12,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Dial } from '@/components/atelier/Dial'
 import { BRAND } from '@/lib/brand'
 import { SideSkjelett } from '@/components/atelier/Skjelett'
+import Introduksjon, { INTRO_NOKKEL } from '@/components/Introduksjon'
+import { useProfil } from '@/hooks/useSupabaseQuery'
 
 const NAV = [
   { href: '/',             icon: LayoutGrid,   label: 'Oversikt' },
@@ -69,6 +71,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => { setVisMer(false) }, [pathname])
 
+  // Introduksjon første gang: vises når profilen mangler mål og den ikke er fullført/hoppet over på denne enheten
+  const { data: profil, isFetched: profilHentet } = useProfil(user?.id)
+  const [introFerdig, setIntroFerdig] = useState(true)
+  useEffect(() => { try { setIntroFerdig(localStorage.getItem(INTRO_NOKKEL) === '1') } catch {} }, [])
+  const visIntro = klar && !!user && profilHentet && !profil?.mal && !introFerdig
+
   const loggUt = async () => {
     setLoggingUt(true)
     await supabase.auth.signOut()
@@ -88,6 +96,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <>
+      <AnimatePresence>
+        {visIntro && <Introduksjon key="intro" bruker={user} harProfil={!!profil} navn={profil?.navn} onFerdig={() => setIntroFerdig(true)} />}
+      </AnimatePresence>
+
       <div className="app-bg" aria-hidden>
         <Dial className="app-bg-dial" />
       </div>

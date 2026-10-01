@@ -11,6 +11,7 @@ import { Home, Building2, Flame, Dumbbell, Pause, RotateCcw, X, ChevronDown, Cal
 import { MuskelGlyph, OppvarmingIkon } from '@/components/atelier/Glyph'
 import { utvalg, froFraDato } from '@/data/ovelsesbibliotek'
 import { lokalDato } from '@/lib/dato'
+import { hentInnstillinger } from '@/lib/innstillinger'
 
 type Sted   = 'hjemme' | 'gym'
 type Gruppe = 'bryst'|'rygg'|'bein'|'skuldre'|'bicep'|'tricep'|'core'|'fullkropp'|'tabata'|'cardio'
@@ -72,7 +73,7 @@ function genererOvelser(grupper: Gruppe[], datoStr: string, sted: Sted) {
   const res: { navn: string; sett: number; reps: string; kg: number }[] = []
   const antall = grupper.length === 1 ? 4 : grupper.length === 2 ? 3 : 2
   grupper.forEach((gruppe, i) => {
-    for (const o of utvalg(gruppe, sted, antall, froFraDato(datoStr) + i)) {
+    for (const o of utvalg(gruppe, sted, antall, froFraDato(datoStr) + i, hentInnstillinger().niva)) {
       if (!res.find(r => r.navn === o.navn)) res.push({ navn: o.navn, sett: o.sett, reps: o.reps, kg: 0 })
     }
   })
@@ -87,7 +88,7 @@ function KonfigInner() {
   const oktId        = searchParams.get('okt')
 
   const [dag,       setDag]       = useState(0)
-  const [sted,      setSted]      = useState<Sted>('gym')
+  const [sted,      setSted]      = useState<Sted>(() => hentInnstillinger().sted ?? 'gym')
   const [grupper,   setGrupper]   = useState<Gruppe[]>([])
   const [nivaa,     setNivaa]     = useState<typeof NIVAER[number]>('Middels')
   const [intensitet,setIntensitet]= useState<typeof INTENSITET[number]>('Moderat')

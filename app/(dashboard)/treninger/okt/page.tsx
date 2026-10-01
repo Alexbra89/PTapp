@@ -20,7 +20,7 @@ import { finnPrOvelse } from '@/lib/prOvelser'
 import Instruksjonsark from '@/components/Instruksjonsark'
 import { foreslaVekt } from '@/lib/progresjon'
 import { varighetSek } from '@/lib/oppsummering'
-import { vibrer, valgtHvile } from '@/lib/innstillinger'
+import { vibrer, valgtHvile, hentInnstillinger } from '@/lib/innstillinger'
 import OktOppsummering from '@/components/OktOppsummering'
 
 
@@ -411,7 +411,7 @@ function OktInner() {
 
     let alle: OvelseDB[] = []
     grupper.forEach(g => {
-      const fraBib = utvalg(g, sted, antall).map(fraBibliotek)
+      const fraBib = utvalg(g, sted, antall, undefined, hentInnstillinger().niva).map(fraBibliotek)
       const pool = fraBib.length ? fraBib : shuffle(DB[g]?.[sted] ?? []).slice(0, antall)
       alle = alle.concat(pool.map(o => ({
         ...o, sett: intensitet === 'Hard' ? o.sett+1 : intensitet === 'Lett' ? Math.max(2,o.sett-1) : o.sett,

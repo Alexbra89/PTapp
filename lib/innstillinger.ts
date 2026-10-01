@@ -7,6 +7,8 @@ export interface Innstillinger {
   lyd: boolean
   vibrasjon: boolean
   hvile: 'ovelse' | number   // 'ovelse' = hviletid fra øvelsen, ellers fast antall sekunder
+  niva?: 'Nybegynner' | 'Middels' | 'Avansert'   // fra introduksjonen – styrer hvilke øvelser som foreslås
+  sted?: 'gym' | 'hjemme'                         // foretrukket treningssted
 }
 
 const NOKKEL = 'abpt_innstillinger'
