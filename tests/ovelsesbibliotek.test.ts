@@ -70,3 +70,10 @@ describe('tidligere navn', () => {
     expect(alleNavn('Ukjent øvelse')).toEqual(['Ukjent øvelse'])
   })
 })
+
+describe('bruksanvisning', () => {
+  it('har steg for steg for alle øvelser', () => {
+    const uten = OVELSER.filter(o => o.utforing.length < 3).map(o => o.navn)
+    expect(uten).toEqual([])
+  })
+})

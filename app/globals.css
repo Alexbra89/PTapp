@@ -1637,3 +1637,18 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .del-bryter.on .del-knott { background: #17130C; }
 .del-avatarer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 0.9rem; }
 .del-avatar-rad { display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.88rem; }
+
+/* ─── Innstillinger ─────────────────────────────────────────────────────── */
+.inn-panel { margin-top: 1rem; }
+.inn-liste { list-style: none; margin-top: 0.75rem; }
+.inn-liste li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 14px; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+.inn-liste li:last-child { border-bottom: none; }
+.inn-ikon { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: center; color: var(--gold); }
+.inn-tekst { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.inn-tekst strong { font-weight: 500; font-size: 0.92rem; color: var(--ink); }
+.inn-tekst span { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
+.inn-hvile { grid-template-columns: 34px 1fr !important; }
+.inn-valg { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.inn-valg-knapp { border: 1px solid var(--line); background: transparent; color: var(--text-secondary); border-radius: 999px; padding: 7px 13px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }
+.inn-valg-knapp:hover { border-color: rgba(201,169,110,0.5); color: var(--gold-hi); }
+.inn-valg-knapp.on { background: var(--ink); border-color: var(--ink); color: var(--bg-base); }

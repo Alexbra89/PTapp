@@ -1,5 +1,7 @@
 // Korte lydsignaler via Web Audio – krever ingen lydfiler.
 // (Tabata refererte til /beep.mp3 og /complete.mp3, som aldri har eksistert.)
+import { hentInnstillinger } from '@/lib/innstillinger'
+
 let ctx: AudioContext | null = null
 
 function hentCtx() {
@@ -12,6 +14,7 @@ function hentCtx() {
 }
 
 function tone(frekvens: number, start: number, varighet: number, volum = 0.25) {
+  if (!hentInnstillinger().lyd) return
   const c = hentCtx()
   if (!c) return
   const o = c.createOscillator(), g = c.createGain()

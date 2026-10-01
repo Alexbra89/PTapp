@@ -8,6 +8,7 @@ import { TrendingDown, Dumbbell, Scale, HeartPulse, Pencil, X, Check } from 'luc
 import { useUser, useProfil, useLagreProfil, useStats, useVektlogg } from '@/hooks/useSupabaseQuery'
 import { TelleTall } from '@/components/atelier/TelleTall'
 import { BRAND } from '@/lib/brand'
+import InnstillingerPanel from '@/components/InnstillingerPanel'
 
 const MAL_OPTIONS = [
   { key: 'ned_i_vekt',    label: 'Ned i vekt',      ikon: TrendingDown, tekst: 'Kaloriunderskudd, bevar muskelmassen.' },
@@ -264,6 +265,8 @@ export default function ProfilPage() {
           </div>
         </section>
       )}
+
+      {!redigerer && <InnstillingerPanel />}
     </div>
   )
 }

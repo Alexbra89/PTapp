@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { OVELSER as BIBLIOTEK, utvalg, alleNavn, finnOvelseNavn, type Ovelse } from '@/data/ovelsesbibliotek'
@@ -18,6 +19,9 @@ import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 import { finnPrOvelse } from '@/lib/prOvelser'
 import Instruksjonsark from '@/components/Instruksjonsark'
 import { foreslaVekt } from '@/lib/progresjon'
+import { varighetSek } from '@/lib/oppsummering'
+import { vibrer, valgtHvile } from '@/lib/innstillinger'
+import OktOppsummering from '@/components/OktOppsummering'
 
 
 function spillAlarm() {
@@ -199,6 +203,7 @@ function OktInner() {
   // ── Stoppeklokke ───────────────────────────────────────────────────────────
   const [klokkeMode, setKlokkeMode] = useState<'stopp'|'ned'>('stopp')
   const [sekunder,   setSekunder]   = useState(0)
+  const startet = useRef(Date.now()) // når økta begynte – gir varighet selv om stoppeklokka ikke er brukt
   const [kjoerer,    setKjoerer]    = useState(false)
   const [nedMal,     setNedMal]     = useState(3)
   const [alarm,      setAlarm]      = useState(false)
@@ -322,6 +327,7 @@ function OktInner() {
         if (u && u.nokkel === searchParams.toString() && Date.now() - u.lagret < 12 * 3600_000 && u.okter?.length) {
           setOkter(u.okter); setTittel(u.tittel ?? ''); setOppvar(u.oppvar ?? [])
           if (u.lagretOktId) setLagretOktId(u.lagretOktId)
+          if (u.startet) startet.current = u.startet
           setGjenopprettet(true); setLaster(false)
           return
         }
@@ -436,14 +442,14 @@ function OktInner() {
     if (laster || feiring || !okter.length) return
     try {
       localStorage.setItem(UTKAST_NOKKEL, JSON.stringify({
-        nokkel: searchParams.toString(), lagret: Date.now(), okter, tittel, oppvar, lagretOktId,
+        nokkel: searchParams.toString(), lagret: Date.now(), startet: startet.current, okter, tittel, oppvar, lagretOktId,
       }))
     } catch {}
   }, [okter, tittel, oppvar, lagretOktId, laster, feiring]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const startPaNytt = () => {
     try { localStorage.removeItem(UTKAST_NOKKEL) } catch {}
-    setGjenopprettet(false); setLaster(true); setOkter([])
+    setGjenopprettet(false); setLaster(true); setOkter([]); startet.current = Date.now()
     bygg(false)
   }
 
@@ -481,7 +487,7 @@ function OktInner() {
       const rest = hvile.slutt - Date.now()
       if (rest <= 0) {
         lyd.arbeid()
-        try { navigator.vibrate?.(200) } catch {}
+        vibrer(200)
         setHvile(null); setHvileIgjen(0)
         return
       }
@@ -491,7 +497,7 @@ function OktInner() {
   }, [hvile])
 
   const startHvile = (o: OvelseLogg) => {
-    const sek = hvileSekunder(o.hvile)
+    const sek = valgtHvile(hvileSekunder(o.hvile))
     if (!sek) return
     lyd.klargjor()
     setHvile({ slutt: Date.now() + sek * 1000, total: sek * 1000, ovelse: o.navn })
@@ -525,7 +531,7 @@ function OktInner() {
   const lagreOktRad = async (brukerId: string, dato: string, erFullfort: boolean) => {
     const rad = {
       bruker_id: brukerId, dato, tittel, type: 'styrke', fullfort: erFullfort,
-      varighet_min: klokkeMode === 'stopp' && sekunder >= 60 ? Math.round(sekunder / 60) : 60,
+      varighet_min: Math.max(1, Math.round(varighetSek(klokkeMode === 'stopp' ? sekunder : 0, startet.current) / 60)),
       ovelser: okter.map(o => ({ navn: o.navn, sett: o.sett, reps: o.sett_logg.map(s=>s.reps).join('/'), kg: o.sett_logg.find(s=>s.kg>0)?.kg ?? 0 })),
     }
     if (lagretOktId) {
@@ -609,7 +615,7 @@ function OktInner() {
       setHvile(null)
       try { localStorage.removeItem(UTKAST_NOKKEL) } catch {}
       oppdaterCache()
-      setFeiring({ sett: fullfort, ovelser: okter.length, kg: tonnasje, tid: sekunder })
+      setFeiring({ sett: fullfort, ovelser: okter.length, kg: tonnasje, tid: varighetSek(klokkeMode === 'stopp' ? sekunder : 0, startet.current) })
     }
     setLagrer(false)
   }
@@ -891,40 +897,23 @@ function OktInner() {
         <span className="eyebrow" style={{ textAlign: 'center' }}>Lagres i kalenderen og statistikken</span>
       </div>
 
-      {/* ── Fullført-seremoni ── */}
-      <AnimatePresence>
+      {/* ── Fullført-seremoni ── portal til <body>, ellers havner menyen oppå (sideovergangen lager egen stabel) */}
+      {typeof document !== 'undefined' && createPortal(<AnimatePresence>
         {feiring && (
           <motion.div className="feiring" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div className="feiring-ring" initial={{ scale: 0.6, opacity: 0, rotate: -90 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ duration: 1.6, ease: [0.16,1,0.3,1] }}>
               <Dial className="w-full h-full" />
             </motion.div>
             <motion.div className="feiring-innhold" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 1, ease: [0.16,1,0.3,1] }}>
-              <span className="eyebrow eyebrow-gold">{new Date().toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-              <h2 className="feiring-tittel">Fullført<em>.</em></h2>
-              <p className="feiring-sub">{tittel}</p>
-              {Object.keys(nyePR).length > 0 && (
-                <p className="feiring-pr"><Trophy size={13} strokeWidth={1.6} /> {Object.keys(nyePR).length === 1 ? 'Ny rekord' : `${Object.keys(nyePR).length} nye rekorder`}: {Object.entries(nyePR).map(([n, kg]) => `${n} ${kg} kg`).join(' · ')}</p>
-              )}
-              <div className="feiring-tall">
-                {[
-                  { v: feiring.sett, l: 'Sett' },
-                  { v: feiring.ovelser, l: 'Øvelser' },
-                  { v: feiring.kg, l: 'Kg løftet' },
-                ].map((t, i) => (
-                  <motion.div key={t.l} className="feiring-tall-kol" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 + i * 0.12, duration: 0.8, ease: [0.16,1,0.3,1] }}>
-                    <div className="num-monument"><TelleTall verdi={t.v} forsinkelse={0.8 + i * 0.12} /></div>
-                    <span className="eyebrow">{t.l}</span>
-                  </motion.div>
-                ))}
-              </div>
-              <button className="btn btn-primary hq-cta" style={{ marginTop: '2.5rem' }} onClick={() => router.push('/kalender')}>
-                <span>Til kalenderen</span>
-                <span className="hq-cta-arrow"><ArrowRight size={18} strokeWidth={1.5} /></span>
-              </button>
+              <OktOppsummering
+                tittel={tittel} tidSek={feiring.tid} sett={feiring.sett} nyePR={nyePR}
+                ovelser={okter.map(o => ({ navn: o.navn, sett: o.sett_logg, forrige: historikk[o.navn]?.forrige }))}
+                onFerdig={() => router.push('/kalender')}
+              />
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
       <AnimatePresence>
         {instruksjon && (
@@ -982,6 +971,19 @@ function OktInner() {
         .okt-gjenopprettet .hq-link { background: none; border: none; cursor: pointer; }
         .okt-forrige { grid-column: 2 / -1; display: flex; align-items: center; gap: 10px; margin-top: -2px; font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.06em; color: var(--text-muted); }
         .okt-pr { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: #17130C; letter-spacing: 0.1em; text-transform: uppercase; }
+        .opp-sum { display:flex; flex-direction:column; align-items:center; width:100%; padding: 2rem 0; }
+        .opp-sum-endring { display:inline-flex; align-items:center; gap:6px; margin-top: 1.25rem; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--text-secondary); }
+        .opp-sum-endring.opp { color: var(--gold-hi); }
+        .opp-sum-liste { list-style:none; width:100%; margin-top: 1.75rem; border-top: 1px solid var(--line); text-align:left; }
+        .opp-sum-liste li { display:grid; grid-template-columns: 1fr auto 28px; align-items:center; gap: 12px; padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
+        .opp-sum-navn { font-size: 0.9rem; color: var(--ink); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .opp-sum-sett { font-size: 0.74rem; color: var(--text-secondary); }
+        .opp-sum-pil { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); color: var(--text-muted); justify-self:end; }
+        .opp-sum-pil.opp { color: var(--gold-hi); border-color: rgba(201,169,110,0.5); }
+        .opp-sum-pil.ned { color: var(--ember, #D08A6A); }
+        .opp-sum-ny { font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .opp-sum-knapper { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap: 10px; margin-top: 2rem; }
+        .opp-sum-status { margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); }
         .feiring-pr { display: inline-flex; align-items: center; gap: 8px; margin-top: 1rem; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(201,169,110,0.5); color: var(--gold-hi); font-size: 0.84rem; }
 
         .okt-klokke { display:flex; flex-direction:column; gap:1rem; padding:1.4rem 1.5rem; margin-bottom:1rem; }
@@ -1073,9 +1075,9 @@ function OktInner() {
         .okt-fullfor { width:100%; justify-content:space-between; padding: 1.1rem 0.6rem 1.1rem 1.6rem; font-size: 1rem; }
         .okt-fullfor.bekreft { background: var(--gold-hi) !important; }
 
-        .feiring { position: fixed; inset: 0; z-index: 200; display:flex; align-items:center; justify-content:center; padding: 1.5rem; background: radial-gradient(800px 500px at 50% 30%, rgba(201,169,110,0.16), transparent 60%), rgba(8,7,6,0.96); backdrop-filter: blur(10px); overflow: hidden; }
-        .feiring-ring { position:absolute; width: min(120vw, 820px); aspect-ratio: 1; color: rgba(201,169,110,0.22); pointer-events:none; }
-        .feiring-innhold { position:relative; width:100%; max-width: 460px; text-align:center; display:flex; flex-direction:column; align-items:center; }
+        .feiring { position: fixed; inset: 0; z-index: 200; display:flex; align-items:flex-start; justify-content:center; padding: 1.5rem; overflow-x: hidden; overflow-y: auto; background: radial-gradient(800px 500px at 50% 30%, rgba(201,169,110,0.16), transparent 60%), rgba(8,7,6,0.96); backdrop-filter: blur(10px); }
+        .feiring-ring { position:fixed; top:50%; left:50%; margin: calc(min(120vw, 820px) / -2) 0 0 calc(min(120vw, 820px) / -2); width: min(120vw, 820px); aspect-ratio: 1; color: rgba(201,169,110,0.1); pointer-events:none; }
+        .feiring-innhold { position:relative; width:100%; max-width: 460px; margin: auto 0; text-align:center; display:flex; flex-direction:column; align-items:center; }
         .feiring-tittel { font-family: var(--font-serif); font-weight:400; font-size: clamp(4.5rem, 18vw, 7.5rem); line-height:0.9; letter-spacing:-0.04em; margin-top: 1.25rem; }
         .feiring-tittel em { color: var(--gold); }
         .feiring-sub { color: var(--text-secondary); margin-top: 0.75rem; }

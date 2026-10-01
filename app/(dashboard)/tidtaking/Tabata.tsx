@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, RotateCcw, SkipForward, Volume2, VolumeX, Minus, Plus } from 'lucide-react'
 import { lyd } from '@/lib/lyd'
+import { vibrer } from '@/lib/innstillinger'
 import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 
 type Fase = 'klar' | 'arbeid' | 'hvile' | 'ferdig'
@@ -41,6 +42,7 @@ export default function Tabata() {
       : { fase: 'arbeid' as Fase, runde: fra.runde + 1 }
     setFase(ny.fase); setRunde(ny.runde)
     if (medLyd) (ny.fase === 'arbeid' ? lyd.arbeid : lyd.hvile)()
+    vibrer(ny.fase === 'arbeid' ? [120, 60, 120] : 250)
     slutt.current = naa + fasensLengde(ny.fase)
     return ny
   }, [runder, medLyd, arbeid, hvile]) // eslint-disable-line react-hooks/exhaustive-deps
