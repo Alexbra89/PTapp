@@ -60,3 +60,13 @@ describe('utvalg', () => {
     expect(froFraDato('2026-09-30')).not.toBe(froFraDato('2026-10-01'))
   })
 })
+
+describe('tidligere navn', () => {
+  it('finner øvelser under gammelt navn og gir alle navn til historikk', async () => {
+    const { finnOvelseNavn, alleNavn } = await import('@/data/ovelsesbibliotek')
+    expect(finnOvelseNavn('Incline benkpress')?.navn).toBe('Skråbenkpress')
+    expect(finnOvelseNavn('leg curl')?.navn).toBe('Lårcurl')
+    expect(alleNavn('Lårcurl')).toEqual(expect.arrayContaining(['Lårcurl', 'Leg curl']))
+    expect(alleNavn('Ukjent øvelse')).toEqual(['Ukjent øvelse'])
+  })
+})

@@ -15,3 +15,9 @@ describe('finnPrOvelse', () => {
     expect(new Set(PR_OVELSER.map(o => o.id)).size).toBe(PR_OVELSER.length)
   })
 })
+
+describe('finnPrOvelse med nye navn', () => {
+  it('kobler omdøpt øvelse til riktig rekord', () => {
+    expect(finnPrOvelse('Incline benkpress')?.id).toBe('skraabenkpress')
+  })
+})

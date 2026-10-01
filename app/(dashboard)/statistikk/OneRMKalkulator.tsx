@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { finnOvelseNavn } from '@/data/ovelsesbibliotek'
 
 interface OneRM {
   ovelse_navn: string
@@ -43,11 +44,13 @@ export default function OneRMKalkulator({ userId }: { userId: string }) {
           const reps = sett.reps || 0
           
           if (vekt > 0 && reps > 0) {
-            const eksisterende = perOvelse[logg.ovelse_navn]
+            // Samme øvelse kan være logget under et tidligere navn
+            const navn = finnOvelseNavn(logg.ovelse_navn)?.navn ?? logg.ovelse_navn
+            const eksisterende = perOvelse[navn]
             const estimert = beregn1RM(vekt, reps)
             
             if (!eksisterende || estimert > beregn1RM(eksisterende.kg, eksisterende.reps)) {
-              perOvelse[logg.ovelse_navn] = {
+              perOvelse[navn] = {
                 kg: vekt,
                 reps: reps,
                 dato: logg.dato

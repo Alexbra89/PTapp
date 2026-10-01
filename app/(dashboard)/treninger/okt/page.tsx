@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import { OVELSER as BIBLIOTEK, utvalg, type Ovelse } from '@/data/ovelsesbibliotek'
+import { OVELSER as BIBLIOTEK, utvalg, alleNavn, finnOvelseNavn, type Ovelse } from '@/data/ovelsesbibliotek'
 import { useUser, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from '../../kalender/ProgramMal'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame, Trophy, SkipForward, BookOpen } from 'lucide-react'
+import { Check, X, Plus, Minus, Play, Pause, RotateCcw, Star, Repeat, ChevronDown, ArrowRight, Bookmark, Flame, Trophy, SkipForward, BookOpen, TrendingUp, TrendingDown, Target } from 'lucide-react'
 import { Dial } from '@/components/atelier/Dial'
 import { OppvarmingIkon } from '@/components/atelier/Glyph'
 import { TelleTall } from '@/components/atelier/TelleTall'
@@ -17,6 +17,7 @@ import { lyd } from '@/lib/lyd'
 import { useSkjermVaaken } from '@/hooks/useSkjermVaaken'
 import { finnPrOvelse } from '@/lib/prOvelser'
 import Instruksjonsark from '@/components/Instruksjonsark'
+import { foreslaVekt } from '@/lib/progresjon'
 
 
 function spillAlarm() {
@@ -138,6 +139,8 @@ const fraBibliotek = (o: Ovelse): OvelseDB => ({
 })
 // Biblioteket først; den gamle lokale listen brukes bare for kategorier biblioteket mangler
 const ALLE_KJENTE: OvelseDB[] = [...BIBLIOTEK.map(fraBibliotek), ...Object.values(DB).flatMap(d => [...d.hjemme, ...d.gym])]
+// Lagrede økter kan bruke øvelsens tidligere navn
+const finnKjentBibliotek = (navn?: string) => { const b = navn ? finnOvelseNavn(navn) : undefined; return b ? fraBibliotek(b) : undefined }
 
 // «90s», «2min», «3 min», «75s» → sekunder. «–» eller ukjent gir 0 (ingen hvile).
 function hvileSekunder(hvile: string): number {
@@ -278,7 +281,8 @@ function OktInner() {
         .from('favoritt_ovelser')
         .select('id')
         .eq('bruker_id', currentUser.id)
-        .eq('ovelse_navn', ovelse.navn)
+        .in('ovelse_navn', alleNavn(ovelse.navn))
+        .limit(1)
         .maybeSingle()
       
       if (eksisterende) {
@@ -332,7 +336,7 @@ function OktInner() {
         .from('treningslogger')
         .select('sett, dato')
         .eq('bruker_id', userId)
-        .eq('ovelse_navn', ovelseNavn)
+        .in('ovelse_navn', alleNavn(ovelseNavn))
         .order('dato', { ascending: false })
         .limit(1)
         .maybeSingle()
@@ -348,7 +352,7 @@ function OktInner() {
         const alle = ALLE_KJENTE
         const norm = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
         let oveler = customOvelser.map((o: any) => {
-          const match = alle.find(e => norm(e.navn) === norm(o.navn || ''))
+          const match = alle.find(e => norm(e.navn) === norm(o.navn || '')) ?? finnKjentBibliotek(o.navn)
           const sett = o.sett || 3; const reps = o.reps || '10'
           if (match) return { ...match, sett, reps, expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: 0, fullfort: false })) }
           // Øvelser valgt fra biblioteket: hent beskrivelse, tips og hvile derfra
@@ -375,7 +379,7 @@ function OktInner() {
         const alle = ALLE_KJENTE
         const norm = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
         let oveler = ovelserData.map((o: any) => {
-          const match = alle.find(e => norm(e.navn) === norm(o.navn || ''))
+          const match = alle.find(e => norm(e.navn) === norm(o.navn || '')) ?? finnKjentBibliotek(o.navn)
           const sett = o.sett || 3; const reps = o.reps || '10'
           if (match) return { ...match, sett, reps, expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: o.kg||0, fullfort: false })) }
           return { navn: o.navn||'Ukjent', sett, reps, hvile:'75s', utstyr:'–', emoji:'⚡', muskler:'–', beskrivelse:'', tips:'–', expanded: true, sett_logg: Array.from({length: sett}, () => ({ reps: parseInt(reps.split('-')[0])||10, kg: o.kg||0, fullfort: false })) }
@@ -451,16 +455,19 @@ function OktInner() {
     ;(async () => {
       const { data: { user: u } } = await supabase.auth.getUser()
       if (!u) return
-      const navn = Array.from(new Set(ovelsesnavn.split('|')))
+      // Gamle logger kan være lagret under øvelsens tidligere navn – slå dem sammen med dagens
+      const tilNavn: Record<string, string> = {}
+      for (const n of new Set(ovelsesnavn.split('|'))) for (const a of alleNavn(n)) tilNavn[a] ??= n
       const { data } = await supabase.from('treningslogger').select('ovelse_navn, dato, sett')
-        .eq('bruker_id', u.id).in('ovelse_navn', navn).order('dato', { ascending: false }).limit(300)
+        .eq('bruker_id', u.id).in('ovelse_navn', Object.keys(tilNavn)).order('dato', { ascending: false }).limit(300)
       if (avbrutt || !data) return
       const h: Historikk = {}
       for (const rad of data as any[]) {
         const sett = (rad.sett ?? []).map((x: any) => ({ reps: x.reps ?? 0, kg: x.vekt ?? x.kg ?? 0 }))
         const tyngst = Math.max(0, ...sett.map((x: any) => x.kg))
-        if (!h[rad.ovelse_navn]) h[rad.ovelse_navn] = { forrige: sett, beste: tyngst }
-        else h[rad.ovelse_navn].beste = Math.max(h[rad.ovelse_navn].beste, tyngst)
+        const n = tilNavn[rad.ovelse_navn] ?? rad.ovelse_navn
+        if (!h[n]) h[n] = { forrige: sett, beste: tyngst }
+        else h[n].beste = Math.max(h[n].beste, tyngst)
       }
       setHistorikk(h)
     })()
@@ -772,6 +779,26 @@ function OktInner() {
                     {o.beskrivelse && <p className="okt-besk-txt">{o.beskrivelse}</p>}
                     {o.tips && o.tips !== '–' && <div className="okt-tips"><span className="eyebrow eyebrow-gold">Teknikk</span>{o.tips}</div>}
 
+                    {(() => {
+                      const f = foreslaVekt(historikk[o.navn]?.forrige, o.reps)
+                      if (!f) return null
+                      const brukt = o.sett_logg.every(x => x.fullfort || x.kg === f.kg)
+                      return (
+                        <div className={`okt-forslag ${f.type}`}>
+                          <span className="okt-forslag-ikon">{f.type === 'opp' ? <TrendingUp size={14} strokeWidth={1.6} /> : f.type === 'ned' ? <TrendingDown size={14} strokeWidth={1.6} /> : <Target size={14} strokeWidth={1.6} />}</span>
+                          <div className="okt-forslag-tekst">
+                            <strong>{f.tekst}</strong>
+                            <span>{f.grunn}</span>
+                          </div>
+                          {!brukt && (
+                            <button className="okt-forslag-bruk" onClick={() => setOkter(p => p.map((x, i) => i !== oIdx ? x : {
+                              ...x, sett_logg: x.sett_logg.map(y => y.fullfort ? y : { ...y, kg: f.kg }),
+                            }))}>Bruk</button>
+                          )}
+                        </div>
+                      )
+                    })()}
+
                     <div className="okt-sett-header">
                       <span>Sett</span><span>Reps</span><span>Kg</span><span /><span />
                     </div>
@@ -1008,6 +1035,13 @@ function OktInner() {
         .okt-slik-btn { display:inline-flex; align-items:center; gap:6px; background: rgba(201,169,110,0.1); border:1px solid rgba(201,169,110,0.45); color: var(--gold-hi); border-radius:999px; padding:6px 12px; font-size:0.74rem; cursor:pointer; transition: all 0.2s; }
         .okt-slik-btn:hover { background: rgba(201,169,110,0.18); }
         .okt-fav-btn:hover, .okt-bytte-btn:hover { border-color: rgba(201,169,110,0.5); color: var(--gold-hi); }
+        .okt-forslag { display:flex; align-items:center; gap:12px; margin: 1.1rem 0 0; padding: 0.8rem 0.9rem; border-radius: 14px; border: 1px solid rgba(201,169,110,0.28); background: linear-gradient(90deg, rgba(201,169,110,0.09), rgba(201,169,110,0.02)); }
+        .okt-forslag-ikon { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; color: var(--gold-hi); border:1px solid rgba(201,169,110,0.45); }
+        .okt-forslag.ned .okt-forslag-ikon, .okt-forslag.samme .okt-forslag-ikon { color: var(--platinum); border-color: var(--line-strong); }
+        .okt-forslag-tekst { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+        .okt-forslag-tekst strong { font-family: var(--font-serif); font-weight:400; font-size:1.2rem; color: var(--ink); line-height:1.1; }
+        .okt-forslag-tekst span { font-size:0.76rem; color: var(--text-secondary); line-height:1.4; }
+        .okt-forslag-bruk { flex-shrink:0; background: var(--ink); color: var(--bg-base); border:none; border-radius:999px; padding:7px 14px; font-size:0.76rem; font-weight:600; cursor:pointer; }
         .okt-besk-txt { font-size:0.88rem; color: var(--text-secondary); line-height:1.65; margin: 1rem 0 0; max-width: 60ch; }
         .okt-tips { display:flex; flex-direction:column; gap:4px; font-size:0.86rem; color: var(--ink); margin: 1rem 0 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 1px solid var(--gold); }
 

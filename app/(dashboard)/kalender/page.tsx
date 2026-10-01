@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser, useOkterManed, useLagreOkt, useSlettOkt, QK } from '@/hooks/useSupabaseQuery'
 import ProgramMal from './ProgramMal'
 import { ChevronLeft, ChevronRight, Plus, FolderOpen, Dumbbell, Activity, Moon, Sparkles, Pencil, Trash2, ChevronDown, ArrowRight, Check, CalendarPlus, X } from 'lucide-react'
-import { OVELSER as BIBLIOTEK, muskler as musklerFor, visesBakfra, MUSKELNAVN, utvalg, froFraDato } from '@/data/ovelsesbibliotek'
+import { muskler as musklerFor, visesBakfra, MUSKELNAVN, utvalg, froFraDato, finnOvelseNavn } from '@/data/ovelsesbibliotek'
 import { MuskelkartMini } from '@/components/atelier/Muskelkart'
 
 type OktType = 'styrke' | 'cardio' | 'hvile' | 'annet'
@@ -23,15 +23,14 @@ interface Okt {
 }
 
 // Slå opp øvelsen i biblioteket for muskelkart og muskelnavn
-const normNavn = (n: string) => n.toLowerCase().trim().replace(/\s+/g, ' ')
 function OvelseMerke({ navn }: { navn: string }) {
-  const b = BIBLIOTEK.find(o => normNavn(o.navn) === normNavn(navn))
+  const b = finnOvelseNavn(navn)
   if (!b) return <span className="kal-ov-em"><Dumbbell size={14} strokeWidth={1.3} style={{ color: 'var(--text-muted)' }} /></span>
   const m = musklerFor(b)
   return <span className="kal-ov-em"><MuskelkartMini {...m} bakfra={visesBakfra(m.primaer)} hoyde={38} /></span>
 }
 const musklerTekst = (navn: string) => {
-  const b = BIBLIOTEK.find(o => normNavn(o.navn) === normNavn(navn))
+  const b = finnOvelseNavn(navn)
   return b ? musklerFor(b).primaer.slice(0, 2).map(x => MUSKELNAVN[x]).join(' · ') : ''
 }
 

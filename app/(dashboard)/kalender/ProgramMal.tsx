@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { X, Trash2, FolderOpen, Star, Library, Save, Dumbbell } from 'lucide-react'
-import { OVELSER as BIBLIOTEK, muskler, visesBakfra } from '@/data/ovelsesbibliotek'
+import { OVELSER as BIBLIOTEK, muskler, visesBakfra, finnOvelseNavn } from '@/data/ovelsesbibliotek'
 import { MuskelkartMini } from '@/components/atelier/Muskelkart'
 
 interface Program {
@@ -30,7 +30,7 @@ interface FavorittOvelse {
 const ALLE_OVELSER = BIBLIOTEK.map(o => ({ navn: o.navn, kategori: o.kategori, sett: o.sett, reps: o.reps, hvile: o.hvile }))
 
 function Merke({ navn, hoyde = 50 }: { navn: string; hoyde?: number }) {
-  const b = BIBLIOTEK.find(o => o.navn.toLowerCase() === navn.toLowerCase())
+  const b = finnOvelseNavn(navn)
   if (!b) return <Dumbbell size={18} strokeWidth={1.3} style={{ color: 'var(--text-muted)' }} />
   const m = muskler(b)
   return <MuskelkartMini {...m} bakfra={visesBakfra(m.primaer)} hoyde={hoyde} />

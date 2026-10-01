@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Pencil, Dumbbell } from 'lucide-react'
 import { useUser, useProfil, useStats, useAktivitet } from '@/hooks/useSupabaseQuery'
-import { OVELSER as BIBLIOTEK, muskler, visesBakfra } from '@/data/ovelsesbibliotek'
+import { finnOvelseNavn, muskler, visesBakfra } from '@/data/ovelsesbibliotek'
 import { MuskelkartMini } from '@/components/atelier/Muskelkart'
 import { TelleTall } from '@/components/atelier/TelleTall'
 import ProfilSkjema from './components/ProfilSkjema'
@@ -15,14 +15,14 @@ const MAL_NAVN: Record<string, string> = {
 }
 
 const UKEPLAN = [
-  { dag: 'Mandag', fokus: 'Bryst', ovelser: [['Benkpress', '3×8–10'], ['Incline benkpress', '3×10–12'], ['Hantelflyes', '3×12–15'], ['Triceps pushdown', '3×12']] },
-  { dag: 'Tirsdag', fokus: 'Rygg', ovelser: [['Pull-ups', '3×maks'], ['Stang roing', '3×10–12'], ['Markløft', '3×8'], ['Biceps curl', '3×12']] },
+  { dag: 'Mandag', fokus: 'Bryst', ovelser: [['Benkpress', '3×8–10'], ['Skråbenkpress', '3×10–12'], ['Hantelflyes', '3×12–15'], ['Triceps pushdown', '3×12']] },
+  { dag: 'Tirsdag', fokus: 'Rygg', ovelser: [['Pull-ups', '3×maks'], ['Roing med stang', '3×10–12'], ['Markløft', '3×8'], ['Biceps curl', '3×12']] },
   { dag: 'Torsdag', fokus: 'Bein og skuldre', ovelser: [['Knebøy', '4×8–10'], ['Utfall', '3×12 per bein'], ['Military press', '3×10'], ['Sidehev', '3×15']] },
   { dag: 'Lørdag', fokus: 'Kondisjon', ovelser: [['Sprints', '20 min'], ['Burpees', '3×15'], ['Fjellklatrere', '3×30 sek'], ['Planke', '3×60 sek']] },
 ]
 
 function Merke({ navn }: { navn: string }) {
-  const b = BIBLIOTEK.find(o => o.navn.toLowerCase() === navn.toLowerCase())
+  const b = finnOvelseNavn(navn)
   if (!b) return <span className="kal-ov-em"><Dumbbell size={14} strokeWidth={1.3} style={{ color: 'var(--text-muted)' }} /></span>
   const m = muskler(b)
   return <span className="kal-ov-em"><MuskelkartMini {...m} bakfra={visesBakfra(m.primaer)} hoyde={38} /></span>

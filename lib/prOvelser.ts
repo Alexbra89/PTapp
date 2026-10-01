@@ -1,3 +1,5 @@
+import { finnOvelseNavn } from '@/data/ovelsesbibliotek'
+
 // Øvelser med personlige rekorder (tabellen pr_rekorder bruker id-ene under).
 // Delt mellom statistikksiden og treningsøkta, som oppdaterer rekorder automatisk.
 export const PR_OVELSER = [
@@ -19,5 +21,7 @@ export const PR_OVELSER = [
 
 export const finnPrOvelse = (navn: string) => {
   const n = navn.toLowerCase().trim()
-  return PR_OVELSER.find(o => o.navn.toLowerCase() === n)
+  // Også øvelser som har fått nytt navn i biblioteket (f.eks. «Incline benkpress» → «Skråbenkpress»)
+  const kanonisk = finnOvelseNavn(navn)?.navn.toLowerCase()
+  return PR_OVELSER.find(o => o.navn.toLowerCase() === n || o.navn.toLowerCase() === kanonisk)
 }
