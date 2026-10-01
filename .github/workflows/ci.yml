@@ -1,0 +1,45 @@
+# Kjører alle kontrollene ved hver push og pull request.
+# Bruker en falsk Supabase (e2e/) – ingen hemmeligheter eller ekte database trengs.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Typesjekk
+        run: npm run typecheck
+      - name: Enhetstester
+        run: npm test
+      - name: Sårbarheter i kjørende avhengigheter (kritiske stopper bygget)
+        run: npm audit --omit=dev --audit-level=critical
+      - name: Installer nettleser
+        run: npx playwright install --with-deps chromium
+      - name: E2E-tester (bygger appen)
+        run: npm run test:e2e
+      - name: Last opp rapport ved feil
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-rapport
+          path: playwright-report/
+          retention-days: 7

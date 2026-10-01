@@ -20,6 +20,21 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Tester
+
+| Kommando | Hva |
+|---|---|
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript |
+| `npm test` | Enhetstester (Vitest, `tests/`) |
+| `npm run test:e2e` | Ende-til-ende-tester (Playwright, `e2e/`) mot et produksjonsbygg med falsk Supabase |
+
+Første gang lokalt: `npx playwright install chromium`. Alt kjøres automatisk i GitHub Actions (`.github/workflows/ci.yml`).
+
+## Database
+
+SQL for Supabase ligger i `docs/migrasjoner/`. Tilgangsregler og hvordan de testes: `docs/sikkerhet-rls.md`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
