@@ -1686,3 +1686,4 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .login-glemt { display: flex; justify-content: flex-end; margin: -0.35rem 0 0.9rem; }
 .login-glemt a { font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; border-bottom: 1px solid transparent; transition: color 0.2s, border-color 0.2s; }
 .login-glemt a:hover { color: var(--gold-hi); border-bottom-color: rgba(201,169,110,0.5); }
+.del-ikke-funnet { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
