@@ -5,7 +5,7 @@ import { BRAND } from '@/lib/brand'
 export const metadata: Metadata = { title: 'Personvern' }
 
 // Beskriver det appen faktisk gjør. Oppdater ved endringer i hva som lagres eller deles.
-const SIST_OPPDATERT = '1. oktober 2026'
+const SIST_OPPDATERT = '2. oktober 2026'
 
 export default function Personvern() {
   const kontakt = BRAND.kontaktEpost
@@ -42,7 +42,6 @@ export default function Personvern() {
       <ul>
         <li><strong>Supabase</strong> – database og innlogging.</li>
         <li><strong>Vercel</strong> – drift av nettsiden.</li>
-        <li><strong>Google Fonts</strong> – skrifttypene lastes fra Google, som da ser IP-adressen din.</li>
         <li><strong>På enheten din</strong> lagres en pågående økt og innstillinger (lyd, vibrasjon, nivå), slik at de overlever at appen lukkes. Økt-utkastet slettes når du logger ut.</li>
       </ul>
 

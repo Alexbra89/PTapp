@@ -25,6 +25,18 @@ const pwaConfig = withPWA({
   extendDefaultRuntimeCaching: true,
   workboxOptions: {
     runtimeCaching: [
+      // Sidenavigasjon: nettverk først, men bare 1 sekund. Er serveren treg (mobilnett som våkner,
+      // kald serverstart, fornying av innlogging), vises den lagrede siden med en gang i stedet for
+      // hvit skjerm. Appen henter alle data på nytt uansett. Samme cacheName som standardregelen,
+      // som den dermed erstatter (standarden hadde ingen tidsgrense). Matcher KUN navigasjon –
+      // skript, bilder og skrifter har egne regler og skal ikke fanges her.
+      {
+        urlPattern: ({ request, sameOrigin }) => sameOrigin && request.mode === 'navigate',
+        handler: 'NetworkFirst',
+        options: { cacheName: 'pages', networkTimeoutSeconds: 1, expiration: { maxEntries: 32, maxAgeSeconds: 86400 } },
+      },
+      // Svar fra andre domener (Supabase med brukerdata) lagres aldri. Standardregelen «cross-origin»
+      // cacher alt i en time; denne erstatter den (samme cacheName).
       {
         urlPattern: ({ sameOrigin }) => !sameOrigin,
         handler: 'NetworkOnly',

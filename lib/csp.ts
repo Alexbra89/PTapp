@@ -10,10 +10,10 @@ export function byggCsp(nonce: string, utvikling = false, https = true): string 
     'default-src': ["'self'"],
     // 'strict-dynamic': skript som lastes av et godkjent skript (Next sine chunks) er også godkjent
     'script-src': ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(utvikling ? ["'unsafe-eval'"] : [])],
-    'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-    'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+    'style-src': ["'self'", "'unsafe-inline'"],
+    'font-src': ["'self'", 'data:'],
     'img-src': ["'self'", 'data:', 'blob:'],
-    'connect-src': ["'self'", supabase, supabaseWs, 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'].filter(Boolean),
+    'connect-src': ["'self'", supabase, supabaseWs].filter(Boolean),
     'worker-src': ["'self'"],
     'manifest-src': ["'self'"],
     'object-src': ["'none'"],

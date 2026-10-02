@@ -2,7 +2,7 @@
   "name": "AB-PT",
   "short_name": "AB-PT",
   "description": "AB-PT – personlig trening",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0B0A09",
   "theme_color": "#0B0A09",

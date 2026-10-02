@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap');
+/* Skriftene leveres fra appen selv (public/fonts) i stedet for @import fra Google, som blokkerte
+   første tegning til to nettverkskall var ferdige. font-display: swap viser tekst med en gang. */
+@font-face { font-family: 'Instrument Serif'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/InstrumentSerif-Regular.woff2') format('woff2'); }
+@font-face { font-family: 'Instrument Serif'; font-style: italic; font-weight: 400; font-display: swap; src: url('/fonts/InstrumentSerif-Italic.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400 500; font-display: swap; src: url('/fonts/JetBrainsMono-Variable.woff2') format('woff2'); }
+@font-face { font-family: 'Schibsted Grotesk'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/SchibstedGrotesk-Variable.woff2') format('woff2'); }
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
