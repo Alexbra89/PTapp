@@ -70,6 +70,20 @@ insert into matlogg (id, bruker_id, dato, maltid, navn, basis, mengde, enhet, ba
 values ('aaaaaaaa-0000-4000-8000-000000000005', :'A', '2026-10-12', 'lunsj', 'Eple', '100g', 150, 'g', 150, 52)
 on conflict (id) do nothing;
 select forvent((select count(*) from matlogg where id = 'aaaaaaaa-0000-4000-8000-000000000005') = 1, 'nytt forsøk med samme id lager ikke kopi');
+-- Gjennomgang #3: appen sender nytt forsøk som upsert med «on conflict (id) do update» (PostgREST
+-- merge-duplicates). Gikk svaret tapt og brukeren endret noe, er det siste innholdet som lagres.
+insert into matlogg (id, bruker_id, dato, maltid, navn, basis, mengde, enhet, basis_mengde, kcal_100)
+values ('aaaaaaaa-0000-4000-8000-000000000005', :'A', '2026-10-12', 'middag', 'Eple', '100g', 200, 'g', 200, 52)
+on conflict (id) do update set maltid = excluded.maltid, mengde = excluded.mengde, basis_mengde = excluded.basis_mengde;
+select forvent((select count(*) = 1 and min(mengde) = 200 and min(maltid) = 'middag' from matlogg where id = 'aaaaaaaa-0000-4000-8000-000000000005'), 'nytt forsøk med endret innhold oppdaterer raden');
+create temp table bruk_for as select antall_bruk from matvarer where id = 'aaaaaaaa-0000-4000-8000-000000000001';
+insert into matlogg (id, bruker_id, dato, maltid, matvare_id, navn, basis, mengde, enhet, basis_mengde, kcal_100)
+values ('aaaaaaaa-0000-4000-8000-000000000002', :'A', '2026-10-12', 'frokost', 'aaaaaaaa-0000-4000-8000-000000000001', 'Havregryn', '100g', 60, 'g', 60, 370)
+on conflict (id) do update set mengde = excluded.mengde, basis_mengde = excluded.basis_mengde;
+select forvent((select antall_bruk from matvarer where id = 'aaaaaaaa-0000-4000-8000-000000000001') = (select antall_bruk from bruk_for), 'oppdatering via upsert teller ikke bruk');
+insert into matvarer (id, bruker_id, navn, kcal) values ('aaaaaaaa-0000-4000-8000-000000000004', :'A', 'Rettet navn', 120)
+on conflict (id) do update set navn = excluded.navn, kcal = excluded.kcal;
+select forvent((select count(*) = 1 and min(kcal) = 120 and min(navn) = 'Rettet navn' from matvarer where id = 'aaaaaaaa-0000-4000-8000-000000000004'), 'rettet matvare med samme id lagres');
 -- Flere linjer i én setning (en hel måltidsmal) er alt-eller-ingenting
 select forvent_feil($$insert into matlogg (id, dato, maltid, navn, basis, mengde, enhet, basis_mengde, kcal_100) values
   ('aaaaaaaa-0000-4000-8000-000000000006', '2026-10-12', 'middag', 'OK', '100g', 100, 'g', 100, 100),
@@ -132,6 +146,13 @@ insert into matlogg (id, dato, maltid, navn, basis, mengde, enhet, basis_mengde,
 values ('aaaaaaaa-0000-4000-8000-000000000002', '2026-10-12', 'lunsj', 'Kapring', '100g', 1, 'g', 1, 1)
 on conflict (id) do nothing;
 select forvent((select count(*) from matlogg) = 0, 'gjenbrukt id fra A gir ingen rad for B');
+-- … heller ikke med upsert som oppdaterer (gjennomgang #3): A sin rad er ikke synlig for B sin
+-- endre-regel, så PostgreSQL avviser i stedet for å overskrive
+select forvent_feil($$insert into matlogg (id, dato, maltid, navn, basis, mengde, enhet, basis_mengde, kcal_100)
+  values ('aaaaaaaa-0000-4000-8000-000000000002', '2026-10-12', 'lunsj', 'Kapring', '100g', 1, 'g', 1, 1)
+  on conflict (id) do update set navn = excluded.navn, mengde = excluded.mengde$$, '42501', 'B overskriver A sin dagbok med upsert');
+select forvent_feil($$insert into matvarer (id, navn, kcal) values ('aaaaaaaa-0000-4000-8000-000000000001', 'Kapret', 1)
+  on conflict (id) do update set navn = excluded.navn, kcal = excluded.kcal$$, '42501', 'B overskriver A sin matvare med upsert');
 -- B kan ikke flytte sin egen rad over til A
 select forvent_feil(format($$update matvarer set bruker_id = %L where id = 'bbbbbbbb-0000-4000-8000-000000000001'$$, :'A'), '42501', 'B gir bort rad til A');
 

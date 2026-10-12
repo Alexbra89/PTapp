@@ -7,13 +7,15 @@
 -- • Kontroller i databasen stopper negative mengder, urimelige næringsverdier og makromål som
 --   ikke henger sammen med energimålet – også om noen går utenom appen.
 -- • Doble registreringer: appen lager id-en (uuid) før lagring og sender samme id ved nye forsøk.
---   Innsetting skjer med «on conflict do nothing», så et nytt forsøk lager aldri en kopi.
+--   Innsetting skjer med «on conflict (id) do update», så et nytt forsøk lager aldri en kopi, og det
+--   som sendes sist (f.eks. en rettet mengde etter et tapt svar) er det som lagres.
 -- • Sletting av kontoen: alle tabellene har fremmednøkkel til auth.users med «on delete cascade».
 --
 -- • Transaksjon: alt eller ingenting. Feiler noe, rulles alt tilbake og databasen er som før.
--- • Forhåndskontroll: finnes en tabell med samme navn fra før, men med en annen struktur (f.eks. fra et
---   tidligere eksperiment), stopper migrasjonen med en tydelig feil før noe endres – den legger aldri
---   regler eller rettigheter på en fremmed tabell.
+-- • Forhåndskontroll: finnes en tabell med samme navn fra før, men med andre kolonner/typer, en annen
+--   primærnøkkel eller RLS-regler denne filen ikke eier (f.eks. fra et tidligere eksperiment), stopper
+--   migrasjonen med en tydelig feil før noe endres – den legger aldri regler eller rettigheter på en
+--   fremmed tabell, og lar aldri en ukjent regel stå åpen ved siden av sine egne.
 --
 -- Testet mot PostgreSQL 16 med Supabase-lignende roller: scripts/test-rls.mjs (npm run test:rls).
 --
@@ -27,28 +29,52 @@ begin;
 set local lock_timeout = '10s';
 
 -- ── Forhåndskontroll ────────────────────────────────────────────────────────
+-- Finnes en av tabellene fra før, må den se ut som den denne migrasjonen lager: samme kolonner med
+-- samme typer, primærnøkkel på riktig kolonne, og ingen andre RLS-regler enn de fire denne filen
+-- eier. En ekstra regel (f.eks. «alle kan lese») ville ellers stått igjen ved siden av de nye og
+-- åpnet tabellen, siden permissive regler kombineres med «eller».
 do $$
 declare
   forventet constant jsonb := '{
-    "matvarer": ["id","bruker_id","navn","merke","strekkode","kilde","basis","kcal","kj","protein","karbohydrater","fett","sukker","mettet_fett","fiber","salt","porsjon_navn","porsjon_mengde","porsjon_enhet","stk_vekt","tetthet","favoritt","antall_bruk","sist_brukt","sist_mengde","sist_enhet","opprettet","oppdatert"],
-    "matlogg": ["id","bruker_id","dato","maltid","matvare_id","navn","merke","basis","mengde","enhet","basis_mengde","kcal_100","protein_100","karbohydrater_100","fett_100","sukker_100","mettet_fett_100","fiber_100","salt_100","opprettet","oppdatert"],
-    "maltidsmaler": ["id","bruker_id","navn","maltid","linjer","sist_brukt","opprettet","oppdatert"],
-    "ernaeringsmal": ["bruker_id","beregningsgrunnlag","aktivitetsniva","retning","tempo","vedlikehold_kcal","kcal","protein","karbohydrater","fett","overstyrt","opprettet","oppdatert"]
+    "matvarer": {"id": "uuid", "bruker_id": "uuid", "navn": "text", "merke": "text", "strekkode": "text", "kilde": "text", "basis": "text", "kcal": "numeric", "kj": "numeric", "protein": "numeric", "karbohydrater": "numeric", "fett": "numeric", "sukker": "numeric", "mettet_fett": "numeric", "fiber": "numeric", "salt": "numeric", "porsjon_navn": "text", "porsjon_mengde": "numeric", "porsjon_enhet": "text", "stk_vekt": "numeric", "tetthet": "numeric", "favoritt": "bool", "antall_bruk": "int4", "sist_brukt": "timestamptz", "sist_mengde": "numeric", "sist_enhet": "text", "opprettet": "timestamptz", "oppdatert": "timestamptz"},
+    "matlogg": {"id": "uuid", "bruker_id": "uuid", "dato": "date", "maltid": "text", "matvare_id": "uuid", "navn": "text", "merke": "text", "basis": "text", "mengde": "numeric", "enhet": "text", "basis_mengde": "numeric", "kcal_100": "numeric", "protein_100": "numeric", "karbohydrater_100": "numeric", "fett_100": "numeric", "sukker_100": "numeric", "mettet_fett_100": "numeric", "fiber_100": "numeric", "salt_100": "numeric", "opprettet": "timestamptz", "oppdatert": "timestamptz"},
+    "maltidsmaler": {"id": "uuid", "bruker_id": "uuid", "navn": "text", "maltid": "text", "linjer": "jsonb", "sist_brukt": "timestamptz", "opprettet": "timestamptz", "oppdatert": "timestamptz"},
+    "ernaeringsmal": {"bruker_id": "uuid", "beregningsgrunnlag": "text", "aktivitetsniva": "text", "retning": "text", "tempo": "numeric", "vedlikehold_kcal": "int4", "kcal": "int4", "protein": "int4", "karbohydrater": "int4", "fett": "int4", "overstyrt": "bool", "opprettet": "timestamptz", "oppdatert": "timestamptz"}
   }';
+  primar constant jsonb := '{"matvarer": "id", "matlogg": "id", "maltidsmaler": "id", "ernaeringsmal": "bruker_id"}';
   t text;
-  mangler text[];
+  avvik text[];
 begin
   if to_regclass('auth.users') is null or to_regprocedure('auth.uid()') is null then
     raise exception 'Fant ikke Supabase-innloggingen (auth.users / auth.uid()). Avbryter – ingenting er endret.';
   end if;
   for t in select jsonb_object_keys(forventet) loop
     if to_regclass('public.' || t) is not null then
-      select array_agg(k) into mangler
-        from jsonb_array_elements_text(forventet -> t) as k
-       where not exists (select 1 from information_schema.columns c
-                          where c.table_schema = 'public' and c.table_name = t and c.column_name = k);
-      if mangler is not null then
-        raise exception 'Tabellen public.% finnes allerede, men mangler kolonnene %. Den er trolig ikke laget av denne migrasjonen. Avbryter – ingenting er endret.', t, mangler;
+      -- Kolonner som mangler eller har en annen type (udt_name, f.eks. uuid, numeric, text)
+      select array_agg(f.key || ' (' || coalesce(c.udt_name, 'mangler') || ', ventet ' || f.value || ')' order by f.key) into avvik
+        from jsonb_each_text(forventet -> t) as f
+        left join information_schema.columns c
+          on c.table_schema = 'public' and c.table_name = t and c.column_name = f.key
+       where c.udt_name is distinct from f.value;
+      if avvik is not null then
+        raise exception 'Tabellen public.% finnes allerede, men har en annen struktur: %. Den er trolig ikke laget av denne migrasjonen. Avbryter – ingenting er endret.', t, avvik;
+      end if;
+      -- Primærnøkkelen brukes av «on conflict» ved nye forsøk
+      if not exists (
+        select 1 from pg_constraint k
+         where k.conrelid = ('public.' || t)::regclass and k.contype = 'p'
+           and k.conkey = array[(select a.attnum from pg_attribute a
+                                  where a.attrelid = ('public.' || t)::regclass and a.attname = primar ->> t)]::int2[]
+      ) then
+        raise exception 'Tabellen public.% finnes allerede, men primærnøkkelen er ikke (%). Avbryter – ingenting er endret.', t, primar ->> t;
+      end if;
+      -- RLS-regler denne migrasjonen ikke eier
+      select array_agg(p.policyname::text order by p.policyname) into avvik
+        from pg_policies p
+       where p.schemaname = 'public' and p.tablename = t
+         and p.policyname not in (t || ': les egne', t || ': ny', t || ': endre egne', t || ': slett egne');
+      if avvik is not null then
+        raise exception 'Tabellen public.% har RLS-regler som ikke kommer fra denne migrasjonen: %. Fjern dem eller kontroller dem først. Avbryter – ingenting er endret.', t, avvik;
       end if;
     end if;
   end loop;
@@ -158,7 +184,7 @@ create trigger matlogg_oppdatert before update on public.matlogg
 
 -- «Nylig brukt», antall og sist brukte mengde oppdateres her, i samme transaksjon som registreringen.
 -- Atomisk (ingen tapte tellinger fra flere enheter), og bare for rader som faktisk settes inn – et nytt
--- forsøk med samme id («on conflict do nothing») teller ikke dobbelt. Kjøres med brukerens egne
+-- forsøk med samme id («on conflict … do update» oppdaterer i stedet for å sette inn) teller ikke dobbelt. Kjøres med brukerens egne
 -- rettigheter (RLS gjelder), og bare på brukerens egen matvare.
 create or replace function public.kost_registrer_bruk()
 returns trigger

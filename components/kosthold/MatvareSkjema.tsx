@@ -46,7 +46,8 @@ const tilTekst = (n: number | null | undefined, d = 2) =>
 
 /** Registrer eller rediger en matvare. Ingen felt fylles inn med gjetninger – tomt betyr ukjent. */
 export default function MatvareSkjema({ userId, utgangspunkt: u = {}, eksisterende: e, onLagret, onAvbryt, lagreTekst }: Props) {
-  const [id] = useState(() => e?.id ?? nyId())
+  // Ny vare: id-en følger ett utfylt skjema (samme id ved nye forsøk). Etter lagring får neste vare en ny id.
+  const [id, setId] = useState(() => e?.id ?? nyId())
   const [navn, setNavn] = useState(e?.navn ?? u.navn ?? '')
   const [merke, setMerke] = useState(e?.merke ?? u.merke ?? '')
   const [strekkode, setStrekkode] = useState(e?.strekkode ?? u.strekkode ?? '')
@@ -116,6 +117,7 @@ export default function MatvareSkjema({ userId, utgangspunkt: u = {}, eksisteren
     }
     try {
       const m = await lagre.mutateAsync({ userId, id, data, ny: !e })
+      if (!e) setId(nyId())
       onLagret(m)
     } catch { /* vises under */ }
   }

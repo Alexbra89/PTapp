@@ -5,7 +5,8 @@
 //
 // Robusthet:
 // • Nye rader får id i appen før lagring. Ved nettverksfeil prøves det igjen med samme id;
-//   databasen ignorerer en id den allerede har («on conflict do nothing») – aldri dobbelt.
+//   finnes id-en allerede, oppdateres raden med det som sendes sist («on conflict (id) do update») –
+//   aldri dobbelt, og en endring gjort mens svaret var borte går ikke tapt.
 // • Endringer vises med en gang (optimistisk) og rulles tilbake hvis lagringen feiler.
 //   Allerede lagrede data i cachen røres ikke ved feil.
 // • Alle cache-nøkler inneholder bruker-id, og cachen tømmes ved utlogging (app/providers.tsx).
@@ -214,7 +215,9 @@ export function useLoggMat() {
     ...PROV_IGJEN,
     mutationFn: async ({ linjer }: { userId: string; linjer: Logglinje[]; malId?: string }) => {
       kreverNett()
-      const { error } = await supabase.from('matlogg').upsert(linjer.map(tilRad), { onConflict: 'id', ignoreDuplicates: true })
+      // Samme id ved nytt forsøk: finnes raden (svaret gikk tapt), oppdateres den med det som sendes nå –
+      // brukeren kan ha endret mengde eller måltid i mellomtiden. Telleren i matlogg_bruk øker bare ved innsetting.
+      const { error } = await supabase.from('matlogg').upsert(linjer.map(tilRad), { onConflict: 'id' })
       kast(error)
     },
     onMutate: async ({ userId, linjer }) => {
@@ -316,7 +319,8 @@ export function useLagreMatvare() {
     mutationFn: async ({ userId, id, data, ny }: { userId: string; id: string; data: Matvaredata; ny: boolean }): Promise<Matvare> => {
       kreverNett()
       const { error } = ny
-        ? await supabase.from('matvarer').upsert({ id, bruker_id: userId, ...data }, { onConflict: 'id', ignoreDuplicates: true })
+        // Nytt forsøk med samme id oppdaterer raden, så en rettelse etter et tapt svar ikke forkastes
+        ? await supabase.from('matvarer').upsert({ id, bruker_id: userId, ...data }, { onConflict: 'id' })
         : await supabase.from('matvarer').update(data).eq('id', id).eq('bruker_id', userId)
       // Strekkoden finnes allerede hos brukeren: ikke lag kopi, og ikke forkast det brukeren skrev
       // uten å si fra – skjemaet spør om den lagrede varen skal brukes.

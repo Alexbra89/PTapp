@@ -60,7 +60,12 @@ export default function EtikettLeser({ onResultat, onManuell }: Props) {
   const galleri = useRef<HTMLInputElement>(null)
   const avbrutt = useRef(false)
 
-  useEffect(() => () => { avbrutt.current = true }, [])
+  // Settes tilbake ved montering: React StrictMode (dev) kjører opprydding + oppsett én ekstra gang,
+  // og uten dette ville hvert OCR-resultat blitt forkastet.
+  useEffect(() => {
+    avbrutt.current = false
+    return () => { avbrutt.current = true }
+  }, [])
   useEffect(() => () => { if (forhand) URL.revokeObjectURL(forhand) }, [forhand])
 
   const les = async (fil: File | undefined) => {

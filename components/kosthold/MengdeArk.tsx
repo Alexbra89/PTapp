@@ -8,7 +8,7 @@ import {
   MALTIDER, type Enhet, type Logglinje, type Maltid, type Matvare,
   basisTekst, beregnNaering, enhetNavn, gyldigDato, lesTall, linjePer100, tilBasisMengde, tilgjengeligeEnheter, visGram, visKcal,
 } from '@/lib/kosthold/naering'
-import { endreMengde, lagLinje, nyId } from '@/lib/kosthold/linje'
+import { basisForEndring, endreMengde, lagLinje, nyId } from '@/lib/kosthold/linje'
 import { lokalDato } from '@/lib/dato'
 import { useLoggMat, useEndreLogg, useSlettLogg, feilTekst } from '@/hooks/useKosthold'
 import type { VarselData } from './Varsel'
@@ -70,7 +70,12 @@ export default function MengdeArk(p: Props) {
   const per100 = p.linje ? linjePer100(p.linje) : matvare!
   const basis = p.linje?.basis ?? matvare!.basis
   const mengdeData = matvare ? { ...matvare, basis } : { basis, porsjon_mengde: null, porsjon_enhet: null, stk_vekt: null, tetthet: null }
-  const r = mengde === null || Number.isNaN(mengde) ? { ok: false as const, feil: 'Skriv inn en mengde.' } : tilBasisMengde(mengde, enhet, mengdeData)
+  // Ved endring regnes det som ved lagring: samme enhet bruker den historiske omregningen
+  const r = mengde === null || Number.isNaN(mengde) ? { ok: false as const, feil: 'Skriv inn en mengde.' }
+    : p.linje ? basisForEndring(p.linje, mengde, enhet, matvare) : tilBasisMengde(mengde, enhet, mengdeData)
+  // Historisk størrelse per porsjon/stk når en gammel registrering endres i samme enhet
+  const historiskPerEnhet = p.linje && enhet === p.linje.enhet && (enhet === 'porsjon' || enhet === 'stk') && Number(p.linje.mengde) > 0
+    ? Number(p.linje.basis_mengde) / Number(p.linje.mengde) : null
   const naering = r.ok ? beregnNaering(per100, r.basisMengde) : null
   const navn = p.linje?.navn ?? matvare!.navn
   const merke = p.linje?.merke ?? matvare?.merke
@@ -162,10 +167,16 @@ export default function MengdeArk(p: Props) {
           </button>
         ))}
       </div>
-      {enhet === 'porsjon' && matvare?.porsjon_mengde && (
-        <p className="ko-felt-hint">1 porsjon = {tallTekst(matvare.porsjon_mengde)} {matvare.porsjon_enhet}{matvare.porsjon_navn ? ` (${matvare.porsjon_navn})` : ''}</p>
+      {historiskPerEnhet !== null ? (
+        <p className="ko-felt-hint">1 {enhet === 'stk' ? 'stk' : 'porsjon'} = {tallTekst(historiskPerEnhet)} {basis === '100ml' ? 'ml' : 'g'} (som da den ble registrert)</p>
+      ) : (
+        <>
+          {enhet === 'porsjon' && matvare?.porsjon_mengde && (
+            <p className="ko-felt-hint">1 porsjon = {tallTekst(matvare.porsjon_mengde)} {matvare.porsjon_enhet}{matvare.porsjon_navn ? ` (${matvare.porsjon_navn})` : ''}</p>
+          )}
+          {enhet === 'stk' && matvare?.stk_vekt && <p className="ko-felt-hint">1 stk = {tallTekst(matvare.stk_vekt)} g</p>}
+        </>
       )}
-      {enhet === 'stk' && matvare?.stk_vekt && <p className="ko-felt-hint">1 stk = {tallTekst(matvare.stk_vekt)} g</p>}
 
       {!r.ok && mengdeTekst.trim() !== '' && <Melding type="advarsel">{r.feil}</Melding>}
 

@@ -3,10 +3,11 @@
 // eller tekst skal ut av enheten. Kjøres automatisk før dev og build (predev/prebuild).
 import { copyFileSync, mkdirSync, existsSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const rot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+const rot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ut = path.join(rot, 'public', 'ocr')
 mkdirSync(ut, { recursive: true })
 

@@ -274,3 +274,89 @@ test('F12: målene lagres selv om profilen ikke kan oppdateres – og det sies f
   await expect(page.getByText(/Målene er lagret\. Vekt, høyde og fødselsår i profilen ble ikke oppdatert/)).toBeVisible()
   expect(kost.db.ernaeringsmal).toHaveLength(1)
 })
+
+// ── Uavhengig gjennomgang #2 og #3: samme id, nytt innhold ─────────────────
+// Svaret går tapt etter at databasen har lagret (som over), for vilkårlig tabell.
+function tapForsteSvar(kost: ReturnType<typeof kostholdDb>, tabell: 'matlogg' | 'matvarer') {
+  let forste = true
+  return (req: import('@playwright/test').Request, url: URL) => {
+    if (forste && url.pathname === `/rest/v1/${tabell}` && req.method() === 'POST') {
+      forste = false
+      kost.handler(req, url)
+      return { status: 503, json: { code: 'XX000', message: 'upstream connect error' } }
+    }
+    return undefined
+  }
+}
+
+test('#2: to matvarer etter hverandre i det manuelle skjemaet blir to matvarer', async ({ page }) => {
+  const kost = await oppsett(page)
+  await page.goto('/kosthold/legg-til?metode=manuell')
+  await page.getByTestId('matvare-navn').fill('Havregryn')
+  await page.getByTestId('felt-kcal').fill('370')
+  await page.getByTestId('lagre-matvare').click()
+  const ark1 = page.getByRole('dialog', { name: 'Havregryn' })
+  await expect(ark1).toBeVisible()
+  await ark1.getByRole('button', { name: 'Lukk' }).click()
+  // Skjemaet er tomt og klart for en ny vare
+  await expect(page.getByTestId('matvare-navn')).toHaveValue('')
+  await page.getByTestId('matvare-navn').fill('Banan')
+  await page.getByTestId('felt-kcal').fill('89')
+  await page.getByTestId('lagre-matvare').click()
+  await expect(page.getByRole('dialog', { name: 'Banan' })).toBeVisible()
+  expect(kost.db.matvarer.map(m => m.navn).sort()).toEqual(['Banan', 'Havregryn'])
+  expect(new Set(kost.db.matvarer.map(m => m.id)).size).toBe(2)
+})
+
+test('#3: endret mengde og måltid etter tapt svar – det siste innholdet er det som lagres', async ({ page }) => {
+  const kost = kostholdDb({ matvarer: [HAVREGRYN] })
+  const tap = tapForsteSvar(kost, 'matlogg')
+  await falskSupabase(page.context(), (req, url) => tap(req, url) ?? kost.handler(req, url))
+  await page.goto('/kosthold/legg-til?maltid=frokost')
+  await page.getByTestId('matvare-rad').first().getByRole('button').first().click()
+  const ark = page.getByRole('dialog', { name: 'Havregryn' })
+  await ark.getByTestId('mengde').fill('60')
+  await ark.getByTestId('lagre-mengde').click()
+  await expect(ark.getByRole('alert')).toBeVisible() // feil vises, men raden ble lagret
+  expect(kost.db.matlogg).toMatchObject([{ mengde: 60, maltid: 'frokost' }])
+  // Brukeren retter mengde og måltid før nytt forsøk
+  await ark.getByTestId('mengde').fill('100')
+  await ark.getByRole('radio', { name: 'Middag' }).click()
+  await ark.getByTestId('lagre-mengde').click()
+  await expect(ark).toBeHidden()
+  expect(kost.db.matlogg).toHaveLength(1)
+  expect(kost.db.matlogg[0]).toMatchObject({ mengde: 100, basis_mengde: 100, maltid: 'middag' })
+})
+
+test('#3: rettet matvare etter tapt svar – rettelsen lagres', async ({ page }) => {
+  const kost = kostholdDb()
+  const tap = tapForsteSvar(kost, 'matvarer')
+  await falskSupabase(page.context(), (req, url) => tap(req, url) ?? kost.handler(req, url))
+  await page.goto('/kosthold/legg-til?metode=manuell')
+  await page.getByTestId('matvare-navn').fill('Proteinbar')
+  await page.getByTestId('felt-kcal').fill('300')
+  await page.getByTestId('lagre-matvare').click()
+  await expect(page.locator('.ko-melding.feil')).toBeVisible()
+  expect(kost.db.matvarer).toMatchObject([{ navn: 'Proteinbar', kcal: 300 }])
+  await page.getByTestId('felt-kcal').fill('380') // retter en skrivefeil før nytt forsøk
+  await page.getByTestId('lagre-matvare').click()
+  await expect(page.getByRole('dialog', { name: 'Proteinbar' })).toBeVisible()
+  expect(kost.db.matvarer).toHaveLength(1)
+  expect(kost.db.matvarer[0].kcal).toBe(380)
+})
+
+test('#4: å flytte en gammel porsjon til et annet måltid endrer ikke kaloriene', async ({ page }) => {
+  // Registrert som 1 porsjon à 40 g; porsjonen på matvaren er senere endret til 80 g
+  const matvare = { ...HAVREGRYN, porsjon_mengde: 80 }
+  const l = linje({ navn: 'Havregryn', matvare_id: HAVREGRYN.id, mengde: 1, enhet: 'porsjon', basis_mengde: 40, kcal_100: 370 })
+  const kost = await oppsett(page, { matvarer: [matvare], matlogg: [l] })
+  await page.goto('/kosthold')
+  await page.getByTestId('logglinje').click()
+  const ark = page.getByRole('dialog', { name: 'Havregryn' })
+  await expect(ark.locator('.ko-naering')).toContainText('148') // 370 × 0,4
+  await expect(ark.getByText('1 porsjon = 40 g (som da den ble registrert)')).toBeVisible()
+  await ark.getByRole('radio', { name: 'Lunsj' }).click()
+  await ark.getByTestId('lagre-mengde').click()
+  await expect.poll(() => kost.db.matlogg[0].maltid).toBe('lunsj')
+  expect(kost.db.matlogg[0].basis_mengde).toBe(40)
+})

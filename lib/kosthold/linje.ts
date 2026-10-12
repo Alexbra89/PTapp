@@ -1,7 +1,7 @@
 // Lager dagbokslinjer fra en matvare og en mengde. Ren logikk – brukes ved registrering,
 // ved «én-trykks» gjenbruk og når en hel måltidsmal registreres.
 
-import { tilBasisMengde, type Enhet, type Logglinje, type Maltid, type Matvare } from './naering'
+import { GRENSER, tilBasisMengde, type Enhet, type Logglinje, type Maltid, type Matvare, type Mengdedata, type Mengderesultat } from './naering'
 
 /** UUID laget i appen. Samme id sendes ved nye forsøk, så en registrering aldri lagres to ganger. */
 export function nyId(): string {
@@ -50,16 +50,35 @@ export function lagLinje(
   }
 }
 
-/** Ny mengde på en eksisterende linje: regnes fra øyeblikksbildet, ikke fra dagens matvare. */
-export function endreMengde(l: Logglinje, mengde: number, enhet: Enhet, m?: Matvare | null): Linjeresultat {
-  // Gram/ml i samme basis kan alltid regnes om uten matvaren. Porsjon/stk krever matvarens data.
+/**
+ * Gram/ml i basis for en ny mengde på en eksisterende linje.
+ *
+ * Linjen er et historisk øyeblikksbilde – også omregningen. Er enheten den samme som før, skaleres
+ * den lagrede basis-mengden (40 g per porsjon da den ble registrert, forblir 40 g per porsjon), selv
+ * om porsjonsstørrelse, vekt per stykk eller tetthet på matvaren er endret senere. Bare et villet
+ * bytte av enhet (f.eks. fra gram til porsjon) bruker dagens matvare.
+ */
+export function basisForEndring(l: Logglinje, mengde: number, enhet: Enhet, m?: Matvare | null): Mengderesultat {
+  const iBasis: Mengdedata = { basis: l.basis, porsjon_mengde: null, porsjon_enhet: null, stk_vekt: null, tetthet: null }
+  if (enhet === l.enhet && Number(l.mengde) > 0) {
+    // Valider mengden som vanlig (positiv, øvre grense), og skaler den historiske omregningen
+    const sjekk = tilBasisMengde(mengde, l.basis === '100ml' ? 'ml' : 'g', iBasis)
+    if (!sjekk.ok) return sjekk
+    const basisMengde = (Number(l.basis_mengde) * mengde) / Number(l.mengde)
+    if (!Number.isFinite(basisMengde) || basisMengde <= 0 || basisMengde > GRENSER.mengde) return { ok: false, feil: 'Mengden blir for stor.' }
+    return { ok: true, basisMengde }
+  }
+  // Gram/ml i samme basis kan regnes om uten matvaren. Porsjon/stk og g↔ml krever matvarens data.
   if (enhet === 'porsjon' || enhet === 'stk' || (enhet === 'g' && l.basis === '100ml') || (enhet === 'ml' && l.basis === '100g')) {
     if (!m) return { ok: false, feil: 'Matvaren finnes ikke lenger. Bruk gram eller milliliter.' }
-    const r = tilBasisMengde(mengde, enhet, { ...m, basis: l.basis })
-    if (!r.ok) return r
-    return { ok: true, linje: { ...l, mengde, enhet, basis_mengde: r.basisMengde } }
+    return tilBasisMengde(mengde, enhet, { ...m, basis: l.basis })
   }
-  const r = tilBasisMengde(mengde, enhet, { basis: l.basis, porsjon_mengde: null, porsjon_enhet: null, stk_vekt: null, tetthet: null })
+  return tilBasisMengde(mengde, enhet, iBasis)
+}
+
+/** Ny mengde på en eksisterende linje: regnes fra øyeblikksbildet, ikke fra dagens matvare. */
+export function endreMengde(l: Logglinje, mengde: number, enhet: Enhet, m?: Matvare | null): Linjeresultat {
+  const r = basisForEndring(l, mengde, enhet, m)
   if (!r.ok) return r
   return { ok: true, linje: { ...l, mengde, enhet, basis_mengde: r.basisMengde } }
 }

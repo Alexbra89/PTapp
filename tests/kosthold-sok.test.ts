@@ -66,3 +66,34 @@ describe('dagbokslinjer', () => {
     expect(r.feil).toBeTruthy()
   })
 })
+
+describe('regresjon: historisk omregning (gjennomgang #4)', () => {
+  const sted = { brukerId: 'u', dato: '2026-10-12', maltid: 'frokost' as const }
+  it('å flytte en gammel porsjon endrer ikke kaloriene selv om porsjonsstørrelsen er endret', () => {
+    const m = mv({ kcal: 200, porsjon_mengde: 40, porsjon_enhet: 'g' })
+    const r = lagLinje(m, 1, 'porsjon', sted)
+    expect(r.ok && summer([r.linje]).verdier.kcal).toBe(80)
+    const endretMatvare = { ...m, porsjon_mengde: 80 } // porsjonen redigert senere
+    const flyttet = r.ok && endreMengde({ ...r.linje, maltid: 'lunsj' }, 1, 'porsjon', endretMatvare)
+    expect(flyttet && flyttet.ok && flyttet.linje.basis_mengde).toBe(40)
+    expect(flyttet && flyttet.ok && summer([flyttet.linje]).verdier.kcal).toBe(80)
+  })
+  it('ny mengde i samme enhet regnes med den historiske porsjonen', () => {
+    const m = mv({ kcal: 200, porsjon_mengde: 40, porsjon_enhet: 'g' })
+    const r = lagLinje(m, 1, 'porsjon', sted)
+    const e = r.ok && endreMengde(r.linje, 2, 'porsjon', { ...m, porsjon_mengde: 80 })
+    expect(e && e.ok && e.linje.basis_mengde).toBe(80) // 2 × historiske 40 g, ikke 2 × 80 g
+  })
+  it('stk med endret vekt per stykk bruker den historiske vekten', () => {
+    const m = mv({ kcal: 143, stk_vekt: 60 })
+    const r = lagLinje(m, 2, 'stk', sted)
+    const e = r.ok && endreMengde(r.linje, 3, 'stk', { ...m, stk_vekt: 50 })
+    expect(e && e.ok && e.linje.basis_mengde).toBe(180)
+  })
+  it('bytte av enhet bruker dagens matvare (ny, villet omregning)', () => {
+    const m = mv({ kcal: 200, porsjon_mengde: 40, porsjon_enhet: 'g' })
+    const r = lagLinje(m, 100, 'g', sted)
+    const e = r.ok && endreMengde(r.linje, 1, 'porsjon', { ...m, porsjon_mengde: 80 })
+    expect(e && e.ok && e.linje.basis_mengde).toBe(80)
+  })
+})

@@ -90,6 +90,7 @@ function LeggTil() {
   const [skjema, setSkjema] = useState<{ tittel: string; utgangspunkt: Utgangspunkt; raatekst?: string } | null>(null)
   const [oppslag, setOppslag] = useState<Oppslag | null>(null)
   const [etikettKode, setEtikettKode] = useState<string | undefined>()
+  const [manuellNr, setManuellNr] = useState(0)
   const [eksterne, setEksterne] = useState<{ q: string; laster: boolean; treff: Matvareutkast[]; feil?: string } | null>(null)
 
   const treff = useMemo(() => filter === 'maler' ? [] : sokMatvarer(matvarer, q, filter), [matvarer, q, filter])
@@ -299,8 +300,9 @@ function LeggTil() {
       {metode === 'manuell' && uid && (
         <section className="glass-card" style={{ padding: '1.5rem' }}>
           <h2 className="hq-section-title" style={{ marginBottom: '1rem' }}>Ny <em>matvare</em></h2>
-          <MatvareSkjema key="manuell" userId={uid} utgangspunkt={{ kilde: 'manuell' }} lagreTekst="Lagre og velg mengde"
-            onLagret={m => setValgt(m)} onAvbryt={() => router.push(dagbokUrl)} />
+          {/* Ny key etter lagring: skjemaet tømmes og neste vare blir en ny vare, ikke en overskriving */}
+          <MatvareSkjema key={`manuell-${manuellNr}`} userId={uid} utgangspunkt={{ kilde: 'manuell' }} lagreTekst="Lagre og velg mengde"
+            onLagret={m => { setManuellNr(n => n + 1); setValgt(m) }} onAvbryt={() => router.push(dagbokUrl)} />
         </section>
       )}
 
