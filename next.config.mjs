@@ -18,6 +18,11 @@ const pwaConfig = withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  // Ikke last hele siden på nytt når nettet kommer tilbake (standard i next-pwa er true). Omlastingen
+  // slettet åpne skjemaer (mengde, matvare, mål, sett i økta) og kunne avbryte endringer som var på
+  // vei. Data hentes i stedet på nytt av React Query (refetchOnReconnect: 'always' i app/providers.tsx).
+  // Påvirker ikke service workeren, oppdateringer eller mellomlagring.
+  reloadOnOnline: false,
   // Standardreglene til next-pwa beholdes (statiske filer, fonter, sider), men regelen
   // «cross-origin» – som lagret ALLE svar fra andre domener, også Supabase med brukerdata,
   // i en time – byttes ut med «aldri cache». Brukerdata skal ikke ligge igjen på enheten.

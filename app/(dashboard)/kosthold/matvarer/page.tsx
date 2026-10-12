@@ -21,7 +21,7 @@ import MatvareSkjema from '@/components/kosthold/MatvareSkjema'
 import Ark from '@/components/kosthold/Ark'
 import Melding from '@/components/kosthold/Melding'
 import { useVarsel, Varsel } from '@/components/kosthold/Varsel'
-import { useSperre } from '@/hooks/useSperre'
+import { useEttTrykk } from '@/hooks/useEttTrykk'
 
 type Utkastlinje = { matvare_id: string; mengde: string; enhet: Enhet }
 
@@ -135,7 +135,7 @@ function Matvarer() {
   const logg = useLoggMat()
   const slettLogg = useSlettLogg()
   const { varsel, vis, skjul } = useVarsel()
-  const sperre = useSperre()
+  const ettTrykk = useEttTrykk()
 
   const [q, setQ] = useState('')
   const [bareFav, setBareFav] = useState(false)
@@ -147,10 +147,11 @@ function Matvarer() {
 
   const registrerMal = (m: Maltidsmal) => {
     if (!uid) return
-    const r = linjerFraMal(m, matvarer, { brukerId: uid, dato: lokalDato(), maltid: m.maltid ?? standardMaltid() })
+    const sted = { brukerId: uid, dato: lokalDato(), maltid: m.maltid ?? standardMaltid() }
+    const r = linjerFraMal(m, matvarer, sted)
     if (r.feil) { vis({ tekst: r.feil, feil: true }); return }
-    const send = () => sperre.kjor(`mal:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: r.linjer, malId: m.id }))?.then(
-      () => vis({ tekst: `«${m.navn}» registrert i dag`, handling: { tekst: 'Angre', gjor: () => r.linjer.forEach(l => slettLogg.mutate({ userId: uid, linje: l })) } }),
+    const send = () => ettTrykk.registrer(`mal:${m.id}:${sted.dato}:${sted.maltid}`, () => linjerFraMal(m, matvarer, sted).linjer, { userId: uid, malId: m.id })?.then(
+      linjer => vis({ tekst: `«${m.navn}» registrert i dag`, handling: { tekst: 'Angre', gjor: () => linjer.forEach(l => slettLogg.mutate({ userId: uid, linje: l })) } }),
       e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
     )
     send()
@@ -224,7 +225,7 @@ function Matvarer() {
                       <div className="ko-rad-meta">{m.linjer.slice(0, 4).map(l => { const mv = matvarer.find(x => x.id === l.matvare_id); return mv ? `${mv.navn} ${mengdeTekst(Number(l.mengde), l.enhet)}` : null }).filter(Boolean).join(' · ')}</div>
                     </button>
                     <div className="ko-rad-hoyre">
-                      <button className="ko-igjen-knapp" onClick={() => registrerMal(m)} disabled={sperre.laast(`mal:${m.id}`)}><Repeat size={13} /> I dag</button>
+                      <button className="ko-igjen-knapp" onClick={() => registrerMal(m)} disabled={ettTrykk.laast(`mal:${m.id}:${lokalDato()}:${m.maltid ?? standardMaltid()}`)}><Repeat size={13} /> I dag</button>
                       <button className="ko-ikonknapp fare" onClick={() => uid && slettMal.mutate({ userId: uid, id: m.id }, { onSuccess: () => vis({ tekst: `«${m.navn}» er slettet` }), onError: e => vis({ tekst: feilTekst(e), feil: true }) })} aria-label={`Slett ${m.navn}`}><Trash2 size={16} strokeWidth={1.4} /></button>
                     </div>
                   </div>

@@ -24,7 +24,7 @@ import EtikettLeser from '@/components/kosthold/EtikettLeser'
 import Ark from '@/components/kosthold/Ark'
 import Melding from '@/components/kosthold/Melding'
 import { useVarsel, Varsel, type VarselData } from '@/components/kosthold/Varsel'
-import { useSperre } from '@/hooks/useSperre'
+import { useEttTrykk } from '@/hooks/useEttTrykk'
 import { useErPaNett } from '@/hooks/useErPaNett'
 import { hentMatApi } from '@/lib/kosthold/api'
 
@@ -79,7 +79,7 @@ function LeggTil() {
   const logg = useLoggMat()
   const slett = useSlettLogg()
   const { varsel, vis: visRaa, skjul } = useVarsel()
-  const sperre = useSperre()
+  const ettTrykk = useEttTrykk()
   const paNett = useErPaNett()
   const dagbokUrl = dato === idag ? '/kosthold' : `/kosthold?dato=${dato}`
   const vis = useCallback((v: VarselData) => visRaa(!v.feil && !v.handling ? { ...v, handling: { tekst: 'Se dagbok', gjor: () => router.push(dagbokUrl) } } : v), [visRaa, router, dagbokUrl])
@@ -94,16 +94,18 @@ function LeggTil() {
 
   const treff = useMemo(() => filter === 'maler' ? [] : sokMatvarer(matvarer, q, filter), [matvarer, q, filter])
 
-  // Registrer med ett trykk med sist brukte mengde. Sperren hindrer at et dobbelttrykk gir to
-  // registreringer; bekreftelsen vises først når databasen har lagret.
+  // Registrer med ett trykk med sist brukte mengde. useEttTrykk hindrer duplikater ved dobbelttrykk
+  // og gjenbruker samme id-er hvis brukeren trykker igjen etter en feil (svaret kan ha gått tapt).
   const leggTilIgjen = (m: Matvare) => {
     if (!uid || !m.sist_mengde || !m.sist_enhet) return
-    const r = lagLinje(m, m.sist_mengde, m.sist_enhet, { brukerId: uid, dato, maltid })
-    if (!r.ok) { setValgt(m); return }
-    const linje = r.linje
-    const send = () => sperre.kjor(`igjen:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: [linje] }))?.then(
-      () => vis({ tekst: `${m.navn} (${mengdeTekst(m.sist_mengde!, m.sist_enhet!)}) lagt til`, handling: { tekst: 'Angre', gjor: () => slett.mutate({ userId: uid, linje }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) }) } }),
-      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }), // samme id – ingen dobbel registrering
+    const forsok = lagLinje(m, m.sist_mengde, m.sist_enhet, { brukerId: uid, dato, maltid })
+    if (!forsok.ok) { setValgt(m); return }
+    const send = () => ettTrykk.registrer(`igjen:${m.id}:${dato}:${maltid}`, () => {
+      const r = lagLinje(m, m.sist_mengde!, m.sist_enhet!, { brukerId: uid, dato, maltid })
+      return r.ok ? [r.linje] : []
+    }, { userId: uid })?.then(
+      linjer => vis({ tekst: `${m.navn} (${mengdeTekst(m.sist_mengde!, m.sist_enhet!)}) lagt til`, handling: { tekst: 'Angre', gjor: () => linjer.forEach(linje => slett.mutate({ userId: uid, linje }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) })) } }),
+      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
     )
     send()
   }
@@ -111,10 +113,11 @@ function LeggTil() {
   const brukMal = (id: string) => {
     const m = maler.find(x => x.id === id)
     if (!uid || !m) return
-    const r = linjerFraMal(m, matvarer, { brukerId: uid, dato, maltid: m.maltid ?? maltid })
+    const sted = { brukerId: uid, dato, maltid: m.maltid ?? maltid }
+    const r = linjerFraMal(m, matvarer, sted)
     if (r.feil) { vis({ tekst: r.feil, feil: true }); return }
-    const send = () => sperre.kjor(`mal:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: r.linjer, malId: m.id }))?.then(
-      () => vis({ tekst: `«${m.navn}» registrert`, handling: { tekst: 'Angre', gjor: () => r.linjer.forEach((l: Logglinje) => slett.mutate({ userId: uid, linje: l })) } }),
+    const send = () => ettTrykk.registrer(`mal:${m.id}:${dato}:${sted.maltid}`, () => linjerFraMal(m, matvarer, sted).linjer, { userId: uid, malId: m.id })?.then(
+      linjer => vis({ tekst: `«${m.navn}» registrert`, handling: { tekst: 'Angre', gjor: () => linjer.forEach((l: Logglinje) => slett.mutate({ userId: uid, linje: l })) } }),
       e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
     )
     send()
@@ -150,7 +153,7 @@ function LeggTil() {
       </button>
       <div className="ko-rad-hoyre">
         {m.sist_mengde && m.sist_enhet && (
-          <button className="ko-igjen-knapp" onClick={() => leggTilIgjen(m)} disabled={sperre.laast(`igjen:${m.id}`)} aria-label={`Legg til ${m.navn}, ${mengdeTekst(m.sist_mengde, m.sist_enhet)}`} data-testid="legg-til-igjen">
+          <button className="ko-igjen-knapp" onClick={() => leggTilIgjen(m)} disabled={ettTrykk.laast(`igjen:${m.id}:${dato}:${maltid}`)} aria-label={`Legg til ${m.navn}, ${mengdeTekst(m.sist_mengde, m.sist_enhet)}`} data-testid="legg-til-igjen">
             <Plus size={13} /> {mengdeTekst(m.sist_mengde, m.sist_enhet)}
           </button>
         )}
@@ -204,7 +207,7 @@ function LeggTil() {
               : <div className="ko-liste">{maler.map(m => (
                 <div key={m.id} className="ko-rad" style={{ cursor: 'default' }}>
                   <div style={{ minWidth: 0 }}><div className="ko-rad-navn">{m.navn}</div><div className="ko-rad-meta">{m.linjer.length} matvarer</div></div>
-                  <button className="ko-igjen-knapp" onClick={() => brukMal(m.id)} disabled={sperre.laast(`mal:${m.id}`)}><Repeat size={13} /> Registrer</button>
+                  <button className="ko-igjen-knapp" onClick={() => brukMal(m.id)} disabled={ettTrykk.laast(`mal:${m.id}:${dato}:${m.maltid ?? maltid}`)}><Repeat size={13} /> Registrer</button>
                 </div>))}</div>
           ) : (
             <>

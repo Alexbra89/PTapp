@@ -34,15 +34,17 @@ test('F1: uten nett vises ingenting som lagret, og ingenting sendes', async ({ p
   await expect(ark).toBeVisible()
   expect(kost.skrivinger.filter(s => s.tabell === 'matlogg')).toHaveLength(0)
 
-  // Tilbake på nett. Appen laster siden på nytt (next-pwa «reloadOnOnline», eksisterende innstilling),
-  // så arket åpnes igjen. Ingenting ble lagret mens enheten var uten nett.
-  const lastet = page.waitForEvent('load')
+  // Tilbake på nett: siden lastes IKKE på nytt (reloadOnOnline: false), arket står med mengden,
+  // og samme ark lagrer – én rad. Ingenting ble lagret mens enheten var uten nett.
+  let omlastinger = 0
+  page.on('load', () => { omlastinger++ })
   await context.setOffline(false)
-  await lastet
+  await page.waitForTimeout(1000)
+  expect(omlastinger).toBe(0)
   expect(kost.db.matlogg).toHaveLength(0)
-  await page.getByTestId('matvare-rad').first().getByRole('button').first().click()
-  await page.getByRole('dialog', { name: 'Havregryn' }).getByTestId('lagre-mengde').click()
-  await expect(page.getByRole('dialog', { name: 'Havregryn' })).toBeHidden()
+  await expect(ark).toBeVisible()
+  await ark.getByTestId('lagre-mengde').click()
+  await expect(ark).toBeHidden()
   await expect.poll(() => kost.db.matlogg.length).toBe(1)
   expect(kost.skrivinger.filter(s => s.tabell === 'matlogg' && s.metode === 'POST')).toHaveLength(1)
 })
@@ -83,23 +85,121 @@ test('F1: en registrering på vei vises som «Lagrer …» til databasen har bek
   expect(kost.db.matlogg).toHaveLength(2)
 })
 
-test('F9: raske gjentatte trykk gir ikke duplikater', async ({ page }) => {
-  const kost = await oppsett(page, { matvarer: [HAVREGRYN, MELK], maltidsmaler: [MAL_FROKOST] })
-  await page.goto('/kosthold/legg-til')
-  const knapp = page.getByTestId('legg-til-igjen').first()
-  await knapp.click({ clickCount: 3, delay: 20 }) // trippeltrykk
-  await expect.poll(() => kost.db.matlogg.length).toBe(1)
-  await page.waitForTimeout(500)
-  expect(kost.db.matlogg).toHaveLength(1)
+// ── F9: duplikater ────────────────────────────────────────────────────────
+// Testene teller rader i databasen, POST-kall og unike id-er – ikke bare knappenes tilstand.
+const poster = (kost: ReturnType<typeof kostholdDb>, tabell: 'matlogg' | 'maltidsmaler') => kost.skrivinger.filter(s => s.tabell === tabell && s.metode === 'POST')
+const ider = (kost: ReturnType<typeof kostholdDb>) => kost.db.matlogg.map(r => r.id)
+const beskriv = (kost: ReturnType<typeof kostholdDb>) => JSON.stringify(kost.skrivinger.map(s => ({ t: s.tabell, m: s.metode, ider: Array.isArray(s.body) ? s.body.map((b: any) => b.id) : s.body?.id })))
 
+test('F9: trippeltrykk på «+ 60 g» gir én forespørsel og én rad', async ({ page }) => {
+  const kost = await oppsett(page, { matvarer: [HAVREGRYN, MELK] })
+  await page.goto('/kosthold/legg-til')
+  await page.getByRole('button', { name: 'Legg til Havregryn, 60 g' }).click({ clickCount: 3, delay: 15 })
+  await expect.poll(() => kost.db.matlogg.length).toBe(1)
+  await page.waitForTimeout(800) // eventuelle etternølere rekker frem
+  expect(kost.db.matlogg, beskriv(kost)).toHaveLength(1)
+  expect(poster(kost, 'matlogg'), beskriv(kost)).toHaveLength(1)
+  expect(kost.db.matlogg[0]).toMatchObject({ matvare_id: HAVREGRYN.id, mengde: 60 })
+})
+
+test('F9: to ulike matvarer rett etter hverandre gir to rader (sperren gjelder per handling)', async ({ page }) => {
+  const kost = await oppsett(page, { matvarer: [HAVREGRYN, MELK] })
+  await page.goto('/kosthold/legg-til')
+  await page.getByRole('button', { name: 'Legg til Havregryn, 60 g' }).click()
+  await page.getByRole('button', { name: 'Legg til Lettmelk 1 %, 250 ml' }).click()
+  await expect.poll(() => kost.db.matlogg.length).toBe(2)
+  expect(new Set(ider(kost)).size).toBe(2)
+  expect(kost.db.matlogg.map(r => r.matvare_id).sort()).toEqual([HAVREGRYN.id, MELK.id].sort())
+})
+
+test('F9: dobbelttrykk på fast måltid gir én forespørsel med to linjer', async ({ page }) => {
+  const kost = await oppsett(page, { matvarer: [HAVREGRYN, MELK], maltidsmaler: [MAL_FROKOST] })
   await page.goto('/kosthold')
-  kost.db.matlogg = []
   await page.getByTestId('bruk-mal').dblclick()
   await expect.poll(() => kost.db.matlogg.length).toBe(2)
-  await page.waitForTimeout(500)
-  expect(kost.db.matlogg).toHaveLength(2) // to linjer i malen – ikke fire
-  // Etter pausen kan samme måltid registreres igjen med vilje
-  await expect(page.getByTestId('bruk-mal')).toBeEnabled({ timeout: 10_000 })
+  await page.waitForTimeout(800)
+  expect(kost.db.matlogg, beskriv(kost)).toHaveLength(2) // to linjer i malen – ikke fire
+  expect(poster(kost, 'matlogg'), beskriv(kost)).toHaveLength(1)
+})
+
+test('F9: dobbelttrykk på fast måltid i Matvarer gir to linjer, ikke fire', async ({ page }) => {
+  const kost = await oppsett(page, { matvarer: [HAVREGRYN, MELK], maltidsmaler: [MAL_FROKOST] })
+  await page.goto('/kosthold/matvarer?vis=maltider')
+  await page.getByRole('button', { name: 'I dag' }).dblclick()
+  await expect.poll(() => kost.db.matlogg.length).toBe(2)
+  await page.waitForTimeout(800)
+  expect(kost.db.matlogg, beskriv(kost)).toHaveLength(2)
+  expect(poster(kost, 'matlogg'), beskriv(kost)).toHaveLength(1)
+})
+
+// Svaret går tapt ETTER at databasen har lagret (f.eks. nettbrudd på vei tilbake). Brukeren ser en
+// feil og trykker på selve knappen igjen – ikke «Prøv igjen». Det skal ikke gi en kopi.
+function tapSvarEtterLagring(kost: ReturnType<typeof kostholdDb>) {
+  let forste = true
+  return (req: import('@playwright/test').Request, url: URL) => {
+    if (forste && url.pathname === '/rest/v1/matlogg' && req.method() === 'POST') {
+      forste = false
+      kost.handler(req, url) // lagres …
+      return { status: 503, json: { code: 'XX000', message: 'upstream connect error' } } // … men svaret går tapt
+    }
+    return undefined
+  }
+}
+
+test('F9: nytt trykk på «+ 60 g» etter et tapt svar gir ingen kopi', async ({ page }) => {
+  const kost = kostholdDb({ matvarer: [HAVREGRYN, MELK] })
+  const tap = tapSvarEtterLagring(kost)
+  await falskSupabase(page.context(), (req, url) => tap(req, url) ?? kost.handler(req, url))
+  await page.goto('/kosthold/legg-til')
+  const knapp = page.getByRole('button', { name: 'Legg til Havregryn, 60 g' })
+  await knapp.click()
+  await expect(page.locator('.ko-varsel.feil')).toBeVisible()
+  expect(kost.db.matlogg).toHaveLength(1) // lagret, selv om appen fikk feil
+  await expect(knapp).toBeEnabled()
+  await knapp.click()
+  await expect(page.locator('.ko-varsel').filter({ hasText: 'lagt til' })).toBeVisible()
+  expect(kost.db.matlogg, beskriv(kost)).toHaveLength(1)
+  const sendteIder = poster(kost, 'matlogg').map(s => s.body[0].id)
+  expect(sendteIder, beskriv(kost)).toHaveLength(2)
+  expect(sendteIder[0]).toBe(sendteIder[1]) // samme id ved nytt forsøk
+})
+
+test('F9: nytt trykk på fast måltid etter et tapt svar gir ingen kopier', async ({ page }) => {
+  const kost = kostholdDb({ matvarer: [HAVREGRYN, MELK], maltidsmaler: [MAL_FROKOST] })
+  const tap = tapSvarEtterLagring(kost)
+  await falskSupabase(page.context(), (req, url) => tap(req, url) ?? kost.handler(req, url))
+  await page.goto('/kosthold')
+  await page.getByTestId('bruk-mal').click()
+  await expect(page.locator('.ko-varsel.feil')).toBeVisible()
+  expect(kost.db.matlogg).toHaveLength(2)
+  await expect(page.getByTestId('bruk-mal')).toBeEnabled()
+  await page.getByTestId('bruk-mal').click()
+  await expect(page.locator('.ko-varsel').filter({ hasText: 'registrert' })).toBeVisible()
+  expect(kost.db.matlogg, beskriv(kost)).toHaveLength(2)
+})
+
+test('F9: dobbelttrykk på «Lagre» for nytt fast måltid gir én mal', async ({ page }) => {
+  const kost = await oppsett(page, {
+    matvarer: [HAVREGRYN],
+    matlogg: [linje({ navn: 'Havregryn', matvare_id: HAVREGRYN.id, mengde: 60, basis_mengde: 60, kcal_100: 370 })],
+  })
+  await page.goto('/kosthold')
+  await page.getByRole('button', { name: 'Lagre frokost som fast måltid' }).click()
+  await page.getByTestId('lagre-mal').dblclick()
+  await expect.poll(() => kost.db.maltidsmaler.length).toBeGreaterThan(0)
+  await page.waitForTimeout(800)
+  expect(kost.db.maltidsmaler, beskriv(kost)).toHaveLength(1)
+})
+
+test('F9: etter pausen kan samme måltid registreres igjen med vilje', async ({ page }) => {
+  const kost = await oppsett(page, { matvarer: [HAVREGRYN, MELK], maltidsmaler: [MAL_FROKOST] })
+  await page.goto('/kosthold')
+  await page.getByTestId('bruk-mal').click()
+  await expect.poll(() => kost.db.matlogg.length).toBe(2)
+  await expect(page.getByTestId('bruk-mal')).toBeEnabled({ timeout: 5000 })
+  await page.getByTestId('bruk-mal').click()
+  await expect.poll(() => kost.db.matlogg.length).toBe(4)
+  expect(new Set(ider(kost)).size).toBe(4) // nye id-er for en ny, villet registrering
 })
 
 test('F7: utløpt innlogging gir «logget ut», ikke «fant ikke varen»', async ({ page }) => {

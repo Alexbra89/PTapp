@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AnimatePresence } from 'framer-motion'
@@ -22,7 +22,7 @@ import MengdeArk from '@/components/kosthold/MengdeArk'
 import Ark from '@/components/kosthold/Ark'
 import Melding from '@/components/kosthold/Melding'
 import { useVarsel, Varsel } from '@/components/kosthold/Varsel'
-import { useSperre } from '@/hooks/useSperre'
+import { useEttTrykk } from '@/hooks/useEttTrykk'
 import { useErPaNett } from '@/hooks/useErPaNett'
 
 function Dagbok() {
@@ -43,11 +43,13 @@ function Dagbok() {
   const slett = useSlettLogg()
   const lagreMal = useLagreMaltidsmal()
   const { varsel, vis, skjul } = useVarsel()
-  const sperre = useSperre()
+  const ettTrykk = useEttTrykk()
   const paNett = useErPaNett()
 
   const [endrer, setEndrer] = useState<Logglinje | null>(null)
-  const [nyMal, setNyMal] = useState<{ maltid: Maltid; linjer: Logglinje[] } | null>(null)
+  // id lages når arket åpnes: et dobbelttrykk på «Lagre» sender samme id og gir én mal
+  const [nyMal, setNyMal] = useState<{ id: string; maltid: Maltid; linjer: Logglinje[] } | null>(null)
+  const lagrerMal = useRef(false)
   const [malNavn, setMalNavn] = useState('')
 
   const linjer = useMemo(() => dag.data ?? [], [dag.data])
@@ -58,17 +60,19 @@ function Dagbok() {
   const forslag = dato === idag ? standardMaltid() : 'middag'
   const leggTil = (metode: string, maltid: Maltid = forslag) => `/kosthold/legg-til?metode=${metode}&maltid=${maltid}${dato !== idag ? `&dato=${dato}` : ''}`
 
-  // Hele måltidet i én forespørsel. Sperren hindrer dobbelttrykk; bekreftelsen vises først når det er lagret.
+  // Hele måltidet i én forespørsel. useEttTrykk hindrer duplikater ved dobbelttrykk og gjenbruker
+  // samme id-er ved nytt trykk etter en feil. Bekreftelsen vises først når det er lagret.
   const brukMal = (m: Maltidsmal) => {
     if (!uid) return
-    const r = linjerFraMal(m, matvarer, { brukerId: uid, dato, maltid: m.maltid ?? forslag })
+    const sted = { brukerId: uid, dato, maltid: m.maltid ?? forslag }
+    const r = linjerFraMal(m, matvarer, sted)
     if (r.feil) { vis({ tekst: r.feil, feil: true }); return }
-    const send = () => sperre.kjor(`mal:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: r.linjer, malId: m.id }))?.then(
-      () => vis({
+    const send = () => ettTrykk.registrer(`mal:${m.id}:${dato}:${sted.maltid}`, () => linjerFraMal(m, matvarer, sted).linjer, { userId: uid, malId: m.id })?.then(
+      linjer => vis({
         tekst: `«${m.navn}» registrert${r.mangler ? ` (${r.mangler} slettet matvare hoppet over)` : ''}`,
-        handling: { tekst: 'Angre', gjor: () => r.linjer.forEach(l => slett.mutate({ userId: uid, linje: l }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) })) },
+        handling: { tekst: 'Angre', gjor: () => linjer.forEach(l => slett.mutate({ userId: uid, linje: l }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) })) },
       }),
-      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }), // samme id-er – ingen duplikater
+      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
     )
     send()
   }
@@ -80,16 +84,17 @@ function Dagbok() {
   }
 
   const lagreSomMal = async () => {
-    if (!uid || !nyMal || !malNavn.trim()) return
+    if (!uid || !nyMal || !malNavn.trim() || lagrerMal.current) return
+    lagrerMal.current = true
     const linjerMedMatvare = nyMal.linjer.filter(l => l.matvare_id && matvarer.some(m => m.id === l.matvare_id))
     try {
       await lagreMal.mutateAsync({
         userId: uid, ny: true,
-        mal: { id: nyId(), navn: malNavn.trim(), maltid: nyMal.maltid, linjer: linjerMedMatvare.map(l => ({ matvare_id: l.matvare_id!, mengde: l.mengde, enhet: l.enhet })) },
+        mal: { id: nyMal.id, navn: malNavn.trim(), maltid: nyMal.maltid, linjer: linjerMedMatvare.map(l => ({ matvare_id: l.matvare_id!, mengde: l.mengde, enhet: l.enhet })) },
       })
       vis({ tekst: `Lagret «${malNavn.trim()}». Registrer den med ett trykk neste gang.` })
       setNyMal(null)
-    } catch (e) { vis({ tekst: feilTekst(e), feil: true }) }
+    } catch (e) { vis({ tekst: feilTekst(e), feil: true }) } finally { lagrerMal.current = false }
   }
 
   // Historikk: kcal per dag siste 14 dager
@@ -141,7 +146,7 @@ function Dagbok() {
           <div className="hq-section-head"><h2 className="hq-section-title">Faste <em>måltider</em></h2><Link href="/kosthold/matvarer?vis=maltider" className="hq-link">Rediger</Link></div>
           <div className="ko-filter">
             {maler.slice(0, 8).map(m => (
-              <button key={m.id} className="ko-chip" onClick={() => brukMal(m)} disabled={sperre.laast(`mal:${m.id}`)} data-testid="bruk-mal"><Repeat size={13} /> {m.navn}</button>
+              <button key={m.id} className="ko-chip" onClick={() => brukMal(m)} disabled={ettTrykk.laast(`mal:${m.id}:${dato}:${m.maltid ?? forslag}`)} data-testid="bruk-mal"><Repeat size={13} /> {m.navn}</button>
             ))}
           </div>
         </section>
@@ -160,7 +165,7 @@ function Dagbok() {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               {m.linjer.length > 0 && (
-                <button className="ko-ikonknapp" onClick={() => { setNyMal({ maltid: m.id, linjer: m.linjer }); setMalNavn(`Min faste ${m.navn.toLowerCase()}`) }} aria-label={`Lagre ${m.navn.toLowerCase()} som fast måltid`} title="Lagre som fast måltid">
+                <button className="ko-ikonknapp" onClick={() => { setNyMal({ id: nyId(), maltid: m.id, linjer: m.linjer }); setMalNavn(`Min faste ${m.navn.toLowerCase()}`) }} aria-label={`Lagre ${m.navn.toLowerCase()} som fast måltid`} title="Lagre som fast måltid">
                   <BookmarkPlus size={17} strokeWidth={1.4} />
                 </button>
               )}
