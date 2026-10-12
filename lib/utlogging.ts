@@ -3,7 +3,7 @@
 // Innstillinger for selve enheten (lyd, vibrasjon, nivå) og «introduksjon sett» beholdes.
 
 const BEHOLD = new Set(['abpt_innstillinger', 'abpt_intro_ferdig'])
-const PERSONLIGE = ['okt_', 'vektlogg_', 'sb-']
+const PERSONLIGE = ['okt_', 'vektlogg_', 'kost_', 'sb-']
 
 // Cacher med statiske filer (JS, CSS, fonter, ikoner) beholdes – de inneholder ingen brukerdata
 const STATISKE_CACHER = ['workbox-precache', 'next-static', 'static-', 'google-fonts']

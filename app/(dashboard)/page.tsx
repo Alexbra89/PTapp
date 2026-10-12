@@ -9,6 +9,7 @@ import { useUser, useProfil, useDagensOkter, useStats, useAktivitet } from '@/ho
 import { TickRing } from '@/components/atelier/Dial'
 import { TelleTall } from '@/components/atelier/TelleTall'
 import { lokalDato } from '@/lib/dato'
+import DashbordKost from '@/components/kosthold/DashbordKost'
 
 const UKEMAL = 4
 
@@ -21,6 +22,7 @@ const MAL_SITAT: Record<string, string> = {
 
 const REGISTER = [
   { href: '/treninger',    label: 'Ny økt',       sub: 'Sett sammen dagens trening' },
+  { href: '/kosthold',     label: 'Kosthold',     sub: 'Matscanner og dagbok' },
   { href: '/kalender',     label: 'Kalender',     sub: 'Ukens plan' },
   { href: '/ovelser',      label: 'Øvelser',      sub: 'Biblioteket' },
   { href: '/statistikk',   label: 'Statistikk',   sub: 'Fremgang og mål' },
@@ -147,8 +149,13 @@ export default function DashboardPage() {
         </div>
       </motion.section>
 
+      {/* ── Kosthold / Matscanner ── */}
+      <motion.div variants={rise} custom={3}>
+        <DashbordKost userId={user?.id} dato={idag} />
+      </motion.div>
+
       {/* ── Dagens plan ── */}
-      <motion.section variants={rise} custom={3}>
+      <motion.section variants={rise} custom={4}>
         <div className="hq-section-head">
           <h2 className="hq-section-title">Dagens <em>plan</em></h2>
           <Link href="/kalender" className="hq-link">Kalender <ArrowUpRight size={12} /></Link>
@@ -182,7 +189,7 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* ── Register ── */}
-      <motion.section variants={rise} custom={4}>
+      <motion.section variants={rise} custom={5}>
         <div className="hq-section-head">
           <h2 className="hq-section-title">Register</h2>
           <span className="eyebrow">{REGISTER.length} kapitler</span>

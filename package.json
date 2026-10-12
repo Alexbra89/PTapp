@@ -9,20 +9,26 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:rls": "node scripts/test-rls.mjs",
+    "predev": "node scripts/kopier-ocr.mjs",
+    "prebuild": "node scripts/kopier-ocr.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-query": "^5.90.21",
+    "@tesseract.js-data/nor": "^1.0.0",
+    "@zxing/library": "^0.23.0",
     "date-fns": "^3.0.0",
     "framer-motion": "^12.35.1",
     "lucide-react": "^0.577.0",
     "next": "^15.5.27",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "recharts": "^3.8.0"
+    "recharts": "^3.8.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

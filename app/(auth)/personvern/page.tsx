@@ -5,7 +5,7 @@ import { BRAND } from '@/lib/brand'
 export const metadata: Metadata = { title: 'Personvern' }
 
 // Beskriver det appen faktisk gjør. Oppdater ved endringer i hva som lagres eller deles.
-const SIST_OPPDATERT = '2. oktober 2026'
+const SIST_OPPDATERT = '12. oktober 2026'
 
 export default function Personvern() {
   const kontakt = BRAND.kontaktEpost
@@ -24,6 +24,7 @@ export default function Personvern() {
         <li><strong>Profil (valgfritt):</strong> vekt, høyde, fødselsår, treningsmål og ønsket vekt.</li>
         <li><strong>Trening:</strong> økter, sett, repetisjoner, vekt per sett, personlige rekorder, favorittøvelser, programmer og egne øvelser.</li>
         <li><strong>Vektlogg:</strong> vektmålingene du legger inn.</li>
+        <li><strong>Kosthold:</strong> matvarene du lagrer (navn, produsent, strekkode og næringsinnhold), favoritter, faste måltider, hva og hvor mye du har spist, og dine mål for energi og makroer (inkludert aktivitetsnivå og beregningsgrunnlag).</li>
         <li><strong>Deling:</strong> hvem du har valgt å dele treningen din med.</li>
       </ul>
       <p>Vekt og helserelaterte opplysninger regnes som særlig beskyttede. De brukes bare til å vise deg din egen fremgang og anbefalinger i appen.</p>
@@ -33,7 +34,7 @@ export default function Personvern() {
 
       <h2>Hvem som ser dataene</h2>
       <ul>
-        <li><strong>Bare du</strong> ser profilen, vekten og vektloggen din.</li>
+        <li><strong>Bare du</strong> ser profilen, vekten, vektloggen og kostholdet ditt. Kosthold deles ikke med dem du deler trening med.</li>
         <li><strong>Personer du deler med</strong> kan se øktene, settene og rekordene dine – ikke vekt eller profil. Du kan slå delingen av når som helst, og da forsvinner tilgangen med en gang.</li>
         <li>Andre brukere kan ikke søke opp eller se hvem som har konto.</li>
       </ul>
@@ -42,6 +43,9 @@ export default function Personvern() {
       <ul>
         <li><strong>Supabase</strong> – database og innlogging.</li>
         <li><strong>Vercel</strong> – drift av nettsiden.</li>
+        <li><strong>Open Food Facts</strong> – når du skanner eller søker etter en vare, sender appens server strekkoden eller søkeordet (ikke hvem du er) til den åpne matvaredatabasen Open Food Facts.</li>
+        <li><strong>Bilder av etiketter</strong> leses på enheten din. Bildet sendes ikke til noen server eller tjeneste for kunstig intelligens, og det lagres ikke – bare tallene du godkjenner.</li>
+        <li><strong>Kameraet</strong> brukes bare mens skanneren er åpen, og bare til å lese strekkoden. Ingen bilder eller video lagres eller sendes.</li>
         <li><strong>På enheten din</strong> lagres en pågående økt og innstillinger (lyd, vibrasjon, nivå), slik at de overlever at appen lukkes. Økt-utkastet slettes når du logger ut.</li>
       </ul>
 

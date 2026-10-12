@@ -25,7 +25,7 @@ export default defineConfig({
       url: 'http://localhost:3001/login',
       reuseExistingServer: !process.env.CI,
       timeout: 300_000,
-      env: { NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54399', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'e2e-anon' },
+      env: { NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54399', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'e2e-anon', OFF_BASE_URL: 'http://127.0.0.1:54399/off' },
     },
   ],
 })

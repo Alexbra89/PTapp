@@ -1721,3 +1721,206 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .pv-page ul { padding-left: 1.2rem; margin: 0.5rem 0; }
 .pv-page strong { color: var(--ink); font-weight: 500; }
 .pv-page a { color: var(--gold-hi); }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   KOSTHOLD  (ko-*) – dagbok, matscanner, matvarer og mål.
+   Bygger på Atelier: serif for tall og titler, mono for etiketter, hårstreker, gull som aksent.
+   ═══════════════════════════════════════════════════════════════════ */
+.ko-page { max-width: 960px; display: flex; flex-direction: column; gap: 1.5rem; }
+.ko-page .page-header { margin-bottom: 0.5rem; }
+.ko-page .page-title em, .ko-page .hq-section-title em { font-style: italic; color: var(--gold); }
+
+/* Faner (Dagbok · Matvarer · Mål) */
+.ko-faner { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: rgba(242,236,225,0.02); width: fit-content; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.ko-faner::-webkit-scrollbar { display: none; }
+.ko-fane { display: inline-flex; align-items: center; gap: 7px; padding: 0.6rem 1.05rem; min-height: 44px; border-radius: 999px; border: none; background: none; color: var(--text-secondary); font-size: 0.86rem; text-decoration: none; cursor: pointer; white-space: nowrap; transition: background 0.25s, color 0.25s; }
+.ko-fane:hover { color: var(--ink); }
+.ko-fane.on { background: var(--ink); color: var(--bg-base); }
+
+/* Dagnavigasjon */
+.ko-dagnav { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.ko-dagnav-knapp { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-strong); background: none; color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color 0.25s, color 0.25s; flex-shrink: 0; }
+.ko-dagnav-knapp:hover:not(:disabled) { border-color: rgba(201,169,110,0.55); color: var(--gold-hi); }
+.ko-dagnav-knapp:disabled { opacity: 0.3; cursor: default; }
+.ko-dagnav-midt { text-align: center; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ko-dagnav-dag { font-family: var(--font-serif); font-size: clamp(1.7rem, 5vw, 2.2rem); line-height: 1; letter-spacing: -0.02em; }
+.ko-dagnav-dato { position: relative; }
+.ko-dagnav-dato input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+
+/* Sammendrag: ring + makroer */
+.ko-sum { padding: 1.75rem; display: grid; grid-template-columns: auto 1fr; gap: 2rem; align-items: center; }
+@media (max-width: 640px) { .ko-sum { grid-template-columns: 1fr; padding: 1.4rem 1.2rem; gap: 1.4rem; justify-items: center; } .ko-sum .ko-makro { width: 100%; } }
+.ko-ring-tall { font-size: 2.5rem; color: var(--ink); }
+.ko-ring-sub { font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-top: 4px; }
+.ko-igjen { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin-top: 0.85rem; text-align: center; }
+.ko-igjen strong { color: var(--gold-hi); font-weight: 500; }
+.ko-igjen.over strong { color: var(--ember); }
+.ko-makro { display: flex; flex-direction: column; gap: 1.05rem; min-width: 0; }
+.ko-makro-rad { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: baseline; }
+.ko-makro-navn { font-size: 0.86rem; color: var(--text-secondary); }
+.ko-makro-tall { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ko-makro-tall b { color: var(--ink); font-weight: 500; }
+.ko-makro-rad .tick-track { grid-column: 1 / -1; }
+.ko-makro-rad.over .tick-fill { background: repeating-linear-gradient(90deg, var(--ember) 0 1px, transparent 1px 6px); }
+.ko-ufullstendig { font-size: 0.74rem; color: var(--text-muted); line-height: 1.45; }
+.ko-ingen-mal { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+
+/* Handlinger øverst i dagboken */
+.ko-handlinger { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ko-handling { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 1.1rem 1.1rem 1rem; min-height: 96px; border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--bg-card); color: var(--ink); text-decoration: none; cursor: pointer; text-align: left; transition: border-color 0.3s var(--ease-out), transform 0.3s var(--ease-out); }
+.ko-handling:hover { border-color: rgba(201,169,110,0.45); }
+.ko-handling:active { transform: scale(0.98); }
+.ko-handling svg { color: var(--gold); }
+.ko-handling-navn { font-family: var(--font-serif); font-size: 1.3rem; line-height: 1.05; }
+.ko-handling-sub { font-size: 0.74rem; color: var(--text-muted); }
+@media (max-width: 520px) { .ko-handlinger { grid-template-columns: repeat(3, 1fr); gap: 8px; } .ko-handling { padding: 0.9rem 0.75rem; min-height: 88px; } .ko-handling-navn { font-size: 1.1rem; } .ko-handling-sub { display: none; } }
+
+/* Måltid i dagboken */
+.ko-maltid { padding: 1.25rem 1.4rem 0.6rem; }
+@media (max-width: 520px) { .ko-maltid { padding: 1.1rem 1rem 0.5rem; } }
+.ko-maltid-hode { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding-bottom: 0.7rem; }
+.ko-maltid-navn { font-family: var(--font-serif); font-size: 1.55rem; line-height: 1; }
+.ko-maltid-sum { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.08em; color: var(--text-muted); margin-top: 6px; }
+.ko-maltid-sum b { color: var(--gold-hi); font-weight: 500; }
+.ko-pluss { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-strong); background: none; color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; flex-shrink: 0; transition: all 0.25s; }
+.ko-pluss:hover { border-color: var(--gold); color: var(--gold-hi); background: rgba(201,169,110,0.06); }
+.ko-tom { font-size: 0.82rem; color: var(--text-muted); padding: 0.65rem 0 0.85rem; border-top: 1px solid var(--line); }
+
+/* Rader (dagbok, matvarer, søk) */
+.ko-rad { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 0.7rem 0.15rem; border: none; border-top: 1px solid var(--line); background: none; color: var(--ink); text-align: left; cursor: pointer; text-decoration: none; transition: background 0.2s; }
+.ko-rad:hover { background: var(--bg-hover); }
+.ko-rad.venter { opacity: 0.55; }
+.ko-rad-navn { font-size: 0.95rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ko-rad-meta { font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.04em; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ko-rad-hoyre { display: flex; align-items: center; gap: 6px; }
+.ko-rad-kcal { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ko-rad-kcal b { color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+.ko-ikonknapp { width: 44px; height: 44px; border-radius: 50%; border: none; background: none; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: color 0.2s, background 0.2s; flex-shrink: 0; }
+.ko-ikonknapp:hover { color: var(--ink); background: rgba(242,236,225,0.05); }
+.ko-ikonknapp.on { color: var(--gold); }
+.ko-ikonknapp.fare:hover { color: var(--danger); }
+.ko-igjen-knapp { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 0.85rem; border-radius: 999px; border: 1px solid rgba(201,169,110,0.4); background: rgba(201,169,110,0.06); color: var(--gold-hi); font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; cursor: pointer; white-space: nowrap; transition: all 0.25s; }
+.ko-igjen-knapp:hover { background: var(--gold); color: #17130C; }
+.ko-igjen-knapp:disabled { opacity: 0.5; cursor: default; }
+.ko-merke { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px 7px; vertical-align: middle; margin-left: 6px; }
+.ko-merke.gull { color: var(--gold); border-color: rgba(201,169,110,0.35); }
+
+/* Søk og filter */
+.ko-sok { position: relative; }
+.ko-sok svg { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.ko-sok .input { padding-left: 2.75rem; min-height: 50px; font-size: 1rem; border-radius: 999px; }
+.ko-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.ko-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 0.95rem; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+.ko-chip:hover { border-color: rgba(201,169,110,0.5); color: var(--gold-hi); }
+.ko-chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg-base); }
+.ko-liste { border-bottom: 1px solid var(--line); }
+.ko-liste-tittel { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 0.5rem 0 0.35rem; }
+.ko-kilde { font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; }
+.ko-kilde a { color: var(--text-secondary); }
+
+/* Ark (bunnark på mobil, dialog på desktop) – bygger på .bib-ark */
+.ko-ark { display: flex; flex-direction: column; gap: 1.1rem; }
+.ko-ark-hode { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.ko-ark-tittel { font-family: var(--font-serif); font-weight: 400; font-size: clamp(1.8rem, 6vw, 2.4rem); line-height: 1; letter-spacing: -0.02em; margin-top: 0.45rem; overflow-wrap: anywhere; }
+.ko-ark-lukk { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.ko-ark-lukk:hover { color: var(--ink); border-color: var(--line-strong); }
+.ko-ark-knapper { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding-top: 0.5rem; }
+.ko-ark-knapper .btn { min-height: 48px; }
+@media (max-width: 520px) { .ko-ark-knapper .btn { flex: 1; } }
+
+/* Mengdevelger */
+.ko-mengde { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: stretch; }
+.ko-mengde .input { font-size: 1.6rem; font-family: var(--font-serif); padding: 0.6rem 1rem; min-height: 60px; }
+.ko-enheter { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-md); }
+.ko-enhet { min-width: 52px; min-height: 50px; padding: 0 0.7rem; border-radius: 10px; border: none; background: none; color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.74rem; cursor: pointer; transition: all 0.2s; }
+.ko-enhet.on { background: var(--ink); color: var(--bg-base); }
+.ko-hurtig { display: flex; gap: 6px; flex-wrap: wrap; }
+.ko-naering { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.ko-naering > div { padding: 0.85rem 0.6rem; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ko-naering > div + div { border-left: 1px solid var(--line); }
+.ko-naering .num-monument { font-size: 1.9rem; color: var(--ink); }
+.ko-naering small { font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+@media (max-width: 420px) { .ko-naering .num-monument { font-size: 1.5rem; } .ko-naering > div { padding: 0.75rem 0.4rem; } }
+.ko-maltidvalg { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Skjema for matvare */
+.ko-skjema { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+.ko-skjema .pf-full { grid-column: 1 / -1; }
+@media (max-width: 520px) { .ko-skjema { grid-template-columns: 1fr 1fr; gap: 0.75rem; } }
+.ko-felt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ko-felt .input { min-height: 48px; font-size: 1rem; }
+.ko-felt.usikker .input { border-color: rgba(224,122,79,0.6); background: rgba(224,122,79,0.05); }
+.ko-felt.mangler .input { border-style: dashed; }
+.ko-felt-hint { font-size: 0.7rem; line-height: 1.35; color: var(--text-muted); }
+.ko-felt.usikker .ko-felt-hint { color: var(--ember); }
+.ko-gruppe-tittel { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-top: 0.75rem; margin-top: 0.25rem; border-top: 1px solid var(--line); }
+
+/* Meldinger */
+.ko-melding { display: flex; gap: 10px; align-items: flex-start; padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--line); background: rgba(242,236,225,0.025); font-size: 0.84rem; line-height: 1.5; color: var(--text-secondary); }
+.ko-melding svg { flex-shrink: 0; margin-top: 2px; }
+.ko-melding.info svg { color: var(--platinum); }
+.ko-melding.advarsel { border-color: rgba(224,122,79,0.35); background: rgba(224,122,79,0.05); }
+.ko-melding.advarsel svg { color: var(--ember); }
+.ko-melding.feil { border-color: rgba(224,97,79,0.4); background: rgba(224,97,79,0.06); color: #EB8A7B; }
+.ko-melding.ok { border-color: rgba(157,196,150,0.35); background: rgba(157,196,150,0.05); }
+.ko-melding.ok svg { color: var(--sage); }
+.ko-melding strong { color: var(--ink); font-weight: 500; }
+.ko-melding ul { margin: 0.3rem 0 0 1rem; }
+.ko-varsel { position: fixed; z-index: 120; left: 50%; transform: translateX(-50%); bottom: calc(100px + env(safe-area-inset-bottom)); display: inline-flex; align-items: center; gap: 10px; max-width: calc(100% - 32px); padding: 0.75rem 1.1rem; border-radius: 999px; background: var(--ink); color: var(--bg-base); font-size: 0.86rem; box-shadow: 0 20px 50px -12px rgba(0,0,0,0.8); }
+.ko-varsel.feil { background: #3A1E19; color: #F5C6BC; border: 1px solid rgba(224,97,79,0.5); }
+.ko-varsel button { background: none; border: none; color: inherit; text-decoration: underline; cursor: pointer; font-size: 0.82rem; padding: 6px; }
+@media (min-width: 901px) { .ko-varsel { bottom: 2rem; } }
+
+/* Kamera og etikett */
+.ko-kamera { position: relative; overflow: hidden; border-radius: var(--radius-xl); border: 1px solid var(--line-strong); background: #050504; aspect-ratio: 3 / 4; max-height: 62vh; width: 100%; }
+@media (min-width: 700px) { .ko-kamera { aspect-ratio: 4 / 3; } }
+.ko-kamera video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ko-sikte { position: absolute; left: 8%; right: 8%; top: 32%; bottom: 32%; pointer-events: none; }
+.ko-sikte::before, .ko-sikte::after { content: ''; position: absolute; width: 26px; height: 26px; border-color: var(--gold); }
+.ko-sikte::before { top: 0; left: 0; border-top: 2px solid; border-left: 2px solid; }
+.ko-sikte::after { bottom: 0; right: 0; border-bottom: 2px solid; border-right: 2px solid; }
+.ko-sikte-linje { position: absolute; left: 4%; right: 4%; top: 50%; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-hi), transparent); box-shadow: 0 0 12px rgba(227,198,140,0.8); animation: koSkann 1.8s ease-in-out infinite; }
+@keyframes koSkann { 0%, 100% { transform: translateY(-38px); opacity: 0.5; } 50% { transform: translateY(38px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ko-sikte-linje { animation: none; } }
+.ko-kamera-status { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 999px; background: rgba(11,10,9,0.78); border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-secondary); white-space: nowrap; backdrop-filter: blur(8px); }
+.ko-kamera-dekke { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.9rem; padding: 1.5rem; text-align: center; background: rgba(11,10,9,0.86); }
+.ko-kamera-dekke h3 { font-family: var(--font-serif); font-weight: 400; font-size: 1.6rem; }
+.ko-kamera-dekke p { font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; max-width: 360px; }
+.ko-kamera-kontroller { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.ko-kamera-kontroller select { max-width: 220px; min-height: 44px; }
+.ko-bilde { max-height: 260px; width: 100%; object-fit: contain; border-radius: var(--radius-md); border: 1px solid var(--line); background: #050504; }
+.ko-fremdrift { height: 2px; width: 100%; background: var(--line); overflow: hidden; border-radius: 2px; }
+.ko-fremdrift i { display: block; height: 100%; background: var(--gold); transition: width 0.3s var(--ease-out); }
+.ko-raatekst summary { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); cursor: pointer; padding: 0.5rem 0; }
+.ko-raatekst pre { font-family: var(--font-mono); font-size: 0.72rem; white-space: pre-wrap; color: var(--text-secondary); background: rgba(0,0,0,0.25); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.75rem; max-height: 180px; overflow: auto; }
+
+/* Historikk */
+.ko-historikk { display: flex; align-items: flex-end; gap: clamp(4px, 1.5vw, 12px); height: 140px; padding-top: 10px; }
+.ko-hist-kol { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; background: none; border: none; cursor: pointer; padding: 0; color: inherit; min-width: 0; }
+.ko-hist-stolpe { position: relative; width: 100%; max-width: 30px; min-height: 2px; background: repeating-linear-gradient(0deg, rgba(242,236,225,0.35) 0 2px, transparent 2px 5px); transform-origin: bottom; animation: rise 0.9s var(--ease-out) both; }
+.ko-hist-kol.valgt .ko-hist-stolpe { background: repeating-linear-gradient(0deg, var(--gold) 0 2px, transparent 2px 5px); }
+.ko-hist-kol.over .ko-hist-stolpe { background: repeating-linear-gradient(0deg, var(--ember) 0 2px, transparent 2px 5px); }
+.ko-hist-lbl { font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.06em; color: var(--text-muted); }
+.ko-hist-kol.valgt .ko-hist-lbl { color: var(--gold); }
+.ko-hist-mal { position: relative; }
+.ko-hist-mal::after { content: ''; position: absolute; left: 0; right: 0; bottom: var(--mal, 0); border-top: 1px dashed rgba(201,169,110,0.45); pointer-events: none; }
+
+/* Mål */
+.ko-valg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ko-valg { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0.9rem 1rem; min-height: 64px; border-radius: 16px; border: 1px solid var(--line); background: none; color: var(--text-secondary); cursor: pointer; text-align: left; transition: all 0.25s var(--ease-out); }
+.ko-valg:hover { border-color: var(--line-strong); color: var(--ink); }
+.ko-valg.on { border-color: rgba(201,169,110,0.55); background: linear-gradient(180deg, rgba(201,169,110,0.12), rgba(201,169,110,0.02)); }
+.ko-valg-navn { font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.1; color: var(--ink); }
+.ko-valg-tekst { font-size: 0.72rem; color: var(--text-muted); line-height: 1.35; }
+.ko-resultat { display: grid; grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 640px) { .ko-resultat { grid-template-columns: 1fr 1fr; } .ko-resultat .hq-figure:nth-child(3) { grid-column: auto; border-left: none; border-top: 1px solid var(--line); } .ko-resultat .hq-figure:nth-child(4) { border-top: 1px solid var(--line); } }
+.ko-resultat .hq-figure-val { font-size: clamp(2rem, 6vw, 2.8rem); }
+
+/* Dashbord-kort */
+.hq-kost { padding: 1.75rem; display: flex; flex-direction: column; gap: 1.4rem; }
+@media (max-width: 640px) { .hq-kost { padding: 1.4rem 1.2rem; } }
+.hq-kost-topp { display: grid; grid-template-columns: auto 1fr; gap: 1.75rem; align-items: center; }
+@media (max-width: 560px) { .hq-kost-topp { grid-template-columns: 1fr; justify-items: center; gap: 1.25rem; } .hq-kost-topp .ko-makro { width: 100%; } }
+.hq-kost-knapper { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hq-kost-knapper .btn { min-height: 52px; }

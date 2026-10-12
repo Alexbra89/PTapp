@@ -23,6 +23,8 @@ const pwaConfig = withPWA({
   // i en time – byttes ut med «aldri cache». Brukerdata skal ikke ligge igjen på enheten.
   // (De gamle reglene her lå på feil nøkkel og ble ignorert av next-pwa.)
   extendDefaultRuntimeCaching: true,
+  // OCR-motoren (public/ocr, ~10 MB) lastes først når noen fotograferer en etikett – ikke ved installering
+  publicExcludes: ['!noprecache/**/*', '!ocr/**/*'],
   workboxOptions: {
     runtimeCaching: [
       // Sidenavigasjon: nettverk først, men bare 1 sekund. Er serveren treg (mobilnett som våkner,
@@ -34,6 +36,13 @@ const pwaConfig = withPWA({
         urlPattern: ({ request, sameOrigin }) => sameOrigin && request.mode === 'navigate',
         handler: 'NetworkFirst',
         options: { cacheName: 'pages', networkTimeoutSeconds: 1, expiration: { maxEntries: 32, maxAgeSeconds: 86400 } },
+      },
+      // Appens egne API-ruter (matoppslag) lagres aldri. Standardregelen «apis» cacher dem i 24 timer,
+      // og hva en innlogget bruker har slått opp, skal ikke ligge igjen på enheten.
+      {
+        urlPattern: ({ sameOrigin, url }) => sameOrigin && url.pathname.startsWith('/api/'),
+        handler: 'NetworkOnly',
+        options: { cacheName: 'apis' },
       },
       // Svar fra andre domener (Supabase med brukerdata) lagres aldri. Standardregelen «cross-origin»
       // cacher alt i en time; denne erstatter den (samme cacheName).
@@ -73,7 +82,8 @@ const nextConfig = {
           // X-XSS-Protection er fjernet: utdatert, og kan selv skape sårbarheter. CSP (middleware) erstatter den.
           { key: 'Referrer-Policy',          value: 'strict-origin-when-cross-origin' },
           // Skrur av nettleserfunksjoner appen ikke bruker. Skjerm-våken (økt/tidtaking) er tillatt.
-          { key: 'Permissions-Policy',       value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), screen-wake-lock=(self)' },
+          // Kamera er tillatt for appen selv (matscanneren), aldri for innebygde sider fra andre domener.
+          { key: 'Permissions-Policy',       value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), screen-wake-lock=(self)' },
           // Bare HTTPS i to år (Vercel bruker alltid HTTPS)
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
           // Forhindrer hvit flash på iOS PWA
@@ -84,6 +94,13 @@ const nextConfig = {
         source: '/(.*)\\.(ico|png|jpg|jpeg|svg|webp|woff2|woff|css)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        // OCR-motor og språkdata: endres bare ved oppgradering av pakkene
+        source: '/ocr/(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=604800' },
         ],
       },
       {

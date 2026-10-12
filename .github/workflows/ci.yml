@@ -30,6 +30,8 @@ jobs:
         run: npm run typecheck
       - name: Enhetstester
         run: npm test
+      - name: Tilgangsregler (RLS) mot ekte PostgreSQL
+        run: npm run test:rls
       - name: Sårbarheter i kjørende avhengigheter (kritiske stopper bygget)
         run: npm audit --omit=dev --audit-level=critical
       - name: Installer nettleser

@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 const TABELLER: [string, string][] = [
   ['okter', 'bruker_id'], ['treningslogger', 'bruker_id'], ['pr_rekorder', 'bruker_id'],
   ['vektlogg', 'bruker_id'], ['favoritt_ovelser', 'bruker_id'], ['treningsprogrammer', 'bruker_id'],
-  ['bruker_ovelser', 'bruker_id'],
+  ['bruker_ovelser', 'bruker_id'], ['matvarer', 'bruker_id'], ['matlogg', 'bruker_id'],
+  ['maltidsmaler', 'bruker_id'], ['ernaeringsmal', 'bruker_id'],
 ]
 
 export async function hentMineData() {
