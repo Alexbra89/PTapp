@@ -12,6 +12,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         gcTime:         5 * 60 * 1000,
         retry:                1,
         refetchOnWindowFocus: false,
+        // Når nettet kommer tilbake, hentes alt som vises på nytt – også data som ikke er «gamle» ennå.
+        // Erstatter at siden ble lastet helt på nytt (next-pwa reloadOnOnline, nå av).
+        refetchOnReconnect: 'always',
       },
     },
   }))

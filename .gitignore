@@ -51,3 +51,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /blob-report/
+
+# OCR-motor og norsk språkdata – kopieres fra node_modules av scripts/kopier-ocr.mjs
+/public/ocr/

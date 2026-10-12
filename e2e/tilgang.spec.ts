@@ -4,7 +4,7 @@ import { SESJON } from './hjelpere'
 // Middleware: hvem slipper inn hvor. Kjøres som rene HTTP-forespørsler (ingen nettleser).
 const gyldig = `sb-127-auth-token=${encodeURIComponent(JSON.stringify(SESJON))}`
 const forfalsket = `sb-127-auth-token=${encodeURIComponent(JSON.stringify({ ...SESJON, access_token: 'forfalsket.eyJzdWIiOiJ1MiJ9.sig' }))}`
-const BESKYTTET = ['/dashboard', '/treninger', '/treninger/okt', '/ovelser', '/kalender', '/statistikk', '/profiler', '/deling', '/program', '/tidtaking', '/oppvarming', '/utfordringer']
+const BESKYTTET = ['/dashboard', '/treninger', '/treninger/okt', '/ovelser', '/kalender', '/statistikk', '/profiler', '/deling', '/program', '/tidtaking', '/oppvarming', '/utfordringer', '/kosthold', '/kosthold/legg-til', '/kosthold/matvarer', '/kosthold/mal']
 const APNE = ['/login', '/signup', '/glemt-passord', '/nytt-passord', '/bekreftet', '/personvern']
 
 test('beskyttede sider sender uinnloggede og forfalskede tokens til innlogging', async ({ request }) => {

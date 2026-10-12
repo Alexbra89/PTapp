@@ -28,12 +28,17 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 | `npm run typecheck` | TypeScript |
 | `npm test` | Enhetstester (Vitest, `tests/`) |
 | `npm run test:e2e` | Ende-til-ende-tester (Playwright, `e2e/`) mot et produksjonsbygg med falsk Supabase |
+| `npm run test:rls` | Tilgangsregler og databasekontroller mot en midlertidig, ekte PostgreSQL (krever `initdb`/`pg_ctl`) |
 
 Første gang lokalt: `npx playwright install chromium`. Alt kjøres automatisk i GitHub Actions (`.github/workflows/ci.yml`).
 
 ## Database
 
 SQL for Supabase ligger i `docs/migrasjoner/`. Tilgangsregler og hvordan de testes: `docs/sikkerhet-rls.md`.
+
+Kostholdsmodulen (`/kosthold`) krever `docs/migrasjoner/kosthold.sql` (bare nye tabeller – endrer ingenting eksisterende). Uten den viser appen en beskjed, og treningsdelen virker som før.
+
+Matscanner: strekkoder slås opp i Open Food Facts via `app/api/mat/*` (ingen nøkkel, gratis). Etikettbilder leses på enheten med Tesseract; motoren kopieres fra `node_modules` til `public/ocr` før `dev`/`build` (`scripts/kopier-ocr.mjs`).
 
 ## Learn More
 

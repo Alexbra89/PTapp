@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutGrid, Dumbbell, Library, CalendarDays, Trophy, BarChart3, User, Timer,
-  LogOut, MoreHorizontal, ArrowUpRight, Flame, ClipboardList, Users,
+  LogOut, MoreHorizontal, ArrowUpRight, Flame, ClipboardList, Users, Salad,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Dial } from '@/components/atelier/Dial'
@@ -20,6 +20,7 @@ import { ryddVedUtlogging } from '@/lib/utlogging'
 const NAV = [
   { href: '/',             icon: LayoutGrid,   label: 'Oversikt' },
   { href: '/treninger',    icon: Dumbbell,     label: 'Treninger' },
+  { href: '/kosthold',     icon: Salad,        label: 'Kosthold' },
   { href: '/ovelser',      icon: Library,      label: 'Øvelser' },
   { href: '/kalender',     icon: CalendarDays, label: 'Kalender' },
   { href: '/utfordringer', icon: Trophy,       label: 'Utfordringer' },
