@@ -299,8 +299,12 @@ test('API: kamera tillatt for appen, matoppslag krever innlogging og caches ikke
   expect(side.headers()['permissions-policy']).toContain('camera=(self)')
   expect(side.headers()['permissions-policy']).toContain('microphone=()')
 
+  // F7: uten innlogging svarer API-et 401 (JSON) – ikke en omdirigering som ser ut som et svar
   const uten = await request.get('/api/mat/strekkode/7038010009457', { maxRedirects: 0 })
-  expect([307, 401]).toContain(uten.status())
+  expect(uten.status()).toBe(401)
+  expect(await uten.json()).toEqual({ feil: 'Ikke innlogget' })
+  expect(uten.headers()['cache-control']).toBe('private, no-store')
+  expect((await request.get('/api/mat/sok?q=melk', { maxRedirects: 0 })).status()).toBe(401)
 
   const r = await request.get('/api/mat/strekkode/7038010009457', { headers: { cookie } })
   expect(r.status()).toBe(200)

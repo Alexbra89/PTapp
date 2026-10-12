@@ -224,3 +224,24 @@ describe('ekte OCR-utdata', () => {
     expect(r.verdier.kcal.usikker).toBe(true)
   })
 })
+
+describe('regresjon F2: tekst utenfor tabellen', () => {
+  it('reklametekst over tabellen overstyrer ikke tabellverdien', () => {
+    const r = tolkEtikett('Høyt proteininnhold: 20 g protein\nNæringsinnhold per 100 g\nEnergi 1550 kJ / 370 kcal\nFett 7 g\nKarbohydrat 60 g\nProtein 13 g')
+    expect(r.verdier.protein).toMatchObject({ verdi: 13, usikker: false })
+  })
+  it('samme næringsstoff to ganger med ulike tall merkes usikkert', () => {
+    const r = tolkEtikett('Per 100 g\nEnergi 1550 kJ / 370 kcal\nFett 7 g\nKarbohydrat 60 g\nProtein 13 g\n* Protein 15 g ved tilberedning')
+    expect(r.verdier.protein).toMatchObject({ verdi: 13, usikker: true })
+    expect(r.verdier.protein.grunn).toMatch(/flere ganger/)
+  })
+  it('samme tall to ganger er ikke usikkert', () => {
+    const r = tolkEtikett('Per 100 g\nEnergi 1550 kJ / 370 kcal\nProtein 13 g\nFett 7 g\nKarbohydrat 60 g\nProtein 13 g')
+    expect(r.verdier.protein).toMatchObject({ verdi: 13, usikker: false })
+  })
+  it('overskrift nederst: tabellen leses likevel, men alt merkes usikkert', () => {
+    const r = tolkEtikett('Energi 1550 kJ / 370 kcal\nFett 7 g\nProtein 13 g\nKarbohydrat 60 g\nVerdier per 100 g')
+    expect(r.verdier.protein.verdi).toBe(13)
+    expect(r.verdier.protein.usikker).toBe(true)
+  })
+})

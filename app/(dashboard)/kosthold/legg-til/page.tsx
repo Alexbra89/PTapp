@@ -24,6 +24,9 @@ import EtikettLeser from '@/components/kosthold/EtikettLeser'
 import Ark from '@/components/kosthold/Ark'
 import Melding from '@/components/kosthold/Melding'
 import { useVarsel, Varsel, type VarselData } from '@/components/kosthold/Varsel'
+import { useSperre } from '@/hooks/useSperre'
+import { useErPaNett } from '@/hooks/useErPaNett'
+import { hentMatApi } from '@/lib/kosthold/api'
 
 const METODER = [
   { id: 'sok', navn: 'Søk', ikon: Search },
@@ -36,7 +39,7 @@ type Metode = typeof METODER[number]['id']
 type Oppslag =
   | { type: 'laster'; kode: string }
   | { type: 'ukjent'; kode: string }
-  | { type: 'feil'; kode: string; tekst: string }
+  | { type: 'feil'; kode: string; tekst: string; utlogget?: boolean }
 
 /** Etikettresultat → utgangspunkt for skjemaet. Usikre og utregnede verdier merkes. */
 function fraEtikett(r: Etikettresultat, strekkode?: string): Utgangspunkt {
@@ -76,6 +79,8 @@ function LeggTil() {
   const logg = useLoggMat()
   const slett = useSlettLogg()
   const { varsel, vis: visRaa, skjul } = useVarsel()
+  const sperre = useSperre()
+  const paNett = useErPaNett()
   const dagbokUrl = dato === idag ? '/kosthold' : `/kosthold?dato=${dato}`
   const vis = useCallback((v: VarselData) => visRaa(!v.feil && !v.handling ? { ...v, handling: { tekst: 'Se dagbok', gjor: () => router.push(dagbokUrl) } } : v), [visRaa, router, dagbokUrl])
 
@@ -89,14 +94,18 @@ function LeggTil() {
 
   const treff = useMemo(() => filter === 'maler' ? [] : sokMatvarer(matvarer, q, filter), [matvarer, q, filter])
 
-  // Registrer med ett trykk med sist brukte mengde
+  // Registrer med ett trykk med sist brukte mengde. Sperren hindrer at et dobbelttrykk gir to
+  // registreringer; bekreftelsen vises først når databasen har lagret.
   const leggTilIgjen = (m: Matvare) => {
     if (!uid || !m.sist_mengde || !m.sist_enhet) return
     const r = lagLinje(m, m.sist_mengde, m.sist_enhet, { brukerId: uid, dato, maltid })
     if (!r.ok) { setValgt(m); return }
-    const send = () => logg.mutate({ userId: uid, linjer: [r.linje] }, { onError: e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }) })
+    const linje = r.linje
+    const send = () => sperre.kjor(`igjen:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: [linje] }))?.then(
+      () => vis({ tekst: `${m.navn} (${mengdeTekst(m.sist_mengde!, m.sist_enhet!)}) lagt til`, handling: { tekst: 'Angre', gjor: () => slett.mutate({ userId: uid, linje }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) }) } }),
+      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }), // samme id – ingen dobbel registrering
+    )
     send()
-    vis({ tekst: `${m.navn} (${mengdeTekst(m.sist_mengde, m.sist_enhet)}) lagt til`, handling: { tekst: 'Angre', gjor: () => slett.mutate({ userId: uid, linje: r.linje }) } })
   }
 
   const brukMal = (id: string) => {
@@ -104,23 +113,19 @@ function LeggTil() {
     if (!uid || !m) return
     const r = linjerFraMal(m, matvarer, { brukerId: uid, dato, maltid: m.maltid ?? maltid })
     if (r.feil) { vis({ tekst: r.feil, feil: true }); return }
-    const send = () => logg.mutate({ userId: uid, linjer: r.linjer, malId: m.id }, { onError: e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }) })
+    const send = () => sperre.kjor(`mal:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: r.linjer, malId: m.id }))?.then(
+      () => vis({ tekst: `«${m.navn}» registrert`, handling: { tekst: 'Angre', gjor: () => r.linjer.forEach((l: Logglinje) => slett.mutate({ userId: uid, linje: l })) } }),
+      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
+    )
     send()
-    vis({ tekst: `«${m.navn}» registrert`, handling: { tekst: 'Angre', gjor: () => r.linjer.forEach((l: Logglinje) => slett.mutate({ userId: uid, linje: l })) } })
   }
 
   const sokEksternt = async () => {
     const sporring = q.trim()
     if (sporring.length < 2) return
     setEksterne({ q: sporring, laster: true, treff: [] })
-    try {
-      const res = await fetch(`/api/mat/sok?q=${encodeURIComponent(sporring)}`, { cache: 'no-store' })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.feil ?? 'Søket feilet')
-      setEksterne({ q: sporring, laster: false, treff: data.treff ?? [] })
-    } catch (e) {
-      setEksterne({ q: sporring, laster: false, treff: [], feil: (e as Error).message.includes('fetch') ? 'Ingen kontakt med serveren.' : (e as Error).message })
-    }
+    const svar = await hentMatApi<{ treff: Matvareutkast[] }>(`/api/mat/sok?q=${encodeURIComponent(sporring)}`)
+    setEksterne(svar.ok ? { q: sporring, laster: false, treff: svar.data.treff ?? [] } : { q: sporring, laster: false, treff: [], feil: svar.melding })
   }
 
   const slaOpp = useCallback(async (kode: string) => {
@@ -129,17 +134,12 @@ function LeggTil() {
     if (egen) { setOppslag(null); setValgt(egen); return }
     // 2. Open Food Facts via serveren
     setOppslag({ type: 'laster', kode })
-    try {
-      const res = await fetch(`/api/mat/strekkode/${kode}`, { cache: 'no-store' })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) { setOppslag({ type: 'feil', kode, tekst: data.feil ?? 'Oppslaget feilet.' }); return }
-      if (!data.funnet) { setOppslag({ type: 'ukjent', kode }); return }
-      setOppslag(null)
-      const u: Matvareutkast = data.utkast
-      setSkjema({ tittel: 'Kontroller varen', utgangspunkt: { ...u, merknader: [`Hentet fra Open Food Facts (åpen, dugnadsbasert database). Kontroller mot pakken.`, ...u.merknader] } })
-    } catch {
-      setOppslag({ type: 'feil', kode, tekst: 'Ingen kontakt med serveren. Sjekk nettet og prøv igjen.' })
-    }
+    const svar = await hentMatApi<{ funnet: boolean; utkast?: Matvareutkast }>(`/api/mat/strekkode/${kode}`)
+    if (!svar.ok) { setOppslag({ type: 'feil', kode, tekst: svar.melding, utlogget: svar.type === 'utlogget' }); return }
+    if (!svar.data.funnet || !svar.data.utkast) { setOppslag({ type: 'ukjent', kode }); return }
+    setOppslag(null)
+    const u = svar.data.utkast
+    setSkjema({ tittel: 'Kontroller varen', utgangspunkt: { ...u, merknader: [`Hentet fra Open Food Facts (åpen, dugnadsbasert database). Kontroller mot pakken.`, ...u.merknader] } })
   }, [matvarer])
 
   const rad = (m: Matvare) => (
@@ -150,11 +150,11 @@ function LeggTil() {
       </button>
       <div className="ko-rad-hoyre">
         {m.sist_mengde && m.sist_enhet && (
-          <button className="ko-igjen-knapp" onClick={() => leggTilIgjen(m)} aria-label={`Legg til ${m.navn}, ${mengdeTekst(m.sist_mengde, m.sist_enhet)}`} data-testid="legg-til-igjen">
+          <button className="ko-igjen-knapp" onClick={() => leggTilIgjen(m)} disabled={sperre.laast(`igjen:${m.id}`)} aria-label={`Legg til ${m.navn}, ${mengdeTekst(m.sist_mengde, m.sist_enhet)}`} data-testid="legg-til-igjen">
             <Plus size={13} /> {mengdeTekst(m.sist_mengde, m.sist_enhet)}
           </button>
         )}
-        <button className={`ko-ikonknapp${m.favoritt ? ' on' : ''}`} onClick={() => uid && favoritt.mutate({ userId: uid, id: m.id, favoritt: !m.favoritt })}
+        <button className={`ko-ikonknapp${m.favoritt ? ' on' : ''}`} onClick={() => uid && favoritt.mutate({ userId: uid, id: m.id, favoritt: !m.favoritt }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) })}
           aria-label={m.favoritt ? 'Fjern favoritt' : 'Merk som favoritt'} aria-pressed={m.favoritt}>
           <Star size={17} strokeWidth={1.4} fill={m.favoritt ? 'currentColor' : 'none'} />
         </button>
@@ -165,6 +165,8 @@ function LeggTil() {
   return (
     <div className="ko-page">
       <KostHode tittel={<>Legg <em>til</em></>} undertittel={`${dagTekst(dato)} · ${MALTIDER.find(m => m.id === maltid)!.navn}`} />
+
+      {!paNett && <Melding type="advarsel"><strong>Du er uten nett.</strong> Du kan søke i dine lagrede matvarer, men ingenting lagres før du er på nett igjen.</Melding>}
 
       <div className="ko-felt">
         <span className="eyebrow">Legges i</span>
@@ -202,7 +204,7 @@ function LeggTil() {
               : <div className="ko-liste">{maler.map(m => (
                 <div key={m.id} className="ko-rad" style={{ cursor: 'default' }}>
                   <div style={{ minWidth: 0 }}><div className="ko-rad-navn">{m.navn}</div><div className="ko-rad-meta">{m.linjer.length} matvarer</div></div>
-                  <button className="ko-igjen-knapp" onClick={() => brukMal(m.id)}><Repeat size={13} /> Registrer</button>
+                  <button className="ko-igjen-knapp" onClick={() => brukMal(m.id)} disabled={sperre.laast(`mal:${m.id}`)}><Repeat size={13} /> Registrer</button>
                 </div>))}</div>
           ) : (
             <>
@@ -266,7 +268,9 @@ function LeggTil() {
             <Melding type="feil">
               {oppslag.tekst}
               <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                <button className="btn btn-ghost konto-knapp" onClick={() => slaOpp(oppslag.kode)}>Prøv igjen</button>
+                {oppslag.utlogget
+                  ? <a className="btn btn-primary konto-knapp" href={`/login?from=${encodeURIComponent('/kosthold/legg-til')}`}>Logg inn</a>
+                  : <button className="btn btn-ghost konto-knapp" onClick={() => slaOpp(oppslag.kode)}>Prøv igjen</button>}
                 <button className="btn btn-ghost konto-knapp" onClick={() => { setSkjema({ tittel: 'Ny matvare', utgangspunkt: { kilde: 'manuell', strekkode: oppslag.kode } }); setOppslag(null) }}>Fyll inn selv</button>
               </div>
             </Melding>

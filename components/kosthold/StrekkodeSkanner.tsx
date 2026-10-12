@@ -123,6 +123,20 @@ export default function StrekkodeSkanner({ onKode, autostart = true }: Props) {
       if (forsok.current !== mitt) return
 
       const spor = s.getVideoTracks()[0]
+      // Systemet kan ta kameraet uten at siden skjules (samtale, Siri, kontrollsenter, en annen app).
+      // Sporet avsluttes («ended») eller dempes («mute») – da stoppes skanneren med en tydelig melding
+      // i stedet for å vise «Sikt på strekkoden» over et frosset bilde. Vår egen stopp() utløser ikke
+      // «ended», og forsok-telleren gjør at gamle spor ignoreres.
+      const avbrutt = () => {
+        if (forsok.current !== mitt || !montert.current) return
+        stopp()
+        setFeil({ tittel: 'Kameraet ble avbrutt', tekst: 'Et annet program, en samtale eller systemet tok over kameraet. Trykk «Prøv igjen» for å starte det på nytt.', kanPrøveIgjen: true })
+        setTilstand('feil')
+      }
+      let dempet: ReturnType<typeof setTimeout> | undefined
+      spor?.addEventListener('ended', avbrutt)
+      spor?.addEventListener('mute', () => { clearTimeout(dempet); dempet = setTimeout(() => { if (spor.muted) avbrutt() }, 2500) })
+      spor?.addEventListener('unmute', () => clearTimeout(dempet))
       const innst = spor?.getSettings?.() ?? {}
       setKameraId(innst.deviceId ?? '')
       try { setHarLys(!!(spor?.getCapabilities?.() as any)?.torch) } catch { setHarLys(false) }
@@ -203,7 +217,7 @@ export default function StrekkodeSkanner({ onKode, autostart = true }: Props) {
             <h3>{feil.tittel}</h3>
             <p>{feil.tekst}</p>
             <div className="ko-kamera-kontroller">
-              {feil.kanPrøveIgjen && <button className="btn btn-primary" onClick={() => start()}><RefreshCw size={15} /> Prøv igjen</button>}
+              {feil.kanPrøveIgjen && <button className="btn btn-primary" onClick={() => start()} data-testid="kamera-prov-igjen"><RefreshCw size={15} /> Prøv igjen</button>}
               <button className="btn btn-ghost" onClick={() => setManuell(true)}><Keyboard size={15} /> Skriv inn kode</button>
             </div>
           </div>

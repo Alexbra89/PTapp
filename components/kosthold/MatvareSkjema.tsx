@@ -8,7 +8,7 @@ import {
 } from '@/lib/kosthold/naering'
 import type { Matvareutkast } from '@/lib/kosthold/openfoodfacts'
 import { nyId } from '@/lib/kosthold/linje'
-import { useLagreMatvare, feilTekst, type Matvaredata } from '@/hooks/useKosthold'
+import { useLagreMatvare, feilTekst, StrekkodeFinnesFeil, type Matvaredata } from '@/hooks/useKosthold'
 
 type Felt = Naeringsstoff | 'kj'
 const FELTER: { k: Felt; navn: string; enhet: string }[] = [
@@ -225,7 +225,14 @@ export default function MatvareSkjema({ userId, utgangspunkt: u = {}, eksisteren
       )}
 
       {visFeil && feil.length > 0 && <Melding type="feil"><ul style={{ margin: 0, paddingLeft: '1rem' }}>{feil.map(f => <li key={f}>{f}</li>)}</ul></Melding>}
-      {lagre.isError && <Melding type="feil">{feilTekst(lagre.error)}</Melding>}
+      {lagre.error instanceof StrekkodeFinnesFeil ? (
+        <Melding type="advarsel">
+          {lagre.error.message} Vil du bruke den lagrede varen, eller rette strekkoden over?
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-primary konto-knapp" onClick={() => onLagret((lagre.error as StrekkodeFinnesFeil).matvare)} data-testid="bruk-lagret">Bruk lagret vare</button>
+          </div>
+        </Melding>
+      ) : lagre.isError && <Melding type="feil">{feilTekst(lagre.error)}</Melding>}
 
       <div className="ko-ark-knapper">
         <button type="button" className="btn btn-ghost" onClick={onAvbryt} disabled={lagre.isPending}>Avbryt</button>

@@ -15,6 +15,8 @@ import Melding from '@/components/kosthold/Melding'
 import { TelleTall } from '@/components/atelier/TelleTall'
 
 const ar = new Date().getFullYear()
+/** Laveste energimål databasen godtar (ernaeringsmal.kcal) */
+const MIN_KCAL = 800
 
 export default function MalSide() {
   const { data: user } = useUser()
@@ -86,23 +88,26 @@ export default function MalSide() {
     const felles = {
       beregningsgrunnlag: grunnlag, aktivitetsniva: aktivitet, retning,
       tempo: retning === 'vedlikehold' ? 0 : (tempo ?? KONFIG.standardTempo[retning]),
-      vedlikehold_kcal: resultat?.vedlikehold ?? null,
+      // Databasen godtar 800–8000 kcal. Et vedlikeholdsbehov utenfor det (ekstreme profiler) lagres ikke.
+      vedlikehold_kcal: resultat && resultat.vedlikehold >= MIN_KCAL && resultat.vedlikehold <= 8000 ? resultat.vedlikehold : null,
     }
     if (overstyrt) {
       if (!egneGyldige || egneFeil || egneKcal === null) return
       mal = { ...felles, kcal: egneKcal, protein: egneTall!.protein!, karbohydrater: egneTall!.karbohydrater!, fett: egneTall!.fett!, overstyrt: true }
     } else {
-      if (!resultat) return
+      if (!resultat || forLavt) return
       mal = { ...felles, kcal: resultat.kcal, protein: resultat.protein, karbohydrater: resultat.karbohydrater, fett: resultat.fett, overstyrt: false }
     }
     try {
-      await lagre.mutateAsync({ userId: uid, mal, profil: profilEndring() })
-      setMelding(overstyrt ? 'Dine egne mål er lagret.' : 'Målene er lagret.')
+      const { profilOppdatert } = await lagre.mutateAsync({ userId: uid, mal, profil: profilEndring() })
+      setMelding((overstyrt ? 'Dine egne mål er lagret.' : 'Målene er lagret.') + (profilOppdatert ? '' : ' Vekt, høyde og fødselsår i profilen ble ikke oppdatert – prøv igjen fra profilsiden.'))
       if (!overstyrt) setEgne(null)
     } catch { /* vises under */ }
   }
 
   const lagret = malQ.data
+  // Under 800 kcal (ekstreme profiler) lagres ikke: databasen avviser det, og det bør avklares med helsepersonell
+  const forLavt = !!resultat && resultat.kcal < MIN_KCAL
 
   return (
     <div className="ko-page">
@@ -195,8 +200,13 @@ export default function MalSide() {
             Dette er et estimat for friske voksne, ikke medisinske råd. Det faktiske behovet varierer – følg vekttrenden over 2–3 uker og juster.
             Gravide, ammende og personer med sykdom eller spiseforstyrrelser bør få mål fra helsepersonell.
           </p>
+          {forLavt && (
+            <div style={{ marginTop: '1rem' }}>
+              <Melding type="advarsel" ><span data-testid="for-lavt">Beregningen gir under {MIN_KCAL} kcal per dag. Slike mål lagres ikke i appen – avklar energibehovet med lege eller klinisk ernæringsfysiolog.</span></Melding>
+            </div>
+          )}
           <div className="pf-knapper">
-            <button className="btn btn-primary" onClick={() => lagreMal(false)} disabled={lagre.isPending} data-testid="bruk-forslag">{lagre.isPending ? <span className="spinner" /> : 'Bruk disse målene'}</button>
+            <button className="btn btn-primary" onClick={() => lagreMal(false)} disabled={lagre.isPending || forLavt} data-testid="bruk-forslag">{lagre.isPending ? <span className="spinner" /> : 'Bruk disse målene'}</button>
           </div>
         </section>
       )}

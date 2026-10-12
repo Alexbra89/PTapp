@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, Plus, ScanBarcode, Camera, Search, BookmarkP
 import { useUser } from '@/hooks/useSupabaseQuery'
 import {
   useKostDag, useKostPeriode, useErnaeringsmal, useMatvarer, useMaltidsmaler, useLoggMat, useSlettLogg, useLagreMaltidsmal, feilTekst,
+  type VentendeLinje,
 } from '@/hooks/useKosthold'
 import { gyldigDato, linjeNaering, maltidNavn, standardMaltid, summer, summerPerMaltid, visGram, visKcal, type Logglinje, type Maltid } from '@/lib/kosthold/naering'
 import { dagTekst, mengdeTekst } from '@/lib/kosthold/visning'
@@ -21,6 +22,8 @@ import MengdeArk from '@/components/kosthold/MengdeArk'
 import Ark from '@/components/kosthold/Ark'
 import Melding from '@/components/kosthold/Melding'
 import { useVarsel, Varsel } from '@/components/kosthold/Varsel'
+import { useSperre } from '@/hooks/useSperre'
+import { useErPaNett } from '@/hooks/useErPaNett'
 
 function Dagbok() {
   const router = useRouter()
@@ -40,6 +43,8 @@ function Dagbok() {
   const slett = useSlettLogg()
   const lagreMal = useLagreMaltidsmal()
   const { varsel, vis, skjul } = useVarsel()
+  const sperre = useSperre()
+  const paNett = useErPaNett()
 
   const [endrer, setEndrer] = useState<Logglinje | null>(null)
   const [nyMal, setNyMal] = useState<{ maltid: Maltid; linjer: Logglinje[] } | null>(null)
@@ -53,18 +58,25 @@ function Dagbok() {
   const forslag = dato === idag ? standardMaltid() : 'middag'
   const leggTil = (metode: string, maltid: Maltid = forslag) => `/kosthold/legg-til?metode=${metode}&maltid=${maltid}${dato !== idag ? `&dato=${dato}` : ''}`
 
+  // Hele måltidet i én forespørsel. Sperren hindrer dobbelttrykk; bekreftelsen vises først når det er lagret.
   const brukMal = (m: Maltidsmal) => {
     if (!uid) return
     const r = linjerFraMal(m, matvarer, { brukerId: uid, dato, maltid: m.maltid ?? forslag })
     if (r.feil) { vis({ tekst: r.feil, feil: true }); return }
-    const send = () => logg.mutate({ userId: uid, linjer: r.linjer, malId: m.id }, {
-      onError: e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
-    })
+    const send = () => sperre.kjor(`mal:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: r.linjer, malId: m.id }))?.then(
+      () => vis({
+        tekst: `«${m.navn}» registrert${r.mangler ? ` (${r.mangler} slettet matvare hoppet over)` : ''}`,
+        handling: { tekst: 'Angre', gjor: () => r.linjer.forEach(l => slett.mutate({ userId: uid, linje: l }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) })) },
+      }),
+      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }), // samme id-er – ingen duplikater
+    )
     send()
-    vis({
-      tekst: `«${m.navn}» registrert${r.mangler ? ` (${r.mangler} slettet matvare hoppet over)` : ''}`,
-      handling: { tekst: 'Angre', gjor: () => r.linjer.forEach(l => slett.mutate({ userId: uid, linje: l })) },
-    })
+  }
+
+  // «Angre» etter sletting i arket: legger linjen tilbake med samme id
+  const gjenopprett = (l: Logglinje) => {
+    if (!uid) return
+    logg.mutate({ userId: uid, linjer: [l] }, { onError: e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: () => gjenopprett(l) } }) })
   }
 
   const lagreSomMal = async () => {
@@ -97,6 +109,8 @@ function Dagbok() {
     <div className="ko-page">
       <KostHode tittel={<>Kosthold<em className="gold">.</em></>} undertittel="Dagbok · mat, makroer og mål" />
 
+      {!paNett && <Melding type="advarsel"><strong>Du er uten nett.</strong> Det som allerede er lagret, vises. Nye registreringer og endringer lagres ikke før du er på nett igjen.</Melding>}
+
       <div className="ko-dagnav">
         <button className="ko-dagnav-knapp" onClick={() => settDato(forrige)} aria-label="Forrige dag"><ChevronLeft size={18} strokeWidth={1.5} /></button>
         <div className="ko-dagnav-midt">
@@ -127,7 +141,7 @@ function Dagbok() {
           <div className="hq-section-head"><h2 className="hq-section-title">Faste <em>måltider</em></h2><Link href="/kosthold/matvarer?vis=maltider" className="hq-link">Rediger</Link></div>
           <div className="ko-filter">
             {maler.slice(0, 8).map(m => (
-              <button key={m.id} className="ko-chip" onClick={() => brukMal(m)} data-testid="bruk-mal"><Repeat size={13} /> {m.navn}</button>
+              <button key={m.id} className="ko-chip" onClick={() => brukMal(m)} disabled={sperre.laast(`mal:${m.id}`)} data-testid="bruk-mal"><Repeat size={13} /> {m.navn}</button>
             ))}
           </div>
         </section>
@@ -153,13 +167,13 @@ function Dagbok() {
               <Link href={leggTil('sok', m.id)} className="ko-pluss" aria-label={`Legg til i ${m.navn.toLowerCase()}`}><Plus size={18} strokeWidth={1.5} /></Link>
             </div>
           </div>
-          {m.linjer.length === 0 ? <p className="ko-tom">Ingenting registrert.</p> : m.linjer.map(l => {
+          {m.linjer.length === 0 ? <p className="ko-tom">Ingenting registrert.</p> : (m.linjer as VentendeLinje[]).map(l => {
             const n = linjeNaering(l)
             return (
-              <button key={l.id} className="ko-rad" onClick={() => setEndrer(l)} data-testid="logglinje">
+              <button key={l.id} className={`ko-rad${l._venter ? ' venter' : ''}`} onClick={() => !l._venter && setEndrer(l)} aria-busy={l._venter || undefined} data-testid="logglinje">
                 <div style={{ minWidth: 0 }}>
                   <div className="ko-rad-navn">{l.navn}</div>
-                  <div className="ko-rad-meta">{mengdeTekst(l.mengde, l.enhet)}{l.merke ? ` · ${l.merke}` : ''} · P {visGram(n.protein)} · K {visGram(n.karbohydrater)} · F {visGram(n.fett)}</div>
+                  <div className="ko-rad-meta">{l._venter ? 'Lagrer … · ' : ''}{mengdeTekst(l.mengde, l.enhet)}{l.merke ? ` · ${l.merke}` : ''} · P {visGram(n.protein)} · K {visGram(n.karbohydrater)} · F {visGram(n.fett)}</div>
                 </div>
                 <div className="ko-rad-kcal"><b>{visKcal(n.kcal)}</b> kcal</div>
               </button>
@@ -194,7 +208,7 @@ function Dagbok() {
       <AnimatePresence>
         {endrer && uid && (
           <MengdeArk key={endrer.id} userId={uid} dato={endrer.dato} maltid={endrer.maltid} linje={endrer}
-            matvare={matvarer.find(m => m.id === endrer.matvare_id) ?? null} onLukk={() => setEndrer(null)} vis={vis} />
+            matvare={matvarer.find(m => m.id === endrer.matvare_id) ?? null} onLukk={() => setEndrer(null)} vis={vis} gjenopprett={gjenopprett} />
         )}
         {nyMal && (
           <Ark key="nymal" overtittel="Fast måltid" tittel={`Lagre ${maltidNavn(nyMal.maltid).toLowerCase()}`} onLukk={() => setNyMal(null)} laast={lagreMal.isPending}>

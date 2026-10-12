@@ -86,6 +86,11 @@ export function kostholdDb(start: Partial<Record<Tabell, Rad[]>> = {}) {
         }
         const ny = standard(t, r)
         db[t].push(ny); nye.push(ny)
+        // Etterligner triggeren matlogg_bruk (docs/migrasjoner/kosthold.sql): bare for rader som faktisk settes inn
+        if (t === 'matlogg' && ny.matvare_id) {
+          const m = db.matvarer.find(x => x.id === ny.matvare_id && x.bruker_id === ny.bruker_id)
+          if (m) Object.assign(m, { antall_bruk: (m.antall_bruk ?? 0) + 1, sist_brukt: new Date().toISOString(), sist_mengde: ny.mengde, sist_enhet: ny.enhet })
+        }
       }
       return representasjon ? { status: 201, json: objekt ? nye[0] : nye } : { status: 201, body: '' }
     }

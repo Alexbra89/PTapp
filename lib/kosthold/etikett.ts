@@ -156,14 +156,25 @@ export function tolkEtikett(tekst: string): Etikettresultat {
   const porsjon = kolonneTreff.find(k => k.type === 'porsjon')?.porsjon ?? null
 
   // Rå verdier per kolonne
-  const raa: Record<Etikettfelt, (Felt | null)[]> = Object.fromEntries(FELT.map(f => [f, []])) as any
+  let raa: Record<Etikettfelt, (Felt | null)[]> = Object.fromEntries(FELT.map(f => [f, []])) as any
   let funnetRader = 0
 
   const settKolonner = (felt: Etikettfelt, tall: (Tallverdi | null)[], ekstraUsikker?: string) => {
     if (tall.length === 0) return
-    if (raa[felt].some(Boolean)) return // første treff vinner (f.eks. «Fett» før en senere «fett» i ingrediensene)
     const passer = tall.length === ant
     const verdier = tall.slice(0, ant)
+    if (raa[felt].some(Boolean)) {
+      // Samme næringsstoff igjen (f.eks. i en fotnote eller ingrediensliste): første treff beholdes,
+      // men er tallene ulike, er det uklart hvilket som stemmer – da merkes verdien usikker.
+      raa[felt].forEach((f, i) => {
+        const ny = verdier[i]
+        if (f && f.verdi !== null && ny && Math.abs(ny.verdi - f.verdi) > 1e-9) {
+          f.usikker = true
+          f.grunn = [f.grunn, `Funnet flere ganger med ulike verdier (${String(f.verdi).replace('.', ',')} og ${String(ny.verdi).replace('.', ',')})`].filter(Boolean).join('. ')
+        }
+      })
+      return
+    }
     raa[felt] = Array.from({ length: ant }, (_, i) => {
       const t = verdier[i]
       if (!t) return null
@@ -176,45 +187,59 @@ export function tolkEtikett(tekst: string): Etikettresultat {
     })
   }
 
-  for (let i = 0; i < linjer.length; i++) {
-    const l = linjer[i]
-    const rad = RADER.find(r => r.re.test(l))
-    if (!rad || rad.felt === 'ignorer') continue
-    if (rad.felt === 'energi') {
-      // Energi kan stå over flere linjer: «Energi» / «1550 kJ» / «370 kcal»
-      let tall = lesTall(l.replace(/energi\w*|energy|kalori\w*/i, ' '))
-      let j = i
-      while (tall.filter(t => t.enhet === 'kj' || t.enhet === 'kcal').length < 2 * ant && j + 1 < linjer.length && !RADER.slice(0, -1).some(r => r.re.test(linjer[j + 1]))) {
-        const neste = lesTall(linjer[j + 1])
-        if (!neste.some(t => t.enhet === 'kj' || t.enhet === 'kcal')) break
-        tall = tall.concat(neste); j++
-      }
-      // Etiketter skriver «kJ / kcal» per kolonne. Pares i rekkefølge, slik at et kcal-tall som har
-      // mistet enheten («1550 kJ / 370» + «kcal» på neste linje) havner i riktig kolonne.
-      const par: { kj: Tallverdi | null; kcal: Tallverdi | null }[] = []
-      for (const t of tall) {
-        const siste = par[par.length - 1]
-        if (t.enhet === 'kj') par.push({ kj: t, kcal: null })
-        else if (t.enhet === 'kcal') { if (siste && !siste.kcal) siste.kcal = t; else par.push({ kj: null, kcal: t }) }
-        else if (!t.enhet && siste?.kj && !siste.kcal) {
-          // Uten enhet: godtas bare som kcal hvis det stemmer med kJ-tallet foran
-          const ok = Math.abs(t.verdi * KJ_PER_KCAL - siste.kj.verdi) <= Math.max(20, siste.kj.verdi * 0.06)
-          siste.kcal = { ...t, enhet: 'kcal', grunn: ok ? undefined : 'Mangler enhet – usikkert om dette er kcal' }
+  const lesRader = (fra: number) => {
+    raa = Object.fromEntries(FELT.map(f => [f, []])) as any
+    funnetRader = 0
+    for (let i = fra; i < linjer.length; i++) {
+      const l = linjer[i]
+      const rad = RADER.find(r => r.re.test(l))
+      if (!rad || rad.felt === 'ignorer') continue
+      if (rad.felt === 'energi') {
+        // Energi kan stå over flere linjer: «Energi» / «1550 kJ» / «370 kcal»
+        let tall = lesTall(l.replace(/energi\w*|energy|kalori\w*/i, ' '))
+        let j = i
+        while (tall.filter(t => t.enhet === 'kj' || t.enhet === 'kcal').length < 2 * ant && j + 1 < linjer.length && !RADER.slice(0, -1).some(r => r.re.test(linjer[j + 1]))) {
+          const neste = lesTall(linjer[j + 1])
+          if (!neste.some(t => t.enhet === 'kj' || t.enhet === 'kcal')) break
+          tall = tall.concat(neste); j++
         }
+        // Etiketter skriver «kJ / kcal» per kolonne. Pares i rekkefølge, slik at et kcal-tall som har
+        // mistet enheten («1550 kJ / 370» + «kcal» på neste linje) havner i riktig kolonne.
+        const par: { kj: Tallverdi | null; kcal: Tallverdi | null }[] = []
+        for (const t of tall) {
+          const siste = par[par.length - 1]
+          if (t.enhet === 'kj') par.push({ kj: t, kcal: null })
+          else if (t.enhet === 'kcal') { if (siste && !siste.kcal) siste.kcal = t; else par.push({ kj: null, kcal: t }) }
+          else if (!t.enhet && siste?.kj && !siste.kcal) {
+            // Uten enhet: godtas bare som kcal hvis det stemmer med kJ-tallet foran
+            const ok = Math.abs(t.verdi * KJ_PER_KCAL - siste.kj.verdi) <= Math.max(20, siste.kj.verdi * 0.06)
+            siste.kcal = { ...t, enhet: 'kcal', grunn: ok ? undefined : 'Mangler enhet – usikkert om dette er kcal' }
+          }
+        }
+        const kj = par.map(p => p.kj), kcal = par.map(p => p.kcal)
+        if (kj.some(Boolean)) settKolonner('kj', kj)
+        if (kcal.some(Boolean)) settKolonner('kcal', kcal)
+        if (!par.length && tall.length) merknader.push('Fant energitall uten enhet (kJ/kcal) – fyll inn energien selv.')
+        if (par.length) funnetRader++
+        continue
       }
-      const kj = par.map(p => p.kj), kcal = par.map(p => p.kcal)
-      if (kj.some(Boolean)) settKolonner('kj', kj)
-      if (kcal.some(Boolean)) settKolonner('kcal', kcal)
-      if (!par.length && tall.length) merknader.push('Fant energitall uten enhet (kJ/kcal) – fyll inn energien selv.')
-      if (par.length) funnetRader++
-      continue
+      // Teksten etter nøkkelordet (unngår tall som står i selve navnet)
+      const tall = lesGramtall(l.replace(rad.re, ' '), rad.felt === 'salt').filter(t => t.enhet === 'g' || t.enhet === null)
+      if (tall.length === 0) continue
+      const utenEnhet = tall.some(t => t.enhet === null)
+      settKolonner(rad.felt, tall, utenEnhet ? 'Mangler enhet (g)' : undefined)
+      funnetRader++
     }
-    // Teksten etter nøkkelordet (unngår tall som står i selve navnet)
-    const tall = lesGramtall(l.replace(rad.re, ' '), rad.felt === 'salt').filter(t => t.enhet === 'g' || t.enhet === null)
-    if (tall.length === 0) continue
-    const utenEnhet = tall.some(t => t.enhet === null)
-    settKolonner(rad.felt, tall, utenEnhet ? 'Mangler enhet (g)' : undefined)
-    funnetRader++
+  }
+
+  // Tekst over kolonneoverskriften («Høyt proteininnhold: 20 g protein») er reklame, ikke tabellen.
+  // Radene leses derfor fra overskriften og ned. Står overskriften nederst (sjelden), leses alt.
+  const overskrift = kolonneTreff.length ? Math.min(...kolonneTreff.map(k => k.linje)) : 0
+  lesRader(overskrift)
+  if (overskrift > 0 && funnetRader < 2) {
+    lesRader(0)
+    merknader.push('Næringstabellen stod ikke under kolonneoverskriften. Kontroller at tallene er hentet fra tabellen.')
+    for (const f of FELT) raa[f].forEach(v => { if (v && v.verdi !== null) { v.usikker = true; v.grunn = [v.grunn, 'Usikker plassering i forhold til tabellen'].filter(Boolean).join('. ') } })
   }
 
   // Velg kolonne: per 100 g / ml foran porsjon

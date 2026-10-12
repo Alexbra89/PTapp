@@ -6,9 +6,10 @@ import Ark from './Ark'
 import Melding from './Melding'
 import {
   MALTIDER, type Enhet, type Logglinje, type Maltid, type Matvare,
-  basisTekst, beregnNaering, enhetNavn, lesTall, linjePer100, tilBasisMengde, tilgjengeligeEnheter, visGram, visKcal,
+  basisTekst, beregnNaering, enhetNavn, gyldigDato, lesTall, linjePer100, tilBasisMengde, tilgjengeligeEnheter, visGram, visKcal,
 } from '@/lib/kosthold/naering'
 import { endreMengde, lagLinje, nyId } from '@/lib/kosthold/linje'
+import { lokalDato } from '@/lib/dato'
 import { useLoggMat, useEndreLogg, useSlettLogg, feilTekst } from '@/hooks/useKosthold'
 import type { VarselData } from './Varsel'
 
@@ -18,6 +19,8 @@ type Props = {
   maltid: Maltid
   onLukk: () => void
   onLagret?: (l: Logglinje) => void
+  /** «Angre» etter sletting – kjøres av siden (arket er lukket da) */
+  gjenopprett?: (l: Logglinje) => void
   vis: (v: VarselData) => void
 } & ({ matvare: Matvare; linje?: undefined } | { linje: Logglinje; matvare?: Matvare | null })
 
@@ -72,47 +75,60 @@ export default function MengdeArk(p: Props) {
   const navn = p.linje?.navn ?? matvare!.navn
   const merke = p.linje?.merke ?? matvare?.merke
 
-  const lagre = () => {
+  // Arket lukkes først når databasen har bekreftet. Feiler det (uten nett, serverfeil), blir arket
+  // stående med feilmeldingen, og «Prøv igjen» bruker samme id – ingen dobbel registrering.
+  const [lagrer, setLagrer] = useState(false)
+  const [feil, setFeil] = useState('')
+  const idag = lokalDato()
+  const datoOk = gyldigDato(dato) && dato <= idag
+
+  const lagre = async () => {
     if (!r.ok || mengde === null || sendt.current) return
+    if (!datoOk) { setFeil('Velg en dato fra og med i dag og bakover.'); return }
     sendt.current = true
-    if (!endrer) {
-      const res = lagLinje(matvare!, mengde, enhet, { brukerId: userId, dato, maltid, id: nyLinjeId })
-      if (!res.ok) { sendt.current = false; return }
-      const send = () => logg.mutate({ userId, linjer: [res.linje] }, {
-        onError: e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
-      })
-      send()
-      p.onLagret?.(res.linje)
-      vis({ tekst: `Lagt til i ${MALTIDER.find(m => m.id === maltid)!.navn.toLowerCase()}` })
+    setLagrer(true); setFeil('')
+    try {
+      if (!endrer) {
+        const res = lagLinje(matvare!, mengde, enhet, { brukerId: userId, dato, maltid, id: nyLinjeId })
+        if (!res.ok) { setFeil(res.feil); return }
+        await logg.mutateAsync({ userId, linjer: [res.linje] })
+        p.onLagret?.(res.linje)
+        vis({ tekst: `Lagt til i ${MALTIDER.find(m => m.id === maltid)!.navn.toLowerCase()}` })
+      } else {
+        const res = endreMengde(p.linje!, mengde, enhet, matvare)
+        if (!res.ok) { setFeil(res.feil); return }
+        await endre.mutateAsync({ userId, gammelDato: p.linje!.dato, ny: { ...res.linje, maltid, dato } })
+        vis({ tekst: dato !== p.linje!.dato ? 'Flyttet til en annen dag' : 'Endringen er lagret' })
+      }
       onLukk()
-      return
+    } catch (e) {
+      setFeil(feilTekst(e))
+    } finally {
+      sendt.current = false
+      setLagrer(false)
     }
-    const res = endreMengde(p.linje!, mengde, enhet, matvare)
-    if (!res.ok) { sendt.current = false; return }
-    const ny = { ...res.linje, maltid, dato }
-    const send = () => endre.mutate({ userId, gammelDato: p.linje!.dato, ny }, {
-      onError: e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
-    })
-    send()
-    vis({ tekst: dato !== p.linje!.dato ? 'Flyttet til en annen dag' : 'Endringen er lagret' })
-    onLukk()
   }
 
-  const slettLinje = () => {
+  const slettLinje = async () => {
     if (!bekreftSlett) { setBekreftSlett(true); return }
     if (sendt.current) return
     sendt.current = true
+    setLagrer(true); setFeil('')
     const linje = p.linje!
-    slett.mutate({ userId, linje }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) })
-    vis({
-      tekst: `${linje.navn} er slettet`,
-      handling: { tekst: 'Angre', gjor: () => logg.mutate({ userId, linjer: [linje] }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) }) },
-    })
-    onLukk()
+    try {
+      await slett.mutateAsync({ userId, linje })
+      vis({ tekst: `${linje.navn} er slettet`, ...(p.gjenopprett ? { handling: { tekst: 'Angre', gjor: () => p.gjenopprett!(linje) } } : {}) })
+      onLukk()
+    } catch (e) {
+      setFeil(feilTekst(e))
+    } finally {
+      sendt.current = false
+      setLagrer(false)
+    }
   }
 
   return (
-    <Ark tittel={navn} overtittel={endrer ? 'Endre registrering' : 'Hvor mye?'} onLukk={onLukk}>
+    <Ark tittel={navn} overtittel={endrer ? 'Endre registrering' : 'Hvor mye?'} onLukk={onLukk} laast={lagrer}>
       <p className="pf-dempet" style={{ marginTop: -6 }}>
         {merke ? `${merke} · ` : ''}{visKcal(per100.kcal)} kcal {basisTekst(basis)}
       </p>
@@ -172,18 +188,21 @@ export default function MengdeArk(p: Props) {
       {endrer && (
         <label className="ko-felt">
           <span className="eyebrow">Dato</span>
-          <input type="date" className="input" value={dato} onChange={e => e.target.value && setDato(e.target.value)} />
+          <input type="date" className="input" value={dato} min="2000-01-01" max={idag} onChange={e => e.target.value && setDato(e.target.value)} aria-invalid={!datoOk} data-testid="dato" />
+          {!datoOk && <span className="ko-felt-hint" style={{ color: 'var(--ember)' }}>Datoen kan ikke være frem i tid.</span>}
         </label>
       )}
 
+      {feil && <Melding type="feil">{feil}</Melding>}
+
       <div className="ko-ark-knapper">
         {endrer && (
-          <button className={`btn btn-ghost${bekreftSlett ? ' konto-fare-knapp' : ''}`} onClick={slettLinje}>
+          <button className={`btn btn-ghost${bekreftSlett ? ' konto-fare-knapp' : ''}`} onClick={slettLinje} disabled={lagrer}>
             <Trash2 size={15} strokeWidth={1.5} /> {bekreftSlett ? 'Bekreft sletting' : 'Slett'}
           </button>
         )}
-        <button className="btn btn-primary" onClick={lagre} disabled={!r.ok} data-testid="lagre-mengde">
-          {endrer ? 'Lagre endring' : 'Legg til'}
+        <button className="btn btn-primary" onClick={lagre} disabled={!r.ok || lagrer || !datoOk} data-testid="lagre-mengde">
+          {lagrer ? 'Lagrer …' : feil ? 'Prøv igjen' : endrer ? 'Lagre endring' : 'Legg til'}
         </button>
       </div>
     </Ark>

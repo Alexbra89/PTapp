@@ -41,11 +41,34 @@ function kast(error: { code?: string; message?: string } | null): never | void {
   throw new Error(error.message || 'Ukjent feil fra databasen')
 }
 
+/** Enheten er uten nett: ingenting sendes, og ingenting skal se lagret ut. */
+export class UtenNettFeil extends Error {
+  constructor() { super('Du er uten nett. Ingenting ble lagret – prøv igjen når du har dekning.') }
+}
+export const erUtenNett = (e: unknown) => e instanceof UtenNettFeil
+
+/**
+ * Stopper en skriving før den starter når nettleseren vet at den er uten nett. Uten dette ville
+ * React Query satt endringen på pause (networkMode «online») mens den så lagret ut – og den
+ * forsvant hvis appen ble lukket før nettet kom tilbake.
+ */
+export function kreverNett() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new UtenNettFeil()
+}
+
+/** En ny registrering som ikke er bekreftet av databasen ennå (vises som «Lagrer …»). */
+export interface VentendeLinje extends Logglinje { _venter?: boolean }
+
+/** Strekkoden er allerede lagret hos brukeren – brukeren velger selv om den lagrede skal brukes. */
+export class StrekkodeFinnesFeil extends Error {
+  constructor(public matvare: Matvare) { super(`Du har allerede lagret «${matvare.navn}» med denne strekkoden.`) }
+}
+
 /** Feilmelding for brukeren – aldri rå databasetekst. */
 export function feilTekst(e: unknown): string {
-  if (erIkkeOppsatt(e)) return (e as Error).message
+  if (erIkkeOppsatt(e) || erUtenNett(e) || e instanceof StrekkodeFinnesFeil) return (e as Error).message
   const m = (e as Error)?.message ?? ''
-  if (/failed to fetch|network|load failed|nettverk/i.test(m)) return 'Ingen kontakt med serveren. Sjekk nettet og prøv igjen – ingenting av det som er lagret, er tapt.'
+  if (/failed to fetch|network|load failed|nettverk/i.test(m)) return 'Fikk ikke kontakt med serveren, så endringen er ikke bekreftet. Prøv igjen – det gir ingen dobbel registrering.'
   if (/check constraint|violates/i.test(m)) return 'Verdiene ble ikke godtatt. Kontroller tallene og prøv igjen.'
   if (/duplicate key|unique/i.test(m)) return 'Finnes allerede.'
   return 'Noe gikk galt. Prøv igjen.'
@@ -162,11 +185,19 @@ export function useErnaeringsmal(userId?: string) {
 
 // ── Skriving ───────────────────────────────────────────────────────────────
 
-// Nye forsøk ved nettverksfeil er trygge fordi id-en er den samme (ingen dobbel lagring)
-const PROV_IGJEN = { retry: (n: number, e: unknown) => n < 3 && !erIkkeOppsatt(e) && /fetch|network|load failed/i.test((e as Error)?.message ?? ''), retryDelay: (n: number) => Math.min(8000, 1000 * 2 ** n) }
+// Felles for alle skrivinger:
+// • networkMode «always»: en skriving settes aldri stille på pause. Uten nett feiler den med en gang
+//   (kreverNett) og vises ikke som lagret.
+// • Nye forsøk bare ved brudd underveis – trygt fordi id-en er den samme (ingen dobbel lagring).
+const PROV_IGJEN = {
+  networkMode: 'always' as const,
+  retry: (n: number, e: unknown) => n < 3 && !erIkkeOppsatt(e) && !erUtenNett(e) && /fetch|network|load failed/i.test((e as Error)?.message ?? ''),
+  retryDelay: (n: number) => Math.min(8000, 1000 * 2 ** n),
+}
+const SKRIV = { networkMode: 'always' as const }
 
-const tilRad = (l: Logglinje) => {
-  const { opprettet: _o, ...rad } = l
+const tilRad = (l: VentendeLinje) => {
+  const { opprettet: _o, _venter: _v, ...rad } = l
   return rad
 }
 
@@ -182,17 +213,20 @@ export function useLoggMat() {
   return useMutation({
     ...PROV_IGJEN,
     mutationFn: async ({ linjer }: { userId: string; linjer: Logglinje[]; malId?: string }) => {
+      kreverNett()
       const { error } = await supabase.from('matlogg').upsert(linjer.map(tilRad), { onConflict: 'id', ignoreDuplicates: true })
       kast(error)
     },
     onMutate: async ({ userId, linjer }) => {
+      kreverNett() // uten nett: ingen optimistisk rad i det hele tatt
       const datoer = [...new Set(linjer.map(l => l.dato))]
       const forrige = new Map<string, Logglinje[] | undefined>()
       for (const d of datoer) {
         const k = QKK.dag(userId, d)
         await qc.cancelQueries({ queryKey: k })
         forrige.set(d, qc.getQueryData<Logglinje[]>(k))
-        qc.setQueryData<Logglinje[]>(k, (g = []) => [...g.filter(x => !linjer.some(l => l.id === x.id)), ...linjer.filter(l => l.dato === d)])
+        // Markert som ventende til databasen har bekreftet – dagboken viser «Lagrer …»
+        qc.setQueryData<VentendeLinje[]>(k, (g = []) => [...g.filter(x => !linjer.some(l => l.id === x.id)), ...linjer.filter(l => l.dato === d).map(l => ({ ...l, _venter: true }))])
       }
       return { forrige }
     },
@@ -200,15 +234,21 @@ export function useLoggMat() {
       ctx?.forrige.forEach((v, d) => qc.setQueryData(QKK.dag(userId, d), v))
     },
     onSuccess: async (_d, { userId, linjer, malId }) => {
-      // Bruksstatistikk for «nylig brukt» og «legg til igjen» – ikke kritisk, feil her stopper ikke registreringen
+      const ider = new Set(linjer.map(l => l.id))
+      for (const d of new Set(linjer.map(l => l.dato))) {
+        qc.setQueryData<VentendeLinje[]>(QKK.dag(userId, d), (g = []) => g.map(l => (ider.has(l.id) ? { ...l, _venter: false } : l)))
+      }
+      // «Nylig brukt», antall og sist brukte mengde oppdateres av databasen (trigger matlogg_bruk) –
+      // atomisk og bare for rader som faktisk ble satt inn. Her vises det bare med en gang.
       const na = new Date().toISOString()
       const sist = new Map<string, Logglinje>()
       for (const l of linjer) if (l.matvare_id) sist.set(l.matvare_id, l)
       if (sist.size) {
-        const matvarer = qc.getQueryData<Matvare[]>(QKK.matvarer(userId)) ?? []
-        const endring = (id: string, l: Logglinje) => ({ sist_brukt: na, sist_mengde: l.mengde, sist_enhet: l.enhet, antall_bruk: (matvarer.find(x => x.id === id)?.antall_bruk ?? 0) + 1 })
-        await Promise.all([...sist].map(([id, l]) => supabase.from('matvarer').update(endring(id, l)).eq('id', id).eq('bruker_id', userId))).catch(() => {})
-        qc.setQueryData<Matvare[]>(QKK.matvarer(userId), (g = []) => g.map(m => sist.has(m.id) ? { ...m, ...endring(m.id, sist.get(m.id)!) } : m))
+        qc.setQueryData<Matvare[]>(QKK.matvarer(userId), (g = []) => g.map(m => {
+          const l = sist.get(m.id)
+          return l ? { ...m, sist_brukt: na, sist_mengde: l.mengde, sist_enhet: l.enhet } : m
+        }))
+        qc.invalidateQueries({ queryKey: QKK.matvarer(userId) })
       }
       if (malId) {
         await Promise.resolve(supabase.from('maltidsmaler').update({ sist_brukt: na }).eq('id', malId).eq('bruker_id', userId)).catch(() => {})
@@ -225,11 +265,13 @@ export function useEndreLogg() {
   return useMutation({
     ...PROV_IGJEN,
     mutationFn: async ({ ny }: { userId: string; gammelDato: string; ny: Logglinje }) => {
+      kreverNett()
       const { id, bruker_id, dato, maltid, mengde, enhet, basis_mengde } = ny
       const { error } = await supabase.from('matlogg').update({ dato, maltid, mengde, enhet, basis_mengde }).eq('id', id).eq('bruker_id', bruker_id)
       kast(error)
     },
     onMutate: async ({ userId, gammelDato, ny }) => {
+      kreverNett()
       const kG = QKK.dag(userId, gammelDato), kN = QKK.dag(userId, ny.dato)
       await qc.cancelQueries({ queryKey: kG }); await qc.cancelQueries({ queryKey: kN })
       const fG = qc.getQueryData<Logglinje[]>(kG), fN = qc.getQueryData<Logglinje[]>(kN)
@@ -247,10 +289,12 @@ export function useSlettLogg() {
   return useMutation({
     ...PROV_IGJEN,
     mutationFn: async ({ linje }: { userId: string; linje: Logglinje }) => {
+      kreverNett()
       const { error } = await supabase.from('matlogg').delete().eq('id', linje.id).eq('bruker_id', linje.bruker_id)
       kast(error)
     },
     onMutate: async ({ userId, linje }) => {
+      kreverNett()
       const k = QKK.dag(userId, linje.dato)
       await qc.cancelQueries({ queryKey: k })
       const forrige = qc.getQueryData<Logglinje[]>(k)
@@ -270,21 +314,20 @@ export function useLagreMatvare() {
   return useMutation({
     ...PROV_IGJEN,
     mutationFn: async ({ userId, id, data, ny }: { userId: string; id: string; data: Matvaredata; ny: boolean }): Promise<Matvare> => {
-      if (ny) {
-        const { error } = await supabase.from('matvarer').upsert({ id, bruker_id: userId, ...data }, { onConflict: 'id', ignoreDuplicates: true })
-        // Strekkoden finnes allerede hos brukeren: bruk den lagrede matvaren i stedet for å lage en kopi
-        if (error && /matvarer_bruker_strekkode_key|duplicate key/i.test(error.message) && data.strekkode) {
-          const { data: eks, error: e2 } = await supabase.from('matvarer').select('*').eq('bruker_id', userId).eq('strekkode', data.strekkode).single()
-          kast(e2)
-          return tilMatvare(eks)
-        }
-        kast(error)
-      } else {
-        const { error } = await supabase.from('matvarer').update(data).eq('id', id).eq('bruker_id', userId)
-        kast(error)
+      kreverNett()
+      const { error } = ny
+        ? await supabase.from('matvarer').upsert({ id, bruker_id: userId, ...data }, { onConflict: 'id', ignoreDuplicates: true })
+        : await supabase.from('matvarer').update(data).eq('id', id).eq('bruker_id', userId)
+      // Strekkoden finnes allerede hos brukeren: ikke lag kopi, og ikke forkast det brukeren skrev
+      // uten å si fra – skjemaet spør om den lagrede varen skal brukes.
+      if (error && /matvarer_bruker_strekkode_key|duplicate key/i.test(error.message) && data.strekkode) {
+        const { data: eks, error: e2 } = await supabase.from('matvarer').select('*').eq('bruker_id', userId).eq('strekkode', data.strekkode).maybeSingle()
+        kast(e2)
+        if (eks) throw new StrekkodeFinnesFeil(tilMatvare(eks))
       }
-      const { data: rad, error } = await supabase.from('matvarer').select('*').eq('id', id).eq('bruker_id', userId).single()
       kast(error)
+      const { data: rad, error: lesFeil } = await supabase.from('matvarer').select('*').eq('id', id).eq('bruker_id', userId).single()
+      kast(lesFeil)
       return tilMatvare(rad)
     },
     onSuccess: (m, { userId }) => {
@@ -297,7 +340,9 @@ export function useLagreMatvare() {
 export function useFavoritt() {
   const qc = useQueryClient()
   return useMutation({
+    ...SKRIV,
     mutationFn: async ({ userId, id, favoritt }: { userId: string; id: string; favoritt: boolean }) => {
+      kreverNett()
       const { error } = await supabase.from('matvarer').update({ favoritt }).eq('id', id).eq('bruker_id', userId)
       kast(error)
     },
@@ -315,7 +360,9 @@ export function useFavoritt() {
 export function useSlettMatvare() {
   const qc = useQueryClient()
   return useMutation({
+    ...SKRIV,
     mutationFn: async ({ userId, id }: { userId: string; id: string }) => {
+      kreverNett()
       const { error } = await supabase.from('matvarer').delete().eq('id', id).eq('bruker_id', userId)
       kast(error)
     },
@@ -337,6 +384,7 @@ export function useLagreMaltidsmal() {
   return useMutation({
     ...PROV_IGJEN,
     mutationFn: async ({ userId, mal }: { userId: string; mal: Pick<Maltidsmal, 'id' | 'navn' | 'maltid' | 'linjer'>; ny: boolean }) => {
+      kreverNett()
       const rad = { id: mal.id, bruker_id: userId, navn: mal.navn.trim(), maltid: mal.maltid, linjer: mal.linjer }
       const { error } = await supabase.from('maltidsmaler').upsert(rad, { onConflict: 'id' })
       kast(error)
@@ -348,7 +396,9 @@ export function useLagreMaltidsmal() {
 export function useSlettMaltidsmal() {
   const qc = useQueryClient()
   return useMutation({
+    ...SKRIV,
     mutationFn: async ({ userId, id }: { userId: string; id: string }) => {
+      kreverNett()
       const { error } = await supabase.from('maltidsmaler').delete().eq('id', id).eq('bruker_id', userId)
       kast(error)
     },
@@ -373,12 +423,16 @@ export function useLagreErnaeringsmal() {
       /** Grunnlag som hører hjemme i profilen (vekt, høyde, fødselsår, målvekt) */
       profil?: { vekt?: number; hoyde?: number; fodselsar?: number; onsket_vekt?: number | null }
     }) => {
-      if (profil && Object.keys(profil).length) {
-        const { error } = await supabase.from('profiler').update(profil).eq('id', userId)
-        if (error) throw new Error(error.message)
-      }
+      kreverNett()
+      // Målene først – de er det brukeren ba om å lagre. Profilen (vekt, høyde …) oppdateres etterpå;
+      // feiler det, er målene likevel lagret, og brukeren får beskjed om at profilen ikke ble endret.
       const { error } = await supabase.from('ernaeringsmal').upsert({ bruker_id: userId, ...mal }, { onConflict: 'bruker_id' })
       kast(error)
+      if (profil && Object.keys(profil).length) {
+        const { error: pFeil } = await supabase.from('profiler').update(profil).eq('id', userId)
+        if (pFeil) return { profilOppdatert: false }
+      }
+      return { profilOppdatert: true }
     },
     onSuccess: (_d, { userId, mal }) => {
       qc.setQueryData(QKK.mal(userId), { bruker_id: userId, ...mal })

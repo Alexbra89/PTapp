@@ -21,6 +21,7 @@ import MatvareSkjema from '@/components/kosthold/MatvareSkjema'
 import Ark from '@/components/kosthold/Ark'
 import Melding from '@/components/kosthold/Melding'
 import { useVarsel, Varsel } from '@/components/kosthold/Varsel'
+import { useSperre } from '@/hooks/useSperre'
 
 type Utkastlinje = { matvare_id: string; mengde: string; enhet: Enhet }
 
@@ -134,6 +135,7 @@ function Matvarer() {
   const logg = useLoggMat()
   const slettLogg = useSlettLogg()
   const { varsel, vis, skjul } = useVarsel()
+  const sperre = useSperre()
 
   const [q, setQ] = useState('')
   const [bareFav, setBareFav] = useState(false)
@@ -147,9 +149,11 @@ function Matvarer() {
     if (!uid) return
     const r = linjerFraMal(m, matvarer, { brukerId: uid, dato: lokalDato(), maltid: m.maltid ?? standardMaltid() })
     if (r.feil) { vis({ tekst: r.feil, feil: true }); return }
-    const send = () => logg.mutate({ userId: uid, linjer: r.linjer, malId: m.id }, { onError: e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }) })
+    const send = () => sperre.kjor(`mal:${m.id}`, () => logg.mutateAsync({ userId: uid, linjer: r.linjer, malId: m.id }))?.then(
+      () => vis({ tekst: `«${m.navn}» registrert i dag`, handling: { tekst: 'Angre', gjor: () => r.linjer.forEach(l => slettLogg.mutate({ userId: uid, linje: l })) } }),
+      e => vis({ tekst: feilTekst(e), feil: true, handling: { tekst: 'Prøv igjen', gjor: send } }),
+    )
     send()
-    vis({ tekst: `«${m.navn}» registrert i dag`, handling: { tekst: 'Angre', gjor: () => r.linjer.forEach(l => slettLogg.mutate({ userId: uid, linje: l })) } })
   }
 
   return (
@@ -220,7 +224,7 @@ function Matvarer() {
                       <div className="ko-rad-meta">{m.linjer.slice(0, 4).map(l => { const mv = matvarer.find(x => x.id === l.matvare_id); return mv ? `${mv.navn} ${mengdeTekst(Number(l.mengde), l.enhet)}` : null }).filter(Boolean).join(' · ')}</div>
                     </button>
                     <div className="ko-rad-hoyre">
-                      <button className="ko-igjen-knapp" onClick={() => registrerMal(m)}><Repeat size={13} /> I dag</button>
+                      <button className="ko-igjen-knapp" onClick={() => registrerMal(m)} disabled={sperre.laast(`mal:${m.id}`)}><Repeat size={13} /> I dag</button>
                       <button className="ko-ikonknapp fare" onClick={() => uid && slettMal.mutate({ userId: uid, id: m.id }, { onSuccess: () => vis({ tekst: `«${m.navn}» er slettet` }), onError: e => vis({ tekst: feilTekst(e), feil: true }) })} aria-label={`Slett ${m.navn}`}><Trash2 size={16} strokeWidth={1.4} /></button>
                     </div>
                   </div>
@@ -244,8 +248,9 @@ function Matvarer() {
             <div className="ko-ark-knapper">
               <button className="btn btn-ghost" onClick={() => setSletter(null)}>Avbryt</button>
               <button className="btn konto-slett" onClick={() => {
-                slettMatvare.mutate({ userId: uid, id: sletter.id }, { onError: e => vis({ tekst: feilTekst(e), feil: true }) })
-                vis({ tekst: `${sletter.navn} er slettet` }); setSletter(null)
+                const navn = sletter.navn
+                slettMatvare.mutate({ userId: uid, id: sletter.id }, { onSuccess: () => vis({ tekst: `${navn} er slettet` }), onError: e => vis({ tekst: feilTekst(e), feil: true }) })
+                setSletter(null)
               }} data-testid="bekreft-slett">Slett</button>
             </div>
           </Ark>

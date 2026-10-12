@@ -64,6 +64,12 @@ export async function middleware(request: NextRequest) {
     )
   }
 
+  // API-ruter svarer med 401 (JSON) – en omdirigering til innloggingssiden ville sett ut som et
+  // vanlig svar for fetch, og «du er logget ut» ble vist som «fant ikke varen».
+  if (!user && cleanPath.startsWith('/api/')) {
+    return NextResponse.json({ feil: 'Ikke innlogget' }, { status: 401, headers: { 'Cache-Control': 'private, no-store' } })
+  }
+
   if (!user && !isPublicRoute) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('from', cleanPath)

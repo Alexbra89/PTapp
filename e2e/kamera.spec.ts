@@ -77,3 +77,53 @@ test('kameraet stoppes med «Stopp kamera» og når brukeren går fra siden', as
   await page.waitForURL('**/kosthold')
   await expect.poll(async () => (await sporStatus(page)).every((s: string) => s === 'ended')).toBe(true)
 })
+
+// Hindrer at koden leses, slik at kameraet står på til testen avbryter det
+const ingenLesing = () => {
+  const ekte = HTMLCanvasElement.prototype.getContext
+  ;(window as any).BarcodeDetector = undefined
+  HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...a: any[]) {
+    const ctx = (ekte as any).apply(this, a)
+    if (ctx && a[0] === '2d') { const tegn = ctx.drawImage.bind(ctx); ctx.drawImage = (...b: any[]) => (b[0] instanceof HTMLVideoElement ? undefined : tegn(...b)) }
+    return ctx
+  } as any
+}
+
+test('F4: kameraet tas av systemet («ended») – tydelig melding og omstart', async ({ page, context }) => {
+  await loggInn(context)
+  await falskSupabase(context, kostholdDb().handler)
+  await page.addInitScript(spion)
+  await page.addInitScript(ingenLesing)
+  await page.goto('/kosthold/legg-til?metode=strekkode')
+  await expect(page.locator('.ko-kamera[data-tilstand="skanner"]')).toBeVisible({ timeout: 15_000 })
+  // Slik ser det ut når iOS/Android tar kameraet (samtale, Siri, en annen app)
+  await page.evaluate(() => (window as any).__spor.filter((t: MediaStreamTrack) => t.kind === 'video').forEach((t: MediaStreamTrack) => t.dispatchEvent(new Event('ended'))))
+  await expect(page.locator('.ko-kamera[data-tilstand="feil"]')).toContainText('Kameraet ble avbrutt')
+  expect((await sporStatus(page)).every((s: string) => s === 'ended')).toBe(true) // sluppet
+  await page.getByTestId('kamera-prov-igjen').click()
+  await expect(page.locator('.ko-kamera[data-tilstand="skanner"]')).toBeVisible({ timeout: 15_000 })
+  expect(await sporStatus(page)).toContain('live')
+})
+
+test('F4: varig demping («mute») stopper skanneren, kort demping gjør det ikke', async ({ page, context }) => {
+  await loggInn(context)
+  await falskSupabase(context, kostholdDb().handler)
+  await page.addInitScript(spion)
+  await page.addInitScript(ingenLesing)
+  await page.goto('/kosthold/legg-til?metode=strekkode')
+  await expect(page.locator('.ko-kamera[data-tilstand="skanner"]')).toBeVisible({ timeout: 15_000 })
+  const demp = (pa: boolean, hendelse: 'mute' | 'unmute') => page.evaluate(([pa, hendelse]) => {
+    for (const t of (window as any).__spor as MediaStreamTrack[]) {
+      if (t.kind !== 'video' || t.readyState !== 'live') continue
+      Object.defineProperty(t, 'muted', { configurable: true, get: () => pa })
+      t.dispatchEvent(new Event(hendelse as string))
+    }
+  }, [pa, hendelse] as const)
+  // Kort avbrudd (f.eks. et varsel) – skanneren fortsetter
+  await demp(true, 'mute'); await page.waitForTimeout(800); await demp(false, 'unmute')
+  await page.waitForTimeout(2500)
+  await expect(page.locator('.ko-kamera[data-tilstand="skanner"]')).toBeVisible()
+  // Varig avbrudd – stoppes med melding
+  await demp(true, 'mute')
+  await expect(page.locator('.ko-kamera[data-tilstand="feil"]')).toContainText('Kameraet ble avbrutt', { timeout: 6000 })
+})

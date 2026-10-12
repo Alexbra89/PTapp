@@ -1,7 +1,7 @@
 -- Kostholdsmodulen: matvarer, dagbok (matlogg), måltidsmaler og personlige ernæringsmål.
 --
--- • Bare tillegg: nye tabeller, regler og indekser. Endrer ingen eksisterende tabeller eller data.
---   Kan kjøres flere ganger.
+-- • Bare tillegg: nye tabeller, regler, indekser og triggere. Endrer ingen eksisterende tabeller eller
+--   data. Kan kjøres flere ganger.
 -- • Hver rad eies av bruker_id. RLS gir hver bruker tilgang til bare sine egne rader – samme mønster
 --   som vektlogg/treningsprogrammer. Ingen deling: kosthold vises ikke for de du deler trening med.
 -- • Kontroller i databasen stopper negative mengder, urimelige næringsverdier og makromål som
@@ -10,7 +10,49 @@
 --   Innsetting skjer med «on conflict do nothing», så et nytt forsøk lager aldri en kopi.
 -- • Sletting av kontoen: alle tabellene har fremmednøkkel til auth.users med «on delete cascade».
 --
+-- • Transaksjon: alt eller ingenting. Feiler noe, rulles alt tilbake og databasen er som før.
+-- • Forhåndskontroll: finnes en tabell med samme navn fra før, men med en annen struktur (f.eks. fra et
+--   tidligere eksperiment), stopper migrasjonen med en tydelig feil før noe endres – den legger aldri
+--   regler eller rettigheter på en fremmed tabell.
+--
 -- Testet mot PostgreSQL 16 med Supabase-lignende roller: scripts/test-rls.mjs (npm run test:rls).
+--
+-- Kontroller gjerne først (skal gi 0 rader i en database som ikke har kjørt denne migrasjonen):
+--   select tablename from pg_tables where schemaname = 'public'
+--     and tablename in ('matvarer', 'matlogg', 'maltidsmaler', 'ernaeringsmal');
+
+begin;
+
+-- Vent ikke i det uendelige på låser hvis databasen er opptatt – feil heller, så kan den kjøres igjen
+set local lock_timeout = '10s';
+
+-- ── Forhåndskontroll ────────────────────────────────────────────────────────
+do $$
+declare
+  forventet constant jsonb := '{
+    "matvarer": ["id","bruker_id","navn","merke","strekkode","kilde","basis","kcal","kj","protein","karbohydrater","fett","sukker","mettet_fett","fiber","salt","porsjon_navn","porsjon_mengde","porsjon_enhet","stk_vekt","tetthet","favoritt","antall_bruk","sist_brukt","sist_mengde","sist_enhet","opprettet","oppdatert"],
+    "matlogg": ["id","bruker_id","dato","maltid","matvare_id","navn","merke","basis","mengde","enhet","basis_mengde","kcal_100","protein_100","karbohydrater_100","fett_100","sukker_100","mettet_fett_100","fiber_100","salt_100","opprettet","oppdatert"],
+    "maltidsmaler": ["id","bruker_id","navn","maltid","linjer","sist_brukt","opprettet","oppdatert"],
+    "ernaeringsmal": ["bruker_id","beregningsgrunnlag","aktivitetsniva","retning","tempo","vedlikehold_kcal","kcal","protein","karbohydrater","fett","overstyrt","opprettet","oppdatert"]
+  }';
+  t text;
+  mangler text[];
+begin
+  if to_regclass('auth.users') is null or to_regprocedure('auth.uid()') is null then
+    raise exception 'Fant ikke Supabase-innloggingen (auth.users / auth.uid()). Avbryter – ingenting er endret.';
+  end if;
+  for t in select jsonb_object_keys(forventet) loop
+    if to_regclass('public.' || t) is not null then
+      select array_agg(k) into mangler
+        from jsonb_array_elements_text(forventet -> t) as k
+       where not exists (select 1 from information_schema.columns c
+                          where c.table_schema = 'public' and c.table_name = t and c.column_name = k);
+      if mangler is not null then
+        raise exception 'Tabellen public.% finnes allerede, men mangler kolonnene %. Den er trolig ikke laget av denne migrasjonen. Avbryter – ingenting er endret.', t, mangler;
+      end if;
+    end if;
+  end loop;
+end $$;
 
 -- ── Felles: oppdatert-tidsstempel ───────────────────────────────────────────
 create or replace function public.kost_sett_oppdatert()
@@ -107,10 +149,35 @@ create table if not exists public.matlogg (
 );
 
 create index if not exists matlogg_bruker_dato_idx on public.matlogg (bruker_id, dato);
+-- Sletting av en matvare setter matvare_id til null i dagboken; uten indeks måtte hele tabellen leses
+create index if not exists matlogg_matvare_idx on public.matlogg (matvare_id) where matvare_id is not null;
 
 drop trigger if exists matlogg_oppdatert on public.matlogg;
 create trigger matlogg_oppdatert before update on public.matlogg
   for each row execute function public.kost_sett_oppdatert();
+
+-- «Nylig brukt», antall og sist brukte mengde oppdateres her, i samme transaksjon som registreringen.
+-- Atomisk (ingen tapte tellinger fra flere enheter), og bare for rader som faktisk settes inn – et nytt
+-- forsøk med samme id («on conflict do nothing») teller ikke dobbelt. Kjøres med brukerens egne
+-- rettigheter (RLS gjelder), og bare på brukerens egen matvare.
+create or replace function public.kost_registrer_bruk()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.matvare_id is not null then
+    update public.matvarer
+       set antall_bruk = antall_bruk + 1, sist_brukt = now(), sist_mengde = new.mengde, sist_enhet = new.enhet
+     where id = new.matvare_id and bruker_id = new.bruker_id;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists matlogg_bruk on public.matlogg;
+create trigger matlogg_bruk after insert on public.matlogg
+  for each row execute function public.kost_registrer_bruk();
 
 -- ── Måltidsmaler («Min faste frokost») ──────────────────────────────────────
 -- Linjene lagres i samme rad (jsonb), så en mal alltid lagres helt eller ikke i det hele tatt.
@@ -188,6 +255,13 @@ grant select, insert, update, delete on public.matvarer, public.matlogg, public.
 -- Samme opprydding som docs/migrasjoner/opprydding.sql: TRUNCATE går utenom RLS
 revoke truncate, trigger, references on public.matvarer, public.matlogg, public.maltidsmaler, public.ernaeringsmal from authenticated;
 
+-- Hjelpefunksjonene skal ikke kunne kalles direkte. Triggerfunksjonene trenger ingen rettighet for å
+-- kjøre som trigger; valideringsfunksjonen brukes i en kontroll og må kunne kjøres av innloggede.
+revoke all on function public.kost_sett_oppdatert() from public, anon, authenticated;
+revoke all on function public.kost_registrer_bruk() from public, anon, authenticated;
+revoke all on function public.kost_gyldige_linjer(jsonb) from public, anon;
+grant execute on function public.kost_gyldige_linjer(jsonb) to authenticated;
+
 do $$
 declare t text;
 begin
@@ -231,3 +305,5 @@ create policy "ernaeringsmal: endre egne" on public.ernaeringsmal for update to 
   using ((select auth.uid()) = bruker_id) with check ((select auth.uid()) = bruker_id);
 
 notify pgrst, 'reload schema';
+
+commit;

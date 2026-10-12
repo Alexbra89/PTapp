@@ -49,7 +49,26 @@ try {
     console.log(`▶ ${f}`)
     psql(path.join(rot, 'tests/rls', f))
   }
+
+  // Forhåndskontrollen (F5): en fremmed tabell med samme navn skal stoppe migrasjonen før noe endres,
+  // og transaksjonen skal rulle tilbake alt.
+  console.log('▶ migrasjon mot database med kolliderende tabell')
+  const sql = (db, kommando) => kjor('psql', ['-h', dir, '-p', port, '-U', 'postgres', '-d', db, '-q', '-o', '/dev/null', '-v', 'ON_ERROR_STOP=1', '-c', kommando], { stille: true })
+  sql('postgres', 'create database kollisjon')
+  kjor('psql', ['-h', dir, '-p', port, '-U', 'postgres', '-d', 'kollisjon', '-q', '-o', '/dev/null', '-v', 'ON_ERROR_STOP=1', '-f', path.join(rot, 'tests/rls/supabase-stub.sql')], { stille: true })
+  sql('kollisjon', "create table public.matlogg (id int primary key, tekst text); insert into public.matlogg values (1, 'eksisterende data')")
+  let feilet = false, melding = ''
+  try {
+    kjor('psql', ['-h', dir, '-p', port, '-U', 'postgres', '-d', 'kollisjon', '-q', '-o', '/dev/null', '-v', 'ON_ERROR_STOP=1', '-f', path.join(rot, 'docs/migrasjoner/kosthold.sql')], { stille: true })
+  } catch (e) { feilet = true; melding = String(e.stderr ?? '') }
+  if (!feilet) throw new Error('Migrasjonen skulle stoppet på den kolliderende tabellen')
+  if (!/finnes allerede, men mangler kolonnene/.test(melding)) throw new Error(`Uventet feilmelding: ${melding}`)
+  const rest = kjor('psql', ['-h', dir, '-p', port, '-U', 'postgres', '-d', 'kollisjon', '-At', '-c',
+    "select coalesce(to_regclass('public.matvarer')::text, '-') || '|' || (select count(*) from public.matlogg) || '|' || (select relrowsecurity from pg_class where oid = 'public.matlogg'::regclass) || '|' || (select count(*) from pg_policies where tablename = 'matlogg')"], { stille: true }).trim()
+  if (rest !== '-|1|false|0') throw new Error(`Migrasjonen endret noe før den stoppet: ${rest}`)
+  console.log('  stoppet med tydelig feil, ingenting endret (fremmed tabell, data, RLS og regler urørt)')
 } catch (e) {
+  console.error(String(e?.stderr || e?.message || e).slice(0, 800))
   console.error('\nRLS-testene feilet.')
   process.exitCode = 1
 } finally {

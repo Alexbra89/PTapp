@@ -44,6 +44,20 @@ insert into ernaeringsmal (bruker_id, kcal, protein, karbohydrater, fett) values
 select forvent((select count(*) from matvarer) = 1, 'A ser sin egen matvare');
 select forvent((select count(*) from matlogg) = 1, 'A ser sin egen dagbok');
 
+-- F10: bruksstatistikk oppdateres av databasen ved innsetting – og ikke dobbelt ved nytt forsøk
+select forvent((select antall_bruk = 1 and sist_mengde = 60 and sist_enhet = 'g' and sist_brukt is not null from matvarer where id = 'aaaaaaaa-0000-4000-8000-000000000001'), 'innsetting oppdaterer antall og sist brukte mengde');
+insert into matlogg (id, bruker_id, dato, maltid, matvare_id, navn, basis, mengde, enhet, basis_mengde, kcal_100)
+values ('aaaaaaaa-0000-4000-8000-000000000002', :'A', '2026-10-12', 'frokost', 'aaaaaaaa-0000-4000-8000-000000000001', 'Havregryn', '100g', 60, 'g', 60, 370)
+on conflict (id) do nothing;
+select forvent((select antall_bruk from matvarer where id = 'aaaaaaaa-0000-4000-8000-000000000001') = 1, 'nytt forsøk med samme id teller ikke dobbelt');
+insert into matlogg (id, bruker_id, dato, maltid, matvare_id, navn, basis, mengde, enhet, basis_mengde, kcal_100)
+values ('aaaaaaaa-0000-4000-8000-000000000008', :'A', '2026-10-12', 'lunsj', 'aaaaaaaa-0000-4000-8000-000000000001', 'Havregryn', '100g', 1.5, 'porsjon', 60, 370);
+select forvent((select antall_bruk = 2 and sist_mengde = 1.5 and sist_enhet = 'porsjon' from matvarer where id = 'aaaaaaaa-0000-4000-8000-000000000001'), 'ny registrering teller');
+delete from matlogg where id = 'aaaaaaaa-0000-4000-8000-000000000008';
+-- F14: hjelpefunksjonene kan ikke kalles direkte
+select forvent_feil('select public.kost_registrer_bruk()', '42501', 'kalle triggerfunksjon direkte');
+select forvent_feil('select public.kost_sett_oppdatert()', '42501', 'kalle oppdatert-funksjon direkte');
+
 -- bruker_id fylles inn fra innloggingen når den ikke sendes
 insert into matvarer (id, navn, kcal) values ('aaaaaaaa-0000-4000-8000-000000000004', 'Uten eier oppgitt', 100);
 select forvent((select bruker_id from matvarer where id = 'aaaaaaaa-0000-4000-8000-000000000004') = :'A', 'standard eier er innlogget bruker');
@@ -127,6 +141,7 @@ select set_config('request.jwt.claim.sub', '', false);
 set role anon;
 select forvent_feil('select * from matvarer', '42501', 'anonym leser matvarer');
 select forvent_feil('select * from matlogg', '42501', 'anonym leser dagbok');
+select forvent_feil($$select public.kost_gyldige_linjer('[]')$$, '42501', 'anonym kjører valideringsfunksjon');
 select forvent_feil($$insert into matlogg (dato, maltid, navn, basis, mengde, enhet, basis_mengde, kcal_100) values ('2026-10-12','lunsj','X','100g',1,'g',1,1)$$, '42501', 'anonym skriver dagbok');
 
 -- ── A sine data er urørt ───────────────────────────────────────────────────
@@ -158,5 +173,7 @@ select forvent((select count(*) from matvarer where bruker_id = :'B') = 1, 'B si
 select forvent((select bool_and(relrowsecurity) from pg_class where relname in ('matvarer', 'matlogg', 'maltidsmaler', 'ernaeringsmal') and relnamespace = 'public'::regnamespace), 'RLS er på');
 select forvent(not exists (select 1 from pg_policies where tablename in ('matvarer', 'matlogg', 'maltidsmaler', 'ernaeringsmal') and 'anon' = any (roles)), 'ingen regler for anon');
 select forvent((select count(*) from pg_policies where tablename in ('matvarer', 'matlogg', 'maltidsmaler', 'ernaeringsmal')) = 16, 'fire regler per tabell');
+select forvent(to_regclass('public.matlogg_matvare_idx') is not null, 'indeks på matlogg.matvare_id (F11)');
+select forvent(exists (select 1 from pg_trigger where tgname = 'matlogg_bruk' and tgrelid = 'public.matlogg'::regclass), 'trigger for bruksstatistikk');
 
 \echo 'Alle RLS- og valideringstester for kosthold besto.'
