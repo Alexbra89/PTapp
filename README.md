@@ -38,6 +38,8 @@ SQL for Supabase ligger i `docs/migrasjoner/`. Tilgangsregler og hvordan de test
 
 Kostholdsmodulen (`/kosthold`) krever `docs/migrasjoner/kosthold.sql` (bare nye tabeller – endrer ingenting eksisterende). Uten den viser appen en beskjed, og treningsdelen virker som før.
 
+Vanntelleren i dagboken krever `docs/migrasjoner/vann.sql` (én ny tabell og funksjonen `vann_sett`). Uten den viser telleren en beskjed; resten av kostholdsmodulen virker som før. Testes med `npm run test:rls`.
+
 Matscanner: strekkoder slås opp i Open Food Facts via `app/api/mat/*` (ingen nøkkel, gratis). Etikettbilder leses på enheten med Tesseract; motoren kopieres fra `node_modules` til `public/ocr` før `dev`/`build` (`scripts/kopier-ocr.mjs`).
 
 ## Learn More

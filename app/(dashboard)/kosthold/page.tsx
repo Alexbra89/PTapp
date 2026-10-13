@@ -18,6 +18,7 @@ import { linjerFraMal, nyId, type Maltidsmal } from '@/lib/kosthold/linje'
 import { lokalDato, tilDato } from '@/lib/dato'
 import KostHode, { Datafeil } from '@/components/kosthold/KostHode'
 import Sammendrag from '@/components/kosthold/Sammendrag'
+import Vannteller from '@/components/kosthold/Vannteller'
 import MengdeArk from '@/components/kosthold/MengdeArk'
 import Ark from '@/components/kosthold/Ark'
 import Melding from '@/components/kosthold/Melding'
@@ -186,6 +187,8 @@ function Dagbok() {
           })}
         </section>
       ))}
+
+      <Vannteller userId={uid} dato={dato} />
 
       <section className="glass-card" style={{ padding: '1.5rem' }}>
         <div className="hq-section-head" style={{ marginBottom: 0 }}>
