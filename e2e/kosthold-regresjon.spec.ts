@@ -360,3 +360,44 @@ test('#4: å flytte en gammel porsjon til et annet måltid endrer ikke kaloriene
   await expect.poll(() => kost.db.matlogg[0].maltid).toBe('lunsj')
   expect(kost.db.matlogg[0].basis_mengde).toBe(40)
 })
+
+// iPhone-test: etter skanning eller registrering kunne siden ikke lenger scrolles før appen ble startet
+// på nytt. Arket «Kontroller varen» lukkes og «Velg mengde» åpnes i samme øyeblikk; mens det første
+// animeres ut, husket det andre «låst» som forrige tilstand og låste siden igjen da det ble lukket.
+const rullerbar = (page: Page) => page.evaluate(() => getComputedStyle(document.body).overflow !== 'hidden')
+
+test('scroll: siden kan scrolles igjen etter skanning og registrering (to ark etter hverandre)', async ({ page }) => {
+  const kost = await oppsett(page)
+  await page.goto('/kosthold/legg-til?metode=strekkode&maltid=frokost')
+  await page.getByRole('button', { name: 'Skriv inn kode' }).first().click()
+  await page.getByTestId('strekkode-input').fill('7038010009457')
+  await page.getByRole('button', { name: 'Slå opp' }).click()
+  const ark = page.getByRole('dialog', { name: 'Kontroller varen' })
+  await ark.getByTestId('lagre-matvare').click()
+  const mengde = page.getByRole('dialog', { name: 'Lettmelk 1 %' })
+  await mengde.getByRole('radio', { name: 'ml' }).click()
+  await mengde.getByTestId('mengde').fill('300')
+  await mengde.getByTestId('lagre-mengde').click()
+  await expect(page.getByRole('status').filter({ hasText: 'Lagt til i frokost' })).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect.poll(() => kost.db.matlogg.length).toBe(1)
+  await expect.poll(() => rullerbar(page)).toBe(true)
+  // … også etter at brukeren går til en annen side i appen
+  await page.getByRole('link', { name: 'Til dagboken' }).click()
+  await expect(page).toHaveURL(/\/kosthold(\?|$)/)
+  expect(await rullerbar(page)).toBe(true)
+})
+
+test('scroll: lukket ark uten lagring gir også scrollbar side', async ({ page }) => {
+  await oppsett(page)
+  await page.goto('/kosthold/legg-til?metode=strekkode&maltid=frokost')
+  await page.getByRole('button', { name: 'Skriv inn kode' }).first().click()
+  await page.getByTestId('strekkode-input').fill('7038010009457')
+  await page.getByRole('button', { name: 'Slå opp' }).click()
+  const ark = page.getByRole('dialog', { name: 'Kontroller varen' })
+  await expect(ark).toBeVisible()
+  expect(await rullerbar(page)).toBe(false) // låst mens arket er åpent
+  await ark.getByRole('button', { name: 'Lukk' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect.poll(() => rullerbar(page)).toBe(true)
+})

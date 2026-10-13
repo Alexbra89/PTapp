@@ -11,6 +11,7 @@ import {
 } from '@/data/ovelsesbibliotek'
 import { Muskelkart, MuskelkartMini } from '@/components/atelier/Muskelkart'
 import { UtstyrIkon } from '@/components/atelier/UtstyrIkon'
+import { useRullelaas } from '@/hooks/useRullelaas'
 
 const KATEGORIER = ['alle', 'bryst', 'rygg', 'bein', 'skuldre', 'bicep', 'tricep', 'core', 'cardio', 'fullkropp', 'tabata', 'styrkeløft']
 const STEDER = [['alle', 'Alle'], ['gym', 'Gym'], ['hjemme', 'Hjemme']] as const
@@ -74,12 +75,11 @@ function Detaljark({ o, onLukk }: { o: Ovelse; onLukk: () => void }) {
   const m = muskler(o)
   const u = utstyrType(o)
 
+  useRullelaas()
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onLukk() }
     window.addEventListener('keydown', esc)
-    const forrige = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', esc); document.body.style.overflow = forrige }
+    return () => window.removeEventListener('keydown', esc)
   }, [onLukk])
 
   // Portal til <body>: sidens inngangsanimasjon etterlater en transform, som ellers

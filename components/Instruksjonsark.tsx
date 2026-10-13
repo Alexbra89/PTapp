@@ -7,6 +7,7 @@ import { X } from 'lucide-react'
 import { finnOvelseNavn, muskler, utstyrType, MUSKELNAVN, UTSTYRNAVN } from '@/data/ovelsesbibliotek'
 import { Muskelkart } from '@/components/atelier/Muskelkart'
 import { UtstyrIkon } from '@/components/atelier/UtstyrIkon'
+import { useRullelaas } from '@/hooks/useRullelaas'
 
 interface Props {
   navn: string
@@ -24,12 +25,11 @@ export default function Instruksjonsark({ navn, beskrivelse, tips, onLukk }: Pro
   const tipsListe = o?.tips.length ? o.tips : tips && tips !== '–' ? [tips] : []
   const besk = o?.beskrivelse || beskrivelse
 
+  useRullelaas()
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onLukk() }
     window.addEventListener('keydown', esc)
-    const forrige = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', esc); document.body.style.overflow = forrige }
+    return () => window.removeEventListener('keydown', esc)
   }, [onLukk])
 
   return createPortal(
