@@ -3,6 +3,15 @@ import { headers } from 'next/headers'
 import { Providers } from './providers'
 import './globals.css'
 
+// iOS bruker ikke bakgrunnsfargen i manifestet når appen startes fra hjemskjermen – uten egne
+// oppstartsbilder vises en hvit skjerm til siden er lastet. Ett bilde per skjermstørrelse (stående),
+// mørk bakgrunn med logoen. Laget fra public/icon-512.png. Android lager sin egen fra manifestet.
+const OPPSTART: Array<[number, number, number]> = [
+  [440, 956, 3], [430, 932, 3], [420, 912, 3], [402, 874, 3], [393, 852, 3], [428, 926, 3], [390, 844, 3], [375, 812, 3],
+  [414, 896, 3], [414, 896, 2], [414, 736, 3], [375, 667, 2], [320, 568, 2],
+  [1024, 1366, 2], [834, 1194, 2], [820, 1180, 2], [768, 1024, 2],
+]
+
 export const metadata: Metadata = {
   title: {
     default:  'AB-PT',
@@ -46,6 +55,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* Ikoner */}
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {OPPSTART.map(([b, h, r]) => (
+          <link key={`${b}x${h}@${r}`} rel="apple-touch-startup-image" href={`/splash/${b * r}x${h * r}.png`}
+            media={`(device-width: ${b}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: portrait)`} />
+        ))}
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
@@ -65,7 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           #splash-screen {
             position: fixed;
             inset: 0;
-            background: radial-gradient(900px 500px at 50% 0%, rgba(201,169,110,0.10), transparent 60%), #0B0A09;
+            background: #0B0A09;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -74,29 +87,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             transition: opacity 0.5s ease;
             pointer-events: none;
           }
-          .splash-ring {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            border: 1px solid rgba(242,236,225,0.12);
-            border-top-color: #C9A96E;
-            animation: spin 1.4s cubic-bezier(0.6,0.1,0.4,0.9) infinite;
-          }
-          .splash-title {
-            font-family: 'Instrument Serif', Georgia, serif;
-            font-style: italic;
-            font-size: 2.4rem;
-            letter-spacing: -0.02em;
-            color: #C9A96E;
-            margin-top: 1.6rem;
-          }
-          .splash-sub {
-            font-family: ui-monospace, 'SF Mono', monospace;
-            font-size: 0.6rem;
-            letter-spacing: 0.26em;
-            text-transform: uppercase;
-            color: rgba(242,236,225,0.34);
-            margin-top: 0.6rem;
+          /* Samme logo, størrelse og plassering som oppstartsbildene i public/splash: ingen hopp i overgangen */
+          .splash-logo {
+            width: 46vmin;
+            height: 46vmin;
+            -webkit-mask-image: radial-gradient(circle closest-side, #000 80%, transparent 92%);
+            mask-image: radial-gradient(circle closest-side, #000 80%, transparent 92%);
           }
           @keyframes logoFloat {
             from { transform: translateY(0px); }
@@ -112,9 +108,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body style={{ backgroundColor: '#0B0A09', margin: 0, padding: 0, minHeight: '100vh' }}>
         {/* Splash screen – fjernes når React er klar */}
         <div id="splash-screen">
-          <div className="splash-ring" />
-          <div className="splash-title">AB-PT</div>
-          <div className="splash-sub">Privat treningsklubb</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="splash-logo" src="/icon-512.png" alt="AB-PT" />
         </div>
         
         {/* Script som skjuler splash-screen når siden er klar */}

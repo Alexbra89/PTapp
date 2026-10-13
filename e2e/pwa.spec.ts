@@ -38,3 +38,26 @@ test('skriftene leveres av appen selv – ingen forespørsler til Google', async
   expect(fonter.every(f => f.startsWith('200'))).toBe(true)
   expect(await page.evaluate(() => document.fonts.check("italic 20px 'Instrument Serif'"))).toBe(true)
 })
+
+// iOS viser hvit skjerm ved oppstart fra hjemskjermen hvis ingen apple-touch-startup-image passer
+// skjermen. Hvert bilde må finnes og ha nøyaktig skjermens pikselstørrelse.
+test('oppstartsbilder for iOS finnes for vanlige iPhoner og har riktig størrelse', async ({ page, request }) => {
+  await page.goto('/login')
+  const lenker = await page.locator('link[rel="apple-touch-startup-image"]').evaluateAll(l => l.map(e => ({ href: e.getAttribute('href')!, media: e.getAttribute('media')! })))
+  expect(lenker.length).toBeGreaterThanOrEqual(13)
+  for (const skjerm of ['393px', '402px', '430px', '440px', '390px', '375px']) {
+    expect(lenker.some(l => l.media.includes(`device-width: ${skjerm}`)), skjerm).toBe(true)
+  }
+  for (const { href, media } of lenker) {
+    const svar = await request.get(href)
+    expect(svar.status(), href).toBe(200)
+    const png = await svar.body()
+    const [b, h] = [png.readUInt32BE(16), png.readUInt32BE(20)]
+    const m = media.match(/device-width: (\d+)px\) and \(device-height: (\d+)px\) and \(-webkit-device-pixel-ratio: (\d)/)!
+    expect([b, h], href).toEqual([Number(m[1]) * Number(m[3]), Number(m[2]) * Number(m[3])])
+  }
+})
+
+test('oppstartsbildene lastes ikke ned av service workeren ved installering', () => {
+  expect(sw).not.toContain('/splash/')
+})
