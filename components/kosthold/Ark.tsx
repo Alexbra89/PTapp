@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
+import { useRullelaas } from '@/hooks/useRullelaas'
 
 interface Props {
   tittel: React.ReactNode
@@ -21,19 +22,20 @@ export default function Ark({ tittel, overtittel, onLukk, children, laast }: Pro
   const lukk = useRef(onLukk)
   lukk.current = onLukk
 
+  const laastRef = useRef(laast)
+  laastRef.current = laast
+  useRullelaas()
+
   useEffect(() => {
     const forrigeFokus = document.activeElement as HTMLElement | null
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !laast) lukk.current() }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !laastRef.current) lukk.current() }
     window.addEventListener('keydown', esc)
-    const forrige = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
     ref.current?.focus({ preventScroll: true })
     return () => {
       window.removeEventListener('keydown', esc)
-      document.body.style.overflow = forrige
       forrigeFokus?.focus?.({ preventScroll: true })
     }
-  }, [laast])
+  }, [])
 
   return createPortal(
     <>
