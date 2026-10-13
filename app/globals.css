@@ -1787,6 +1787,16 @@ select.input option { background: var(--bg-raised); color: var(--ink); }
 .ko-pluss:hover { border-color: var(--gold); color: var(--gold-hi); background: rgba(201,169,110,0.06); }
 .ko-tom { font-size: 0.82rem; color: var(--text-muted); padding: 0.65rem 0 0.85rem; border-top: 1px solid var(--line); }
 
+/* Vannteller */
+.ko-vann { padding: 1.25rem 1.4rem; display: flex; flex-direction: column; gap: 0.85rem; }
+@media (max-width: 520px) { .ko-vann { padding: 1.1rem 1rem; } }
+.ko-vann-hode { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.ko-vann-knapper { display: flex; gap: 8px; }
+.ko-pluss:disabled { opacity: 0.35; cursor: default; }
+.ko-vann-glass { display: flex; flex-wrap: wrap; gap: 6px; }
+.ko-vann-glass span { width: 14px; height: 20px; border: 1px solid var(--line-strong); border-radius: 2px 2px 5px 5px; transition: background 0.25s, border-color 0.25s; }
+.ko-vann-glass span.fylt { background: rgba(201,169,110,0.55); border-color: var(--gold); }
+
 /* Rader (dagbok, matvarer, søk) */
 .ko-rad { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 0.7rem 0.15rem; border: none; border-top: 1px solid var(--line); background: none; color: var(--ink); text-align: left; cursor: pointer; text-decoration: none; transition: background 0.2s; }
 .ko-rad:hover { background: var(--bg-hover); }

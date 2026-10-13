@@ -28,8 +28,9 @@ const pwaConfig = withPWA({
   // i en time – byttes ut med «aldri cache». Brukerdata skal ikke ligge igjen på enheten.
   // (De gamle reglene her lå på feil nøkkel og ble ignorert av next-pwa.)
   extendDefaultRuntimeCaching: true,
-  // OCR-motoren (public/ocr, ~10 MB) lastes først når noen fotograferer en etikett – ikke ved installering
-  publicExcludes: ['!noprecache/**/*', '!ocr/**/*'],
+  // OCR-motoren (public/ocr, ~10 MB) lastes først når noen fotograferer en etikett – ikke ved installering.
+  // Oppstartsbildene for iOS (public/splash, ~3 MB) hentes av iOS selv når appen legges på hjemskjermen.
+  publicExcludes: ['!noprecache/**/*', '!ocr/**/*', '!splash/**/*'],
   workboxOptions: {
     runtimeCaching: [
       // Sidenavigasjon: nettverk først, men bare 1 sekund. Er serveren treg (mobilnett som våkner,

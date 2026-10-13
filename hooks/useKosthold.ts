@@ -11,11 +11,13 @@
 //   Allerede lagrede data i cachen røres ikke ved feil.
 // • Alle cache-nøkler inneholder bruker-id, og cachen tømmes ved utlogging (app/providers.tsx).
 
+import { useEffect, useSyncExternalStore } from 'react'
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { format, subDays } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import type { Logglinje, Matvare } from '@/lib/kosthold/naering'
 import type { Maltidsmal } from '@/lib/kosthold/linje'
+import { hentVannko, type Vannstatus, type Vanntilstand } from '@/lib/kosthold/vann'
 
 const supabase = createClient()
 
@@ -26,6 +28,7 @@ export const QKK = {
   matvarer: (u: string) => ['kost', u, 'matvarer'] as const,
   maler:    (u: string) => ['kost', u, 'maler'] as const,
   mal:      (u: string) => ['kost', u, 'mal'] as const,
+  vann:     (u: string, dato: string) => ['kost', u, 'vann', dato] as const,
 }
 
 /** Tabellene finnes ikke ennå (migrasjonen er ikke kjørt). */
@@ -445,3 +448,57 @@ export function useLagreErnaeringsmal() {
     onSettled: (_d, _e, { userId }) => qc.invalidateQueries({ queryKey: QKK.mal(userId) }),
   })
 }
+
+// ── Vann ───────────────────────────────────────────────────────────────────
+
+/** Vann er ikke satt opp i databasen (docs/migrasjoner/vann.sql er ikke kjørt). */
+export class VannIkkeOppsattFeil extends Error {
+  constructor() { super('Vanntelleren er ikke satt opp i databasen ennå (docs/migrasjoner/vann.sql).') }
+}
+
+function kastVann(error: { code?: string; message?: string } | null) {
+  try { kast(error) } catch (e) { throw erIkkeOppsatt(e) ? new VannIkkeOppsattFeil() : e }
+}
+
+/**
+ * Antall glass for en dag. Endringer går gjennom en kø (lib/kosthold/vann.ts): én lagring om gangen,
+ * med versjon, så raske trykk og nye forsøk aldri overskriver et nyere antall. Endringer tillates
+ * først når dagens antall er lastet.
+ */
+export function useVann(userId?: string, dato?: string) {
+  const qc = useQueryClient()
+  const query = useQuery({
+    queryKey: QKK.vann(userId ?? '', dato ?? ''),
+    enabled: !!userId && !!dato,
+    staleTime: 30 * 1000,
+    retry: (n, e) => !(e instanceof VannIkkeOppsattFeil) && n < 2,
+    queryFn: async (): Promise<Vannstatus> => {
+      const { data, error } = await supabase.from('vanninntak').select('glass, versjon')
+        .eq('bruker_id', userId!).eq('dato', dato!).maybeSingle()
+      kastVann(error)
+      return data ? { glass: Number(data.glass), versjon: Number(data.versjon) } : { glass: 0, versjon: 0 }
+    },
+  })
+
+  const ko = userId && dato ? hentVannko(userId, dato, () => async (glass, versjon) => {
+    kreverNett()
+    const { data, error } = await supabase.rpc('vann_sett', { p_dato: dato, p_glass: glass, p_versjon: versjon })
+    kastVann(error)
+    const s = { glass: Number((data as any).glass), versjon: Number((data as any).versjon) }
+    qc.setQueryData<Vannstatus>(QKK.vann(userId, dato), g => (!g || s.versjon >= g.versjon ? s : g))
+    return s
+  }) : null
+
+  useEffect(() => { if (ko && query.data) ko.settLagret(query.data) }, [ko, query.data])
+
+  const tilstand = useSyncExternalStore<Vanntilstand>(
+    ko?.abonner ?? ingenAbonnement,
+    () => ko?.tilstand() ?? INGEN,
+    () => INGEN,
+  )
+  // glass er null til dagens antall er lastet fra databasen – da kan det heller ikke endres
+  return { query, ko, ...tilstand }
+}
+
+const INGEN: Vanntilstand = { glass: null, lagrer: false, feil: null }
+const ingenAbonnement = () => () => {}

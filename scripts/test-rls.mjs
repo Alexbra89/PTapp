@@ -46,6 +46,8 @@ try {
   psql(path.join(rot, 'tests/rls/supabase-stub.sql'))
   psql(path.join(rot, 'docs/migrasjoner/kosthold.sql'))
   psql(path.join(rot, 'docs/migrasjoner/kosthold.sql')) // kan kjøres flere ganger
+  psql(path.join(rot, 'docs/migrasjoner/vann.sql'))
+  psql(path.join(rot, 'docs/migrasjoner/vann.sql')) // kan kjøres flere ganger
   for (const f of readdirSync(path.join(rot, 'tests/rls')).filter(f => f.endsWith('-rls.sql')).sort()) {
     console.log(`▶ ${f}`)
     psql(path.join(rot, 'tests/rls', f))
@@ -57,6 +59,7 @@ try {
   const fil = (db, f) => kjor('psql', ['-h', dir, '-p', port, '-U', 'postgres', '-d', db, '-q', '-o', '/dev/null', '-v', 'ON_ERROR_STOP=1', '-f', f], { stille: true })
   const verdi = (db, kommando) => kjor('psql', ['-h', dir, '-p', port, '-U', 'postgres', '-d', db, '-At', '-c', kommando], { stille: true }).trim()
   const migrasjon = path.join(rot, 'docs/migrasjoner/kosthold.sql')
+  const vannMigrasjon = path.join(rot, 'docs/migrasjoner/vann.sql')
   // Øyeblikksbilde av alt migrasjonen kunne ha rørt: tabeller, RLS, regler (med uttrykk), rettigheter, triggere
   const tilstand = db => verdi(db, `select concat_ws(' | ',
     (select string_agg(c.relname || ':' || c.relrowsecurity, ',' order by c.relname) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'),
@@ -64,7 +67,7 @@ try {
     (select string_agg(table_name || ':' || grantee || ':' || privilege_type, ',' order by table_name, grantee, privilege_type) from information_schema.role_table_grants where table_schema = 'public'),
     (select string_agg(tgname, ',' order by tgname) from pg_trigger where not tgisinternal))`)
   let nr = 0
-  const skalStoppe = (navn, oppsett, melding, ekstra) => {
+  const skalStoppe = (navn, oppsett, melding, ekstra, mig = migrasjon) => {
     console.log(`▶ migrasjon stopper: ${navn}`)
     const db = `kollisjon${++nr}`
     sql('postgres', `create database ${db}`)
@@ -72,7 +75,7 @@ try {
     oppsett(db)
     const for_ = tilstand(db)
     let feilet = false, tekst = ''
-    try { fil(db, migrasjon) } catch (e) { feilet = true; tekst = String(e.stderr ?? '') }
+    try { fil(db, mig) } catch (e) { feilet = true; tekst = String(e.stderr ?? '') }
     if (!feilet) throw new Error(`Migrasjonen skulle stoppet (${navn})`)
     if (!melding.test(tekst)) throw new Error(`Uventet feilmelding (${navn}): ${tekst}`)
     const etter = tilstand(db)
@@ -108,6 +111,15 @@ try {
   }, /matvarer har RLS-regler som ikke kommer fra denne migrasjonen: \{"alle kan lese"\}/, db => {
     if (verdi(db, "select count(*) from pg_policies where tablename = 'matvarer' and policyname = 'alle kan lese'") !== '1') throw new Error('Den fremmede regelen ble fjernet')
   })
+
+  // Vann: samme forhåndskontroll
+  skalStoppe('vann: fremmed tabell med samme navn',
+    db => sql(db, 'create table public.vanninntak (id int primary key, ml int)'),
+    /vanninntak finnes allerede, men har en annen struktur/, undefined, vannMigrasjon)
+  skalStoppe('vann: ekstra permissiv RLS-regel', db => {
+    fil(db, vannMigrasjon)
+    sql(db, 'create policy "alle kan lese" on public.vanninntak for select to authenticated using (true)')
+  }, /vanninntak har RLS-regler som ikke kommer fra denne migrasjonen/, undefined, vannMigrasjon)
 
   // En regel med et av migrasjonens egne navn, men et annet innhold, erstattes (ikke en fremmed regel)
   console.log('▶ migrasjon erstatter endret regel med eget navn')

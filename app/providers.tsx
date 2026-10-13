@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { tomVannkoer } from '@/lib/kosthold/vann'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -37,7 +38,7 @@ useEffect(() => {
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     queryClient.setQueryData(['user'], session?.user ?? null)
-    if (!session) queryClient.clear()
+    if (!session) { queryClient.clear(); tomVannkoer() }
   })
 
   return () => subscription.unsubscribe()
